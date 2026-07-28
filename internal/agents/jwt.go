@@ -35,7 +35,7 @@ func IssueToken(agent Agent, now time.Time) (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token.Header["kid"] = agent.ID
-	return token.SignedString([]byte(agent.SharedSecret))
+	return token.SignedString([]byte(agent.AgentJWTSigningKey))
 }
 
 // VerifyToken validates a signed Proxyma JWT and returns the authenticated agent.
@@ -61,7 +61,7 @@ func VerifyToken(registry Registry, tokenString string, now time.Time) (Agent, e
 			return nil, ErrInvalidToken
 		}
 		selected = agent
-		return []byte(agent.SharedSecret), nil
+		return []byte(agent.AgentJWTSigningKey), nil
 	})
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {

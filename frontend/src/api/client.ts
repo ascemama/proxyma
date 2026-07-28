@@ -51,7 +51,7 @@ export type Agent = {
 export type AgentMutationInput = {
   display_name?: string;
   enabled?: boolean;
-  shared_secret?: string;
+  agent_jwt_signing_key?: string;
   interaction_instance_id?: string;
 };
 

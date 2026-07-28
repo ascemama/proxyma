@@ -15,8 +15,8 @@ function ConvertTo-Base64Url {
 }
 
 $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
-if ([string]::IsNullOrWhiteSpace($config.agent_id) -or [string]::IsNullOrWhiteSpace($config.shared_secret)) {
-    throw "Agent config must include agent_id and shared_secret."
+if ([string]::IsNullOrWhiteSpace($config.agent_id) -or [string]::IsNullOrWhiteSpace($config.agent_jwt_signing_key)) {
+    throw "Agent config must include agent_id and agent_jwt_signing_key."
 }
 
 $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
@@ -35,7 +35,7 @@ $encoding = [Text.Encoding]::UTF8
 $encodedHeader = ConvertTo-Base64Url -Bytes $encoding.GetBytes($header)
 $encodedPayload = ConvertTo-Base64Url -Bytes $encoding.GetBytes($payload)
 $signingInput = "$encodedHeader.$encodedPayload"
-$hmac = [Security.Cryptography.HMACSHA256]::new($encoding.GetBytes($config.shared_secret))
+$hmac = [Security.Cryptography.HMACSHA256]::new($encoding.GetBytes($config.agent_jwt_signing_key))
 $signature = ConvertTo-Base64Url -Bytes $hmac.ComputeHash($encoding.GetBytes($signingInput))
 
 "$signingInput.$signature"

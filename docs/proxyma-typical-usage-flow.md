@@ -64,12 +64,12 @@ flowchart TD
 
     subgraph API["internal/api"]
         A1["Authenticate bearer token"]
-        A2["Decode and validate POST /v1/commands"]
+        A2["Decode and validate POST /v1/agent/commands"]
         A3["Match explicit target selector<br/>Data: hostname/IP only"]
         A7["Authorize agent for target/task"]
         A4["Prepare command context for task creation"]
         A5["Return 202 Accepted"]
-        A6["Serve GET /v1/tasks/{task_id}"]
+        A6["Serve GET /v1/agent/tasks/{task_id}"]
     end
 
     subgraph Transcriptor["internal/transcriptor"]

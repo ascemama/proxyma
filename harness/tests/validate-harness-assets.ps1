@@ -109,7 +109,13 @@ $schemaPaths = @(
 [void](Assert-FileExists -RelativePath "harness/instruction-pack/auth/proxyma-auth.md" -Label "Instruction-pack auth reference")
 [void](Assert-FileExists -RelativePath "harness/instruction-pack/auth/new-proxyma-jwt.ps1" -Label "PowerShell Proxyma JWT script")
 [void](Assert-FileExists -RelativePath "harness/instruction-pack/auth/new-proxyma-jwt.sh" -Label "Bash Proxyma JWT script")
-[void](Assert-FileExists -RelativePath "harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json" -Label "Harness agent config")
+$agentConfigPath = Assert-FileExists -RelativePath "harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json" -Label "Harness agent config"
+if ($null -ne $agentConfigPath) {
+    $agentConfig = Read-JsonFile -Path $agentConfigPath
+    if ($null -ne $agentConfig) {
+        Assert-RequiredProperties -Object $agentConfig -Properties @("agent_id", "agent_jwt_signing_key") -Label "Harness agent config"
+    }
+}
 
 $apiExamplePaths = @(
     "harness/instruction-pack/api-examples/commands.request.json",

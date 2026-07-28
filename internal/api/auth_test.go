@@ -93,7 +93,7 @@ func TestAuthenticationDebugLogsInvalidTokenWithoutLeakingToken(t *testing.T) {
 func TestAuthenticationRejectsWrongSignature(t *testing.T) {
 	server := testServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, testAgent.ID, testAgent.ID, "wrong-secret", jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
+	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, testAgent.ID, testAgent.ID, "wrong-signing-key", jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	assertAuthError(t, rec, http.StatusUnauthorized, "invalid_token")
@@ -102,7 +102,7 @@ func TestAuthenticationRejectsWrongSignature(t *testing.T) {
 func TestAuthenticationRejectsExpiredTokenWithRetryableCode(t *testing.T) {
 	server := testServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, testAgent.ID, testAgent.ID, testAgent.SharedSecret, jwt.SigningMethodHS256, time.Now().Add(-agents.MaxTokenLifetime), time.Now().Add(-time.Second)))
+	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, testAgent.ID, testAgent.ID, testAgent.AgentJWTSigningKey, jwt.SigningMethodHS256, time.Now().Add(-agents.MaxTokenLifetime), time.Now().Add(-time.Second)))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 
@@ -119,29 +119,29 @@ func TestAuthenticationRejectsExpiredTokenWithRetryableCode(t *testing.T) {
 func TestAuthenticationRejectsUnknownAgent(t *testing.T) {
 	server := testServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, "unknown-agent", "unknown-agent", testAgent.SharedSecret, jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
+	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, "unknown-agent", "unknown-agent", testAgent.AgentJWTSigningKey, jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	assertAuthError(t, rec, http.StatusUnauthorized, "invalid_token")
 }
 
 func TestAuthenticationRejectsDisabledAgent(t *testing.T) {
-	disabled := agents.Agent{ID: "disabled-agent", SharedSecret: "secret", Enabled: false}
+	disabled := agents.Agent{ID: "disabled-agent", AgentJWTSigningKey: "signing-key", Enabled: false}
 	server := testServer(t)
 	server.Agents = agents.NewRegistry([]agents.Agent{disabled})
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, disabled.ID, disabled.ID, disabled.SharedSecret, jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
+	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, disabled.ID, disabled.ID, disabled.AgentJWTSigningKey, jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	assertAuthError(t, rec, http.StatusUnauthorized, "invalid_token")
 }
 
 func TestAuthenticationAllowsSecondDummyAgent(t *testing.T) {
-	automation := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", SharedSecret: "automation-secret", Enabled: true}
+	automation := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", AgentJWTSigningKey: "automation-signing-key", Enabled: true}
 	server := testServer(t)
 	server.Agents = agents.NewRegistry([]agents.Agent{testAgent, automation})
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, automation.ID, automation.ID, automation.SharedSecret, jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
+	req.Header.Set("Authorization", "Bearer "+signedAPITestToken(t, automation.ID, automation.ID, automation.AgentJWTSigningKey, jwt.SigningMethodHS256, time.Now(), time.Now().Add(agents.MaxTokenLifetime)))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -166,7 +166,7 @@ func assertAuthError(t *testing.T, rec *httptest.ResponseRecorder, status int, c
 	}
 }
 
-func signedAPITestToken(t *testing.T, kid, subject, secret string, method jwt.SigningMethod, issuedAt, expiresAt time.Time) string {
+func signedAPITestToken(t *testing.T, kid, subject, agentJWTSigningKey string, method jwt.SigningMethod, issuedAt, expiresAt time.Time) string {
 	t.Helper()
 	claims := agents.Claims{RegisteredClaims: jwt.RegisteredClaims{
 		Subject:   subject,
@@ -175,7 +175,7 @@ func signedAPITestToken(t *testing.T, kid, subject, secret string, method jwt.Si
 	}}
 	token := jwt.NewWithClaims(method, claims)
 	token.Header["kid"] = kid
-	signed, err := token.SignedString([]byte(secret))
+	signed, err := token.SignedString([]byte(agentJWTSigningKey))
 	if err != nil {
 		t.Fatal(err)
 	}

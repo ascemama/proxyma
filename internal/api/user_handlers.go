@@ -2081,7 +2081,7 @@ func decodeAgentMutationRequest(w http.ResponseWriter, r *http.Request) (UserAge
 func agentFromMutationRequest(request UserAgentMutationRequest, userID string, existing *agents.Agent) agents.Agent {
 	agent := agents.Agent{
 		DisplayName:           strings.TrimSpace(request.DisplayName),
-		SharedSecret:          request.SharedSecret,
+		AgentJWTSigningKey:    request.AgentJWTSigningKey,
 		Enabled:               true,
 		UserIDs:               []string{userID},
 		InteractionInstanceID: strings.TrimSpace(request.InteractionInstanceID),
@@ -2091,8 +2091,8 @@ func agentFromMutationRequest(request UserAgentMutationRequest, userID string, e
 	}
 	if existing != nil {
 		agent.UserIDs = append([]string(nil), existing.UserIDs...)
-		if strings.TrimSpace(agent.SharedSecret) == "" {
-			agent.SharedSecret = existing.SharedSecret
+		if strings.TrimSpace(agent.AgentJWTSigningKey) == "" {
+			agent.AgentJWTSigningKey = existing.AgentJWTSigningKey
 		}
 		if request.Enabled == nil {
 			agent.Enabled = existing.Enabled

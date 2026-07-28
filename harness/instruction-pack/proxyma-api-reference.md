@@ -42,7 +42,7 @@ Generate the JWT from the configured `agent_config` using
 `new-proxyma-jwt.sh`. Proxyma returns `401` for authentication failures:
 
 - `auth_required`: no bearer token was sent.
-- `invalid_token`: the token is malformed, signed with the wrong secret, or belongs to an unknown or disabled agent.
+- `invalid_token`: the token is malformed, signed with the wrong Agent JWT Signing Key, or belongs to an unknown or disabled agent.
 - `token_expired`: the token expired. This response has `retryable: true`; regenerate the token and retry once.
 
 ## GET /v1/agent/targets/resolve

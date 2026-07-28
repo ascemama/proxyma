@@ -74,8 +74,8 @@ func validate(agent Agent) error {
 		return fmt.Errorf("missing required field id")
 	case !ids.IsUUIDV4(strings.TrimSpace(agent.ID)):
 		return fmt.Errorf("id must be a UUID v4")
-	case strings.TrimSpace(agent.SharedSecret) == "":
-		return fmt.Errorf("missing required field shared_secret")
+	case strings.TrimSpace(agent.AgentJWTSigningKey) == "":
+		return fmt.Errorf("missing required field agent_jwt_signing_key")
 	case len(agent.UserIDs) == 0:
 		return fmt.Errorf("missing required field user_ids")
 	case !ValidateInteractionInstanceID(agent.InteractionInstanceID):

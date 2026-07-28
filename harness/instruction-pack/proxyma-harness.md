@@ -11,7 +11,7 @@ The agent or harness must have:
 - Read/write access to a local task-state directory.
 - Ability to call the Proxyma HTTP API.
 - A run configuration that includes `proxyma_base_url`, the Proxyma HTTP service root URL.
-- A run configuration that includes `agent_config`, the harness-side Proxyma agent secret file.
+- A run configuration that includes `agent_config`, the harness-side file containing the Agent ID and Agent JWT Signing Key.
 - Access to these instruction files and schemas.
 
 The feature does not introduce a client executable or scheduler. Existing agents consume these instructions and use their native tools to read files, call Proxyma, and update task state.

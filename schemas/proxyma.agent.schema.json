@@ -4,7 +4,7 @@
   "title": "Proxyma Agent",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "shared_secret", "enabled", "user_ids"],
+  "required": ["id", "agent_jwt_signing_key", "enabled", "user_ids"],
   "properties": {
     "$schema": {
       "type": "string",
@@ -19,10 +19,10 @@
       "type": "string",
       "description": "Optional human-readable agent name."
     },
-    "shared_secret": {
+    "agent_jwt_signing_key": {
       "type": "string",
       "minLength": 1,
-      "description": "Shared secret used to sign short-lived Proxyma JWTs."
+      "description": "Agent JWT Signing Key used as symmetric HS256 key material for short-lived Proxyma JWTs. The key itself is never sent in the Authorization header."
     },
     "enabled": {
       "type": "boolean",

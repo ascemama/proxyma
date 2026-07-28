@@ -165,7 +165,7 @@ jobs:
           tags: type=raw,value=${{ github.ref_name }}
           labels: |
             org.opencontainers.image.title=Proxyma
-            org.opencontainers.image.description=Privileged Access Management for AI agents
+            org.opencontainers.image.description=Policy-enforcing proxy for AI agent access to remote systems
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=AGPL-3.0-only
 

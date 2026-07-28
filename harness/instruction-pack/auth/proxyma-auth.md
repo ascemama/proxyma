@@ -7,10 +7,12 @@ Authorization: Bearer <jwt>
 ```
 
 The harness reads its agent configuration from the `agent_config` path in
-`harness/proxyma-harness-run.json`. The config contains `agent_id` and `shared_secret`.
-Generate a new HS256 JWT before the first Proxyma call, reuse it until it is near expiry,
-and regenerate it when the token is missing, expired, or Proxyma returns `401` with code
-`token_expired`.
+`harness/proxyma-harness-run.json`. The config contains `agent_id` and
+`agent_jwt_signing_key`. The Agent JWT Signing Key is symmetric HS256 key
+material: the harness uses it to sign short-lived JWTs, but never sends the key
+itself in the `Authorization` header. Generate a new JWT before the first
+Proxyma call, reuse it until it is near expiry, and regenerate it when the token
+is missing, expired, or Proxyma returns `401` with code `token_expired`.
 
 JWT requirements:
 

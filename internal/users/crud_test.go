@@ -188,7 +188,7 @@ func TestResetUserPasswordPreservesNonIDRecordName(t *testing.T) {
 func TestDeleteUserRejectsReferencedUser(t *testing.T) {
 	paths := testPaths(t)
 	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
-	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}})
 	mkdirAll(t, paths.TargetDir)
 
 	_, err := DeleteUser(paths, testUserID)
@@ -201,13 +201,13 @@ func TestCreateAgentValidatesUserReference(t *testing.T) {
 	paths := testPaths(t)
 	mkdirAll(t, paths.UserDir)
 
-	_, err := CreateAgent(paths, agents.Agent{SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}}, fixedID(testAgentID))
+	_, err := CreateAgent(paths, agents.Agent{AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}}, fixedID(testAgentID))
 	if err == nil || !strings.Contains(err.Error(), "unknown user id") {
 		t.Fatalf("err = %v", err)
 	}
 
 	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
-	result, err := CreateAgent(paths, agents.Agent{SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}}, fixedID(testAgentID))
+	result, err := CreateAgent(paths, agents.Agent{AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}}, fixedID(testAgentID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestCreateAgentValidatesUserReference(t *testing.T) {
 func TestDeleteAgentRejectsReferencedTarget(t *testing.T) {
 	paths := testPaths(t)
 	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
-	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}})
 	writeTargetRecord(t, paths, targets.Target{
 		Transport: targets.TransportSSH,
 		ID:        testTargetID,
@@ -241,7 +241,7 @@ func TestCreateTargetValidatesReferencesAndWrites(t *testing.T) {
 	paths := testPaths(t)
 	writePolicy(t, paths, testPolicyID)
 	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
-	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}})
 
 	result, err := CreateTarget(paths, targets.Target{
 		Transport: targets.TransportSSH,
@@ -267,7 +267,7 @@ func TestCreateTargetAllowsDuplicateHost(t *testing.T) {
 	paths := testPaths(t)
 	writePolicy(t, paths, testPolicyID)
 	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
-	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}})
 	writeTargetRecord(t, paths, targets.Target{
 		Transport: targets.TransportSSH,
 		ID:        testTargetID,
@@ -301,9 +301,9 @@ func TestCreateTargetAllowsDuplicateHost(t *testing.T) {
 
 func TestReadAgentsForUserFiltersOwnedAgents(t *testing.T) {
 	paths := testPaths(t)
-	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, SharedSecret: "secret", Enabled: true, UserIDs: []string{testUserID}})
-	writeAgentRecord(t, paths, agents.Agent{ID: testOtherID, SharedSecret: "other-secret", Enabled: true, UserIDs: []string{testOtherID}})
-	writeAgentRecord(t, paths, agents.Agent{ID: testThirdID, SharedSecret: "shared-secret", Enabled: true, UserIDs: []string{testUserID, testOtherID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testAgentID, AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{testUserID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testOtherID, AgentJWTSigningKey: "other-signing-key", Enabled: true, UserIDs: []string{testOtherID}})
+	writeAgentRecord(t, paths, agents.Agent{ID: testThirdID, AgentJWTSigningKey: "third-signing-key", Enabled: true, UserIDs: []string{testUserID, testOtherID}})
 
 	owned, err := ReadAgentsForUser(paths, " "+testUserID+" ")
 	if err != nil {

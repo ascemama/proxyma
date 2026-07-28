@@ -11,10 +11,10 @@ import (
 )
 
 var testAgent = agents.Agent{
-	ID:           "df9ec8bb-1a22-4181-a7c8-126ad553221d",
-	DisplayName:  "Codex Local Harness",
-	SharedSecret: "test-secret",
-	Enabled:      true,
+	ID:                 "df9ec8bb-1a22-4181-a7c8-126ad553221d",
+	DisplayName:        "Codex Local Harness",
+	AgentJWTSigningKey: "test-signing-key",
+	Enabled:            true,
 }
 
 func testAgentRegistry() agents.Registry {

@@ -13,7 +13,7 @@ type Agent struct {
 	Schema                string   `json:"$schema,omitempty"`
 	ID                    string   `json:"id"`
 	DisplayName           string   `json:"display_name,omitempty"`
-	SharedSecret          string   `json:"shared_secret"`
+	AgentJWTSigningKey    string   `json:"agent_jwt_signing_key"`
 	Enabled               bool     `json:"enabled"`
 	UserIDs               []string `json:"user_ids"`
 	InteractionInstanceID string   `json:"interaction_instance_id,omitempty"`
