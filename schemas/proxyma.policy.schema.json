@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.policy.schema.json",
+  "title": "Proxyma Command Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "rules"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editor validation and autocomplete."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Stable Proxyma policy UUID referenced by targets."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable policy name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional human-readable policy description."
+    },
+    "priority": {
+      "type": "integer",
+      "default": 0,
+      "description": "Priority used when non-deny rules from multiple policies match."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether Proxyma evaluates this policy."
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "effect"],
+      "anyOf": [
+        { "required": ["always"] },
+        { "required": ["remote_command_regex"] },
+        { "required": ["remote_command_prefix_any"] }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique rule ID within the policy."
+        },
+        "effect": {
+          "type": "string",
+          "enum": ["allow", "approval", "deny"],
+          "description": "Policy decision returned when the rule matches."
+        },
+        "always": {
+          "type": "boolean",
+          "description": "Matches every command when true."
+        },
+        "remote_command_regex": {
+          "type": "string",
+          "description": "Go regular expression matched against the normalized SSH remote command."
+        },
+        "remote_command_prefix_any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Matches when the normalized SSH remote command starts with any listed prefix."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable reason stored on the task and shown in approval prompts."
+        }
+      }
+    }
+  }
+}

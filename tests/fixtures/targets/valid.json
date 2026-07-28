@@ -1,0 +1,22 @@
+{
+  "transport": "ssh",
+  "$schema": "../../../schemas/proxyma.target.schema.json",
+  "id": "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+  "hostname": "fixture-valid",
+  "ip": "127.0.0.1",
+  "username": "demo",
+  "policy_ids": [
+    "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
+  ],
+  "agent_ids": [
+    "df9ec8bb-1a22-4181-a7c8-126ad553221d"
+  ],
+  "user_ids": [
+    "fcd2f3a9-d546-44f4-837b-0c7aa4219752"
+  ],
+  "auth": {
+    "type": "password",
+    "password": "demo-password"
+  },
+  "os": "linux"
+}

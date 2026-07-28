@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.target.schema.json",
+  "title": "Proxyma Target",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "transport", "os", "username", "policy_ids", "agent_ids", "user_ids", "auth"],
+  "anyOf": [
+    {
+      "required": ["hostname"]
+    },
+    {
+      "required": ["ip"]
+    }
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "transport": { "const": "ssh" } }, "required": ["transport"] },
+      "then": { "not": { "required": ["winrm"] } }
+    },
+    {
+      "if": { "properties": { "transport": { "const": "winrm" } }, "required": ["transport"] },
+      "then": {
+        "required": ["winrm"],
+        "properties": {
+          "auth": { "$ref": "#/$defs/password_auth" },
+          "os": { "const": "windows" }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editor validation and autocomplete."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Stable Proxyma target UUID used for management operations."
+    },
+    "transport": {
+      "enum": ["ssh", "winrm"],
+      "description": "Remote execution transport for this target."
+    },
+    "os": {
+      "enum": ["linux", "windows"],
+      "description": "Operating system command environment for this target."
+    },
+    "hostname": {
+      "type": "string",
+      "description": "Hostname Proxyma can use to match command requests to this target."
+    },
+    "ip": {
+      "type": "string",
+      "description": "IP address Proxyma can use to match command requests to this target."
+    },
+    "username": {
+      "type": "string",
+      "description": "Username Proxyma resolves for the {user} placeholder."
+    },
+    "policy_ids": {
+      "type": "array",
+      "description": "Ordered Proxyma policy IDs that apply to this target.",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "agent_ids": {
+      "type": "array",
+      "description": "Proxyma agent IDs authorized to submit commands to this target.",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "user_ids": {
+      "type": "array",
+      "description": "Proxyma user IDs that own this target.",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "auth": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/password_auth"
+        },
+        {
+          "$ref": "#/$defs/private_key_auth"
+        }
+      ]
+    },
+    "winrm": {
+      "$ref": "#/$defs/winrm"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional human-readable description of the target."
+    }
+  },
+  "$defs": {
+    "winrm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheme"],
+      "allOf": [
+        {
+          "if": { "properties": { "scheme": { "const": "http" } }, "required": ["scheme"] },
+          "then": { "properties": { "tls_insecure": { "const": false } } }
+        }
+      ],
+      "properties": {
+        "scheme": { "enum": ["http", "https"] },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "tls_insecure": { "type": "boolean", "default": false }
+      }
+    },
+    "password_auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "password"],
+      "properties": {
+        "type": {
+          "const": "password",
+          "description": "Password authentication."
+        },
+        "password": {
+          "type": "string",
+          "description": "Password Proxyma resolves for the {password} placeholder."
+        }
+      }
+    },
+    "private_key_auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "private_key_path"],
+      "properties": {
+        "type": {
+          "const": "private_key",
+          "description": "SSH private-key authentication with an unencrypted private key under secrets/private_keys/."
+        },
+        "private_key_path": {
+          "type": "string",
+          "pattern": "^secrets/private_keys/[^/\\\\].*",
+          "description": "Project-root-relative path to an unencrypted SSH private key under secrets/private_keys/."
+        }
+      }
+    }
+  }
+}

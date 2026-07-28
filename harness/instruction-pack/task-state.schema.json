@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/client-task-state.schema.json",
+  "title": "ClientTaskState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "user_goal", "status", "created_at", "updated_at", "remaining_work"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "filename_slug": { "type": "string" },
+    "user_goal": { "type": "string", "minLength": 1 },
+    "status": {
+      "description": "Client task status. Use failed only for unrecoverable client-side processing failures; Proxyma failed, timed_out, interrupted, abandoned, blocked, or unknown statuses should mark the client task blocked. Proxyma waiting_user_response should keep the client task waiting.",
+      "type": "string",
+      "enum": ["pending", "waiting_proxyma", "done", "failed", "blocked"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "last_checked_at": { "type": "string", "format": "date-time" },
+    "proxyma_commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["proxyma_task_id", "target", "command", "reasoning", "submitted_at", "status"],
+        "properties": {
+          "proxyma_task_id": { "type": "string", "minLength": 1 },
+          "target": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "hostname": { "type": "string", "minLength": 1 },
+              "ip": { "type": "string", "minLength": 1 }
+            },
+            "anyOf": [
+              { "required": ["hostname"] },
+              { "required": ["ip"] }
+            ]
+          },
+          "command": { "type": "string", "minLength": 1 },
+          "reasoning": { "type": "string", "minLength": 1 },
+          "submitted_at": { "type": "string", "format": "date-time" },
+          "status": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "proxyma_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["proxyma_task_id", "status", "checked_at"],
+        "properties": {
+          "proxyma_task_id": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 },
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" },
+          "exit_status": { "type": ["integer", "null"] },
+          "truncated": { "type": "boolean" },
+          "checked_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "proxyma_connectivity_errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at", "message"],
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "blocked_reason": { "type": "string" },
+    "required_next_action": { "type": "string" },
+    "remaining_work": { "type": "string" },
+    "final_summary": { "type": "string" }
+  }
+}

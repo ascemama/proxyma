@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schemas/proxyma.agent.schema.json",
+  "id": "55555555-5555-4555-8555-555555555555",
+  "display_name": "operator-worker-agent",
+  "shared_secret": "operator-worker-secret",
+  "enabled": true,
+  "user_ids": ["a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"],
+  "interaction_instance_id": "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"
+}

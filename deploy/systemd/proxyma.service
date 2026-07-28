@@ -1,0 +1,20 @@
+[Unit]
+Description=Proxyma privileged access manager for AI agents
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=Proxyma
+Group=Proxyma
+ExecStart=/usr/local/bin/proxyma --config /etc/proxyma/proxyma.config.json
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/etc/proxyma /var/lib/proxyma
+
+[Install]
+WantedBy=multi-user.target

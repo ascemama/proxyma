@@ -1,0 +1,73 @@
+# Go build outputs
+bin/
+dist/
+build/
+internal/web/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace and dependency caches
+go.work
+go.work.sum
+vendor/
+.gocache/
+.gotmp/
+.tmp/
+
+# Coverage and profiling
+coverage.out
+coverage.html
+*.coverprofile
+*.prof
+*.pprof
+
+# Proxyma local runtime data
+var/
+
+# Local asset secrets
+asset/*.local.json
+asset/*secret*.json
+targets/*.local.json
+targets/*secret*.json
+targets/*.json
+target/*.local.json
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Legacy harness runtime data
+/task-state/
+
+# Harness runtime data
+harness/task-state/pending/*.json
+harness/task-state/active/*.json
+harness/task-state/completed/*.json
+harness/task-state/failed/*.json
+harness/task-state/blocked/*.json
+harness/task-state/summaries/*.md
+harness/task-state/done/*.json
+harness/agent-configuration/*.json
+!harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json
+
+target/*.json
+proxyma.config.json
+/proxyma-compose.env
+/tls/
+secrets/
+users/*.json
+.codex/
+agents/*.json
+interactions/ntfy/*.json

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.interaction.ntfy.schema.json",
+  "title": "Proxyma ntfy Interaction Instance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "creator_user_id", "enabled", "base_url", "request_topic", "response_topic", "poll_interval", "poll_timeout"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editor validation and autocomplete."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Stable UUID v4 interaction instance id referenced by agent interaction_instance_id."
+    },
+    "creator_user_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "UUID v4 id of the GUI user who created this interaction instance."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Optional human-readable interaction instance name."
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether agents may reference this interaction instance."
+    },
+    "base_url": {
+      "type": "string",
+      "default": "https://ntfy.sh",
+      "format": "uri",
+      "description": "ntfy server base URL."
+    },
+    "request_topic": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ntfy topic used for approval request notifications."
+    },
+    "response_topic": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ntfy topic polled for approval responses."
+    },
+    "token": {
+      "type": "string",
+      "default": "",
+      "description": "Optional bearer token for ntfy publish and poll requests."
+    },
+    "poll_interval": {
+      "type": "string",
+      "default": "5s",
+      "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+      "description": "Interval for polling the ntfy response topic."
+    },
+    "poll_timeout": {
+      "type": "string",
+      "default": "30s",
+      "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+      "description": "Timeout for ntfy publish and poll HTTP requests."
+    },
+    "responded_by": {
+      "type": "string",
+      "default": "ntfy",
+      "description": "responded_by value used for ntfy approval responses."
+    }
+  }
+}

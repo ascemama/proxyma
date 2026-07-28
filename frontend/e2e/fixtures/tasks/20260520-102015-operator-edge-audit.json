@@ -1,0 +1,33 @@
+{
+  "task_id": "task-operator-edge-audit",
+  "agent_id": "44444444-4444-4444-8444-444444444444",
+  "target": {
+    "hostname": "OP-EDGE-01",
+    "ip": "10.20.1.21",
+    "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"]
+  },
+  "command": "operator-edge-audit",
+  "reasoning": "Operator fixture command history item.",
+  "status": "completed",
+  "created_at": "2026-05-20T10:20:00Z",
+  "started_at": "2026-05-20T10:20:04Z",
+  "completed_at": "2026-05-20T10:20:15Z",
+  "result": {
+    "stdout": "operator edge audit ok",
+    "stderr": "",
+    "exit_status": 0,
+    "truncated": false
+  },
+  "history": [
+    {
+      "status": "created",
+      "at": "2026-05-20T10:20:00Z",
+      "message": "task created"
+    },
+    {
+      "status": "completed",
+      "at": "2026-05-20T10:20:15Z",
+      "message": "task completed"
+    }
+  ]
+}

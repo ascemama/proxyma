@@ -1,0 +1,196 @@
+name: Container
+run-name: ${{ github.event_name == 'push' && format('Publish container release {0}', github.ref_name) || 'Validate container release changes' }}
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/container.yml"
+      - ".dockerignore"
+      - "Dockerfile"
+      - "LICENSE"
+      - "cmd/**"
+      - "frontend/**"
+      - "go.mod"
+      - "go.sum"
+      - "internal/**"
+      - "scripts/*.sh"
+      - "scripts/*.ps1"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/ascemama/proxyma
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test Go packages
+        run: go test ./...
+
+      - name: Validate release shell scripts
+        run: bash -n scripts/*.sh
+
+      - name: Validate PowerShell lifecycle scripts
+        shell: pwsh
+        run: |
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            "scripts/uninstall-local-development.ps1",
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  validate:
+    if: github.event_name == 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Validate release tag policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          stable="$(bash scripts/container-tags.sh example.invalid/proxyma v1.2.3)"
+          expected_stable=$'example.invalid/proxyma:1.2.3\nexample.invalid/proxyma:1.2\nexample.invalid/proxyma:1\nexample.invalid/proxyma:latest'
+          test "$stable" = "$expected_stable"
+
+          prerelease="$(bash scripts/container-tags.sh example.invalid/proxyma v1.2.3-rc.1)"
+          test "$prerelease" = "example.invalid/proxyma:1.2.3-rc.1"
+
+          if bash scripts/container-tags.sh example.invalid/proxyma v1.2 >/dev/null 2>&1; then
+            echo "Invalid tag was accepted" >&2
+            exit 1
+          fi
+
+          if bash scripts/container-tags.sh example.invalid/proxyma v1.2.3-rc.01 >/dev/null 2>&1; then
+            echo "Invalid prerelease tag was accepted" >&2
+            exit 1
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Validate multi-platform image build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          build-args: |
+            BUILD_VERSION=dev
+            BUILD_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Generate release image tags
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tags="$(bash scripts/container-tags.sh "$IMAGE_NAME" "$GITHUB_REF_NAME")"
+          {
+            echo "tags<<EOF"
+            echo "$tags"
+            echo "EOF"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate OCI metadata
+        id: metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          flavor: latest=false
+          tags: type=raw,value=${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.title=Proxyma
+            org.opencontainers.image.description=Privileged Access Management for AI agents
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=AGPL-3.0-only
+
+      - name: Build and publish image
+        id: push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.release.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          annotations: ${{ steps.metadata.outputs.annotations }}
+          build-args: |
+            BUILD_VERSION=${{ github.ref_name }}
+            BUILD_COMMIT=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Attest published image
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest@36051bcae73b7c2a8a6945a48cbf80953c6baa35 # v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

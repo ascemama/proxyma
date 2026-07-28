@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schemas/proxyma.user.schema.json",
+  "id": "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
+  "username": "operator",
+  "name": "Operator",
+  "admin": false,
+  "status": "active",
+  "passwd_hash": "$argon2id$v=19$m=19456,t=2,p=1$oGoXozlwaknJrL5bujJ50A$mlyiunx2v/zPVZvUf4/OOythp14Yeg2IDmDFknoHbu0"
+}

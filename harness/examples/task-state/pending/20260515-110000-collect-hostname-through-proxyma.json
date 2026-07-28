@@ -1,0 +1,22 @@
+{
+  "schema_version": "1",
+  "filename_slug": "collect-hostname-through-proxyma",
+  "user_goal": "Collect the target hostname through Proxyma.",
+  "status": "waiting_proxyma",
+  "created_at": "2026-05-15T11:00:00Z",
+  "updated_at": "2026-05-15T11:00:12Z",
+  "last_checked_at": "2026-05-15T11:00:12Z",
+  "proxyma_commands": [
+    {
+      "proxyma_task_id": "proxyma-task-1100",
+      "target": { "ip": "127.0.0.1" },
+      "command": "ssh {user}@127.0.0.1 hostname",
+      "reasoning": "The hostname is required to identify the target in the operator report.",
+      "submitted_at": "2026-05-15T11:00:05Z",
+      "status": "queued"
+    }
+  ],
+  "proxyma_results": [],
+  "proxyma_connectivity_errors": [],
+  "remaining_work": "Poll Proxyma for proxyma-task-1100 and record the hostname result."
+}

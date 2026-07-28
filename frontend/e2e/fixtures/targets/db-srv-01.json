@@ -1,0 +1,23 @@
+{
+  "transport": "ssh",
+  "$schema": "../../../../schemas/proxyma.target.schema.json",
+  "id": "22222222-2222-4222-8222-222222222222",
+  "hostname": "DB-SRV-01",
+  "ip": "10.10.1.20",
+  "username": "fixture-db",
+  "policy_ids": [
+    "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
+  ],
+  "agent_ids": [
+    "7937dd2d-0b8a-4880-8afa-0ea60fd65a43"
+  ],
+  "user_ids": [
+    "fcd2f3a9-d546-44f4-837b-0c7aa4219752"
+  ],
+  "auth": {
+    "type": "password",
+    "password": "fixture-password-db"
+  },
+  "description": "Database server fixture",
+  "os": "linux"
+}
