@@ -97,6 +97,19 @@ keys or expose the development HTTP listener to untrusted networks.
 Keep both the Proxyma and Vite terminals running. Stop either process with
 `Ctrl+C`.
 
+If a development process was started in the background on Windows, locate it
+and confirm the listening ports before stopping the specific process:
+
+```powershell
+Get-Process | Where-Object {
+  $_.ProcessName -like '*Proxyma*' -or
+  $_.ProcessName -eq 'node' -or
+  $_.ProcessName -eq 'cmd'
+}
+Get-NetTCPConnection -State Listen -LocalPort 5173,8080 -ErrorAction SilentlyContinue
+Stop-Process -Id <pid>
+```
+
 Verify the API with a valid Proxyma agent bearer token:
 
 ```bash
@@ -116,6 +129,55 @@ must not be accepted without investigating the server identity change.
 New targets, and existing targets whose connection or credential fields change,
 must pass the credential test before they can be saved. Metadata-only edits do
 not require another test.
+
+## Frontend Development Checks
+
+Run the frontend build and browser suite from `frontend/`:
+
+```bash
+npm run build
+npm run test:e2e
+```
+
+On Windows PowerShell, use `npm.cmd`:
+
+```powershell
+npm.cmd run build
+npm.cmd run test:e2e
+```
+
+The Playwright suite starts its own fixture backend and frontend server. It
+covers login, dashboard behavior, and desktop visual screenshots.
+
+To start the fixture backend manually from the repository root on Windows:
+
+```powershell
+.\bin\proxyma.exe `
+  --no-config `
+  --listen 127.0.0.1:8080 `
+  --scheme http `
+  --target-dir .\frontend\e2e\fixtures\targets `
+  --policy-dir .\frontend\e2e\fixtures\policies `
+  --agent-dir .\frontend\e2e\fixtures\agents `
+  --user-dir .\frontend\e2e\fixtures\users `
+  --task-dir .\frontend\e2e\fixtures\tasks `
+  --interaction-dir .\frontend\e2e\fixtures\interactions `
+  --user-session-dir .\frontend\e2e\fixtures\user_sessions `
+  --require-command-approval=false
+```
+
+The fixture login is `antoine` with password `correct-password`. These
+credentials are test data only.
+
+For Go tests on Windows systems that cannot execute binaries from the default
+temporary or cache directories, use repository-local ignored directories:
+
+```powershell
+New-Item -ItemType Directory -Force -Path .\.gotmp, .\.gocache | Out-Null
+$env:GOTMPDIR = (Resolve-Path .\.gotmp).Path
+$env:GOCACHE = (Resolve-Path .\.gocache).Path
+go test ./...
+```
 
 ## Update an Existing Checkout
 
@@ -147,10 +209,21 @@ restoring the matching backup if necessary.
 
 ## Troubleshooting
 
+- If PowerShell reports that `npm.ps1` cannot be loaded, use `npm.cmd`.
 - If an older `proxyma.config.json` contains
   `security.allow_insecure_user_cookies`, remove that obsolete property when
   convenient. Current Proxyma accepts but ignores it; `server.scheme` alone
   selects HTTPS Secure cookies or the HTTP development cookie.
+- If the browser loads the login page but API calls return `401`, confirm that
+  the Vite workflow's Proxyma process uses `--scheme http`.
+- If the browser cannot reach `http://127.0.0.1:5173/`, confirm that Vite is
+  running and port `5173` is listening.
+- If the dashboard is empty, confirm that the logged-in user owns visible
+  agents and targets and that task records are present.
+- If Vite reports `EPERM` below `frontend/node_modules/.vite-temp`, stop Vite,
+  remove that generated cache directory, and restart it.
+- If `go test ./...` reports `Access is denied` below the Windows temporary or
+  Go build-cache directories, set `GOTMPDIR` and `GOCACHE` as shown above.
 - Confirm that the backend is listening on `127.0.0.1:8080` and Vite on
   `127.0.0.1:5173`.
 - If a port is already in use, stop the previous development process before

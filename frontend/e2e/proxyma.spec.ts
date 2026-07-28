@@ -269,17 +269,19 @@ test('user can manage agents from the agent tab', async ({ context, page }) => {
   const addAgentDialog = page.getByRole('dialog', { name: 'Add Agent' });
   await expect(addAgentDialog.getByLabel('Agent ID', { exact: true })).toHaveCount(0);
   await page.getByLabel('Display name').fill('Deploy Agent');
-  const sharedSecretInput = addAgentDialog.getByLabel('Shared secret', { exact: true });
-  await sharedSecretInput.fill('deploy-agent-secret');
+  await page.getByRole('button', { name: 'Save Agent' }).click();
+  await expect(addAgentDialog.getByText('Agent JWT Signing Key is required for a new agent.')).toBeVisible();
+  const agentJwtSigningKeyInput = addAgentDialog.getByLabel('Agent JWT Signing Key', { exact: true });
+  await agentJwtSigningKeyInput.fill('deploy-agent-signing-key');
   const interactionSelect = addAgentDialog.getByLabel('Interaction');
   await expect(interactionSelect).toHaveValue('local');
   await expect(interactionSelect.getByRole('option', { name: /Example ntfy.*NTFY/ })).toHaveCount(1);
   await interactionSelect.selectOption('6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8');
-  await expect(sharedSecretInput).toHaveAttribute('type', 'password');
-  await addAgentDialog.getByRole('button', { name: 'Show shared secret' }).click();
-  await expect(sharedSecretInput).toHaveAttribute('type', 'text');
-  await addAgentDialog.getByRole('button', { name: 'Hide shared secret' }).click();
-  await expect(sharedSecretInput).toHaveAttribute('type', 'password');
+  await expect(agentJwtSigningKeyInput).toHaveAttribute('type', 'password');
+  await addAgentDialog.getByRole('button', { name: 'Show Agent JWT Signing Key' }).click();
+  await expect(agentJwtSigningKeyInput).toHaveAttribute('type', 'text');
+  await addAgentDialog.getByRole('button', { name: 'Hide Agent JWT Signing Key' }).click();
+  await expect(agentJwtSigningKeyInput).toHaveAttribute('type', 'password');
   await page.getByRole('button', { name: 'Save Agent' }).click();
   await expect(page.getByRole('dialog', { name: 'Add Agent' })).toBeHidden();
   const createdAgentDialog = page.getByRole('dialog', { name: 'Agent created' });
@@ -289,7 +291,7 @@ test('user can manage agents from the agent tab', async ({ context, page }) => {
   expect(createdAgentID).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   const expectedHarnessConfiguration = JSON.stringify({
     agent_id: createdAgentID,
-    shared_secret: 'deploy-agent-secret'
+    agent_jwt_signing_key: 'deploy-agent-signing-key'
   }, null, 2);
   await expect(createdAgentDialog.getByLabel('Harness agent configuration')).toHaveValue(expectedHarnessConfiguration);
 
@@ -302,7 +304,7 @@ test('user can manage agents from the agent tab', async ({ context, page }) => {
   await expect.poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n')).toBe(expectedHarnessConfiguration);
   await createdAgentDialog.getByRole('button', { name: 'Done' }).click();
   await expect(createdAgentDialog).toBeHidden();
-  await expect(page.getByText('deploy-agent-secret')).toHaveCount(0);
+  await expect(page.getByText('deploy-agent-signing-key')).toHaveCount(0);
   await expect(page.getByRole('row', { name: /Deploy Agent/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Edit Deploy Agent' }).click();

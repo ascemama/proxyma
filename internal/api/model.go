@@ -247,7 +247,7 @@ type UserAgentResponse struct {
 // UserAgentMutationRequest is submitted by GUI users to create or update agents.
 type UserAgentMutationRequest struct {
 	DisplayName           string `json:"display_name,omitempty"`
-	SharedSecret          string `json:"shared_secret,omitempty"`
+	AgentJWTSigningKey    string `json:"agent_jwt_signing_key,omitempty"`
 	Enabled               *bool  `json:"enabled,omitempty"`
 	InteractionInstanceID string `json:"interaction_instance_id,omitempty"`
 }

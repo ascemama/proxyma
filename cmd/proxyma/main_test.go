@@ -32,7 +32,7 @@ func TestValidatePolicyReferencesRejectsUnknownTargetPolicy(t *testing.T) {
 
 func TestValidateAgentInteractionReferencesRejectsUnknownInstance(t *testing.T) {
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}, InteractionInstanceID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43"},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}, InteractionInstanceID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43"},
 	})
 
 	diagnostics := validateAgentInteractionReferences(agentRegistry, interactioninstances.Registry{})
@@ -46,7 +46,7 @@ func TestValidateAgentInteractionReferencesRejectsUnknownInstance(t *testing.T) 
 
 func TestValidateAgentInteractionReferencesAcceptsDefaultLocal(t *testing.T) {
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}},
 	})
 
 	if diagnostics := validateAgentInteractionReferences(agentRegistry, interactioninstances.Registry{}); len(diagnostics) != 0 {
@@ -80,7 +80,7 @@ func TestValidateAgentInteractionReferencesAcceptsEnabledNtfyInstance(t *testing
 		t.Fatalf("load diagnostics = %#v", diagnostics)
 	}
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}, InteractionInstanceID: "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}, InteractionInstanceID: "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"},
 	})
 
 	if diagnostics := validateAgentInteractionReferences(agentRegistry, registry); len(diagnostics) != 0 {
@@ -114,7 +114,7 @@ func TestValidateAgentInteractionReferencesRejectsDisabledInstance(t *testing.T)
 		t.Fatalf("load diagnostics = %#v", diagnostics)
 	}
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}, InteractionInstanceID: "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}, InteractionInstanceID: "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"},
 	})
 
 	if diagnostics := validateAgentInteractionReferences(agentRegistry, registry); len(diagnostics) != 1 {
@@ -165,7 +165,7 @@ func TestValidateUserReferencesRejectsUnknownTargetUser(t *testing.T) {
 		{Hostname: "target.example", UserIDs: []string{"missing-user"}},
 	})
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}},
 	})
 	userRegistry := users.NewRegistry([]users.User{
 		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Name: "Antoine"},
@@ -185,7 +185,7 @@ func TestValidateUserReferencesRejectsUnknownAgentUser(t *testing.T) {
 		{Hostname: "target.example", UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}},
 	})
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true, UserIDs: []string{"missing-user"}},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"missing-user"}},
 	})
 	userRegistry := users.NewRegistry([]users.User{
 		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Name: "Antoine"},
@@ -205,7 +205,7 @@ func TestValidateAgentReferencesRejectsUnknownTargetAgent(t *testing.T) {
 		{Hostname: "target.example", AgentIDs: []string{"missing-agent"}},
 	})
 	agentRegistry := agents.NewRegistry([]agents.Agent{
-		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "secret", Enabled: true},
+		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true},
 	})
 
 	diagnostics := validateAgentReferences(registry, agentRegistry)

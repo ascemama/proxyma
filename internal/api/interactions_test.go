@@ -78,7 +78,7 @@ func TestInteractionStatusAndAgentResponseRemoval(t *testing.T) {
 }
 
 func TestInteractionRejectsOtherAgent(t *testing.T) {
-	otherAgent := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", SharedSecret: "automation-secret", Enabled: true}
+	otherAgent := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", AgentJWTSigningKey: "automation-signing-key", Enabled: true}
 	interactionService := interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{Timeout: time.Hour})
 	manager := tasks.NewManager(jsonfile.NewTaskStore(t.TempDir()), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
 	server := &Server{

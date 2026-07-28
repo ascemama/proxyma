@@ -105,7 +105,7 @@ func TestTaskStatusNotFound(t *testing.T) {
 }
 
 func TestTaskStatusRejectsOtherAgent(t *testing.T) {
-	otherAgent := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", SharedSecret: "automation-secret", Enabled: true}
+	otherAgent := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", AgentJWTSigningKey: "automation-signing-key", Enabled: true}
 	server := testServer(t)
 	server.Agents = agents.NewRegistry([]agents.Agent{testAgent, otherAgent})
 	task, err := server.Tasks.Submit(context.Background(), tasks.CommandContext{

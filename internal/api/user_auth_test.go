@@ -364,28 +364,28 @@ func TestUserSettingsPersistsThemeInLegacyRecordAndSession(t *testing.T) {
 	}
 }
 
-func TestUserAgentsEndpointAdminSeesAllAgentsAndRedactsSecrets(t *testing.T) {
+func TestUserAgentsEndpointAdminSeesAllAgentsAndRedactsAgentJWTSigningKeys(t *testing.T) {
 	server := testLoginServer(t, false)
 	owned := agents.Agent{
-		ID:           testAgent.ID,
-		DisplayName:  "Owned Agent",
-		SharedSecret: "owned-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{testUser.ID},
+		ID:                 testAgent.ID,
+		DisplayName:        "Owned Agent",
+		AgentJWTSigningKey: "owned-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{testUser.ID},
 	}
 	other := agents.Agent{
-		ID:           "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-		DisplayName:  "Other Agent",
-		SharedSecret: "other-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		ID:                 "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+		DisplayName:        "Other Agent",
+		AgentJWTSigningKey: "other-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
 	}
 	shared := agents.Agent{
-		ID:           "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
-		DisplayName:  "Shared Agent",
-		SharedSecret: "shared-agent-secret",
-		Enabled:      false,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5", testUser.ID},
+		ID:                 "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+		DisplayName:        "Shared Agent",
+		AgentJWTSigningKey: "multi-owner-agent-signing-key",
+		Enabled:            false,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5", testUser.ID},
 	}
 	server.Agents = agents.NewRegistry([]agents.Agent{owned, other, shared})
 	cookie := loginCookie(t, server)
@@ -405,9 +405,9 @@ func TestUserAgentsEndpointAdminSeesAllAgentsAndRedactsSecrets(t *testing.T) {
 		t.Fatalf("response = %#v", response)
 	}
 	body := rec.Body.String()
-	for _, leaked := range []string{"owned-agent-secret", "shared-agent-secret", "other-agent-secret"} {
+	for _, leaked := range []string{"owned-agent-signing-key", "multi-owner-agent-signing-key", "other-agent-signing-key"} {
 		if strings.Contains(body, leaked) {
-			t.Fatalf("agent response leaked secret %q: %s", leaked, body)
+			t.Fatalf("agent response leaked Agent JWT Signing Key %q: %s", leaked, body)
 		}
 	}
 }
@@ -421,25 +421,25 @@ func TestUserAgentsEndpointNonAdminFiltersOwnedAgents(t *testing.T) {
 	currentUser.Admin = false
 	server.setUserRegistry(users.NewRegistry([]users.User{currentUser}))
 	owned := agents.Agent{
-		ID:           testAgent.ID,
-		DisplayName:  "Owned Agent",
-		SharedSecret: "owned-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{testUser.ID},
+		ID:                 testAgent.ID,
+		DisplayName:        "Owned Agent",
+		AgentJWTSigningKey: "owned-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{testUser.ID},
 	}
 	other := agents.Agent{
-		ID:           "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-		DisplayName:  "Other Agent",
-		SharedSecret: "other-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		ID:                 "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+		DisplayName:        "Other Agent",
+		AgentJWTSigningKey: "other-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
 	}
 	shared := agents.Agent{
-		ID:           "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
-		DisplayName:  "Shared Agent",
-		SharedSecret: "shared-agent-secret",
-		Enabled:      false,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5", testUser.ID},
+		ID:                 "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+		DisplayName:        "Shared Agent",
+		AgentJWTSigningKey: "multi-owner-agent-signing-key",
+		Enabled:            false,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5", testUser.ID},
 	}
 	server.Agents = agents.NewRegistry([]agents.Agent{owned, other, shared})
 	cookie := loginCookie(t, server)
@@ -1318,15 +1318,15 @@ func TestUserAgentMutationsCreateUpdateDeleteOwnedAgent(t *testing.T) {
 
 	createBody := `{
 		"display_name":"Build Agent",
-		"shared_secret":"build-agent-secret",
+		"agent_jwt_signing_key":"build-agent-signing-key",
 		"enabled":true
 	}`
 	createRec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, createBody)
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d body=%s", createRec.Code, createRec.Body.String())
 	}
-	if strings.Contains(createRec.Body.String(), "build-agent-secret") {
-		t.Fatalf("create response leaked shared secret: %s", createRec.Body.String())
+	if strings.Contains(createRec.Body.String(), "build-agent-signing-key") {
+		t.Fatalf("create response leaked Agent JWT Signing Key: %s", createRec.Body.String())
 	}
 	var created UserAgentResponse
 	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
@@ -1339,7 +1339,7 @@ func TestUserAgentMutationsCreateUpdateDeleteOwnedAgent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.SharedSecret != "build-agent-secret" || len(stored.UserIDs) != 1 || stored.UserIDs[0] != testUser.ID || stored.InteractionInstanceID != "local" {
+	if stored.AgentJWTSigningKey != "build-agent-signing-key" || len(stored.UserIDs) != 1 || stored.UserIDs[0] != testUser.ID || stored.InteractionInstanceID != "local" {
 		t.Fatalf("stored agent = %#v", stored)
 	}
 
@@ -1358,8 +1358,8 @@ func TestUserAgentMutationsCreateUpdateDeleteOwnedAgent(t *testing.T) {
 	if updated.DisplayName != "Updated Build Agent" || updated.Enabled {
 		t.Fatalf("updated agent metadata = %#v", updated)
 	}
-	if updated.SharedSecret != "build-agent-secret" {
-		t.Fatalf("update did not preserve shared secret = %#v", updated)
+	if updated.AgentJWTSigningKey != "build-agent-signing-key" {
+		t.Fatalf("update did not preserve Agent JWT Signing Key = %#v", updated)
 	}
 	if refreshed, found := server.agentRegistry().Find(created.ID); !found || refreshed.DisplayName != "Updated Build Agent" {
 		t.Fatalf("refreshed registry agent = %#v found=%t", refreshed, found)
@@ -1397,7 +1397,7 @@ func TestUserAgentInteractionAssignmentsRequireCurrentUserOwnership(t *testing.T
 
 	cookie, session := loginSession(t, server)
 	create := func(instanceID string) *httptest.ResponseRecorder {
-		body := fmt.Sprintf(`{"shared_secret":"assignment-secret","interaction_instance_id":%q}`, instanceID)
+		body := fmt.Sprintf(`{"agent_jwt_signing_key":"assignment-signing-key","interaction_instance_id":%q}`, instanceID)
 		return userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, body)
 	}
 
@@ -1492,11 +1492,11 @@ func TestUserAgentMutationsRejectForeignAndReferencedAgent(t *testing.T) {
 	currentUser.Admin = false
 	server.setUserRegistry(users.NewRegistry([]users.User{currentUser}))
 	foreignAgent := agents.Agent{
-		ID:           foreignID,
-		DisplayName:  "Foreign Agent",
-		SharedSecret: "foreign-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		ID:                 foreignID,
+		DisplayName:        "Foreign Agent",
+		AgentJWTSigningKey: "foreign-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
 	}
 	writeJSONRecord(t, paths.AgentDir, foreignAgent.ID, foreignAgent)
 	server.setAgentRegistry(agents.NewRegistry([]agents.Agent{testAgent, foreignAgent}))
@@ -1508,12 +1508,18 @@ func TestUserAgentMutationsRejectForeignAndReferencedAgent(t *testing.T) {
 	}
 
 	cookie, session := loginSession(t, server)
-	invalid := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, `{"shared_secret":""}`)
+	invalid := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, `{"agent_jwt_signing_key":""}`)
 	if invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid status = %d body=%s", invalid.Code, invalid.Body.String())
 	}
+	formerField := "shared" + "_" + "secret"
+	formerBody := `{"` + formerField + `":"legacy-signing-key"}`
+	former := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, formerBody)
+	if former.Code != http.StatusBadRequest {
+		t.Fatalf("former field status = %d body=%s", former.Code, former.Body.String())
+	}
 
-	missingCSRF := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, "", `{"shared_secret":"secret"}`)
+	missingCSRF := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, "", `{"agent_jwt_signing_key":"signing-key"}`)
 	if missingCSRF.Code != http.StatusForbidden {
 		t.Fatalf("missing csrf status = %d body=%s", missingCSRF.Code, missingCSRF.Body.String())
 	}
@@ -1527,7 +1533,7 @@ func TestUserAgentMutationsRejectForeignAndReferencedAgent(t *testing.T) {
 		t.Fatalf("foreign delete status = %d body=%s", deleteForeign.Code, deleteForeign.Body.String())
 	}
 
-	createRec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, `{"shared_secret":"referenced-secret"}`)
+	createRec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/agents", cookie, session.CSRFToken, `{"agent_jwt_signing_key":"referenced-signing-key"}`)
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create referenced status = %d body=%s", createRec.Code, createRec.Body.String())
 	}
@@ -1696,11 +1702,11 @@ func TestUserMutationsRejectReferencedUserDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeJSONRecord(t, paths.AgentDir, "d252397d-7bd9-41b1-97c7-245ff04fdd33", agents.Agent{
-		ID:           "d252397d-7bd9-41b1-97c7-245ff04fdd33",
-		DisplayName:  "Owned User Agent",
-		SharedSecret: "owned-user-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{created.ID},
+		ID:                 "d252397d-7bd9-41b1-97c7-245ff04fdd33",
+		DisplayName:        "Owned User Agent",
+		AgentJWTSigningKey: "owned-user-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{created.ID},
 	})
 	deleteReferenced := userTargetMutationRequest(t, server, http.MethodDelete, "/v1/user/users/"+created.ID, cookie, session.CSRFToken, ``)
 	if deleteReferenced.Code != http.StatusBadRequest {
@@ -1726,11 +1732,11 @@ func TestUserAgentMutationsAdminCanUpdateAndDeleteForeignAgent(t *testing.T) {
 	writeJSONRecord(t, paths.UserDir, foreignUser.ID, foreignUser)
 	server.setUserRegistry(users.NewRegistry([]users.User{adminUser, foreignUser}))
 	foreignAgent := agents.Agent{
-		ID:           foreignID,
-		DisplayName:  "Foreign Agent",
-		SharedSecret: "foreign-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		ID:                 foreignID,
+		DisplayName:        "Foreign Agent",
+		AgentJWTSigningKey: "foreign-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
 	}
 	writeJSONRecord(t, paths.AgentDir, foreignAgent.ID, foreignAgent)
 	server.setAgentRegistry(agents.NewRegistry([]agents.Agent{testAgent, foreignAgent}))
@@ -1744,7 +1750,7 @@ func TestUserAgentMutationsAdminCanUpdateAndDeleteForeignAgent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.DisplayName != "Updated Foreign Agent" || updated.Enabled || updated.SharedSecret != "foreign-agent-secret" {
+	if updated.DisplayName != "Updated Foreign Agent" || updated.Enabled || updated.AgentJWTSigningKey != "foreign-agent-signing-key" {
 		t.Fatalf("updated agent = %#v", updated)
 	}
 	if len(updated.UserIDs) != 1 || updated.UserIDs[0] != "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5" {
@@ -1908,18 +1914,18 @@ func TestUserCommandHistoryEndpointFiltersVisibleTasksAndRedactsSecrets(t *testi
 	currentUser.Admin = false
 	server.setUserRegistry(users.NewRegistry([]users.User{currentUser}))
 	ownedAgent := agents.Agent{
-		ID:           testAgent.ID,
-		DisplayName:  "Owned Agent",
-		SharedSecret: "owned-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{testUser.ID},
+		ID:                 testAgent.ID,
+		DisplayName:        "Owned Agent",
+		AgentJWTSigningKey: "owned-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{testUser.ID},
 	}
 	otherAgent := agents.Agent{
-		ID:           "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-		DisplayName:  "Other Agent",
-		SharedSecret: "other-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		ID:                 "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+		DisplayName:        "Other Agent",
+		AgentJWTSigningKey: "other-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
 	}
 	server.Agents = agents.NewRegistry([]agents.Agent{ownedAgent, otherAgent})
 	ownedTarget := targets.Target{
@@ -1994,7 +2000,7 @@ func TestUserCommandHistoryEndpointFiltersVisibleTasksAndRedactsSecrets(t *testi
 		t.Fatalf("hidden task leaked in response = %#v", response)
 	}
 	body := rec.Body.String()
-	for _, leaked := range []string{"owned-agent-secret", "other-agent-secret", "owned-target-password", "other-target-password", "owned-user", "other-user"} {
+	for _, leaked := range []string{"owned-agent-signing-key", "other-agent-signing-key", "owned-target-password", "other-target-password", "owned-user", "other-user"} {
 		if strings.Contains(body, leaked) {
 			t.Fatalf("history response leaked %q: %s", leaked, body)
 		}
@@ -2004,18 +2010,18 @@ func TestUserCommandHistoryEndpointFiltersVisibleTasksAndRedactsSecrets(t *testi
 func TestUserCommandHistoryEndpointAdminSeesAllTasksAndRedactsSecrets(t *testing.T) {
 	server := testLoginServer(t, false)
 	ownedAgent := agents.Agent{
-		ID:           testAgent.ID,
-		DisplayName:  "Owned Agent",
-		SharedSecret: "owned-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{testUser.ID},
+		ID:                 testAgent.ID,
+		DisplayName:        "Owned Agent",
+		AgentJWTSigningKey: "owned-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{testUser.ID},
 	}
 	otherAgent := agents.Agent{
-		ID:           "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-		DisplayName:  "Other Agent",
-		SharedSecret: "other-agent-secret",
-		Enabled:      true,
-		UserIDs:      []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		ID:                 "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+		DisplayName:        "Other Agent",
+		AgentJWTSigningKey: "other-agent-signing-key",
+		Enabled:            true,
+		UserIDs:            []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
 	}
 	server.Agents = agents.NewRegistry([]agents.Agent{ownedAgent, otherAgent})
 	ownedTarget := targets.Target{
@@ -2089,7 +2095,7 @@ func TestUserCommandHistoryEndpointAdminSeesAllTasksAndRedactsSecrets(t *testing
 		}
 	}
 	body := rec.Body.String()
-	for _, leaked := range []string{"owned-agent-secret", "other-agent-secret", "owned-target-password", "other-target-password", "owned-user", "other-user"} {
+	for _, leaked := range []string{"owned-agent-signing-key", "other-agent-signing-key", "owned-target-password", "other-target-password", "owned-user", "other-user"} {
 		if strings.Contains(body, leaked) {
 			t.Fatalf("history response leaked %q: %s", leaked, body)
 		}

@@ -2547,8 +2547,8 @@ function AgentFormModal({
   onSubmit: (input: AgentMutationInput) => Promise<Agent>;
 }) {
   const [displayName, setDisplayName] = useState(agent?.display_name ?? '');
-  const [sharedSecret, setSharedSecret] = useState('');
-  const [showSharedSecret, setShowSharedSecret] = useState(false);
+  const [agentJwtSigningKey, setAgentJwtSigningKey] = useState('');
+  const [showAgentJwtSigningKey, setShowAgentJwtSigningKey] = useState(false);
   const [enabled, setEnabled] = useState(agent?.enabled ?? true);
   const [interactionInstanceID, setInteractionInstanceID] = useState(agent?.interaction_instance_id || 'local');
   const [localError, setLocalError] = useState('');
@@ -2565,8 +2565,8 @@ function AgentFormModal({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLocalError('');
-    if (mode === 'create' && !sharedSecret.trim()) {
-      setLocalError('Shared secret is required for a new agent.');
+    if (mode === 'create' && !agentJwtSigningKey.trim()) {
+      setLocalError('Agent JWT Signing Key is required for a new agent.');
       return;
     }
     const input: AgentMutationInput = {
@@ -2574,8 +2574,8 @@ function AgentFormModal({
       enabled,
       interaction_instance_id: interactionInstanceID
     };
-    if (mode === 'create' || sharedSecret.trim()) {
-      input.shared_secret = sharedSecret;
+    if (mode === 'create' || agentJwtSigningKey.trim()) {
+      input.agent_jwt_signing_key = agentJwtSigningKey;
     }
     try {
       const savedAgent = await onSubmit(input);
@@ -2599,9 +2599,11 @@ function AgentFormModal({
   }
 
   const title = createdAgent ? 'Agent created' : mode === 'create' ? 'Add Agent' : `Edit ${agent ? agentLabel(agent) : 'Agent'}`;
-  const secretHelp = mode === 'edit' ? 'Leave blank to keep the stored shared secret.' : 'Used by the agent to sign Proxyma JWTs.';
+  const signingKeyHelp = mode === 'edit'
+    ? 'Leave blank to keep the stored Agent JWT Signing Key.'
+    : 'Symmetric key material used to sign short-lived Proxyma JWTs; the key itself is never sent to the API.';
   const harnessConfiguration = createdAgent
-    ? JSON.stringify({ agent_id: createdAgent.id, shared_secret: sharedSecret }, null, 2)
+    ? JSON.stringify({ agent_id: createdAgent.id, agent_jwt_signing_key: agentJwtSigningKey }, null, 2)
     : '';
 
   return (
@@ -2613,7 +2615,7 @@ function AgentFormModal({
             <p>
               {createdAgent
                 ? 'Copy these credentials into the Proxyma harness before closing this dialog.'
-                : 'Agent shared secrets are write-only and are never shown after saving.'}
+                : 'Agent JWT Signing Keys are write-only and are never shown after saving.'}
             </p>
           </div>
           <button className="icon-button" type="button" aria-label="Close agent dialog" onClick={onClose}>
@@ -2651,7 +2653,7 @@ function AgentFormModal({
               <label className="dialog-field wide">
                 <span>Harness agent configuration</span>
                 <textarea readOnly rows={5} value={harnessConfiguration} />
-                <small>This configuration contains the shared secret and will not be shown again after you close this dialog.</small>
+                <small>This configuration contains the Agent JWT Signing Key and will not be shown again after you close this dialog.</small>
               </label>
             </div>
 
@@ -2699,26 +2701,26 @@ function AgentFormModal({
               </div>
             ) : null}
             <div className="dialog-field wide">
-              <label htmlFor="agent-shared-secret">Shared secret</label>
+              <label htmlFor="agent-jwt-signing-key">Agent JWT Signing Key</label>
               <div className="password-input-shell">
                 <input
                   autoComplete="new-password"
-                  id="agent-shared-secret"
-                  type={showSharedSecret ? 'text' : 'password'}
-                  value={sharedSecret}
-                  onChange={(event) => setSharedSecret(event.target.value)}
-                  placeholder={mode === 'edit' ? 'Keep current shared secret' : 'Agent shared secret'}
+                  id="agent-jwt-signing-key"
+                  type={showAgentJwtSigningKey ? 'text' : 'password'}
+                  value={agentJwtSigningKey}
+                  onChange={(event) => setAgentJwtSigningKey(event.target.value)}
+                  placeholder={mode === 'edit' ? 'Keep current Agent JWT Signing Key' : 'Agent JWT Signing Key'}
                 />
                 <button
-                  aria-label={showSharedSecret ? 'Hide shared secret' : 'Show shared secret'}
+                  aria-label={showAgentJwtSigningKey ? 'Hide Agent JWT Signing Key' : 'Show Agent JWT Signing Key'}
                   className="icon-button"
-                  onClick={() => setShowSharedSecret((visible) => !visible)}
+                  onClick={() => setShowAgentJwtSigningKey((visible) => !visible)}
                   type="button"
                 >
-                  {showSharedSecret ? <EyeOff size={17} /> : <Eye size={17} />}
+                  {showAgentJwtSigningKey ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
-              <small>{secretHelp}</small>
+              <small>{signingKeyHelp}</small>
             </div>
             <label className="dialog-field wide">
               <span>Interaction</span>

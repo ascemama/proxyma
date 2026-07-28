@@ -2,7 +2,7 @@
   "$schema": "../../../../schemas/proxyma.agent.schema.json",
   "id": "44444444-4444-4444-8444-444444444444",
   "display_name": "operator-edge-agent",
-  "shared_secret": "operator-edge-secret",
+  "agent_jwt_signing_key": "operator-edge-signing-key",
   "enabled": true,
   "user_ids": ["a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"],
   "interaction_instance_id": "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"

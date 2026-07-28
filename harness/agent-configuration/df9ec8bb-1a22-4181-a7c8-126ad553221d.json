@@ -1,4 +1,4 @@
 {
   "agent_id": "df9ec8bb-1a22-4181-a7c8-126ad553221d",
-  "shared_secret": "dev-only-codex-harness-secret"
+  "agent_jwt_signing_key": "dev-only-codex-harness-signing-key"
 }

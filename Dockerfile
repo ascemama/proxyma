@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 
 FROM alpine:3.22
 LABEL org.opencontainers.image.title="Proxyma" \
-  org.opencontainers.image.description="Privileged Access Management for AI agents" \
+  org.opencontainers.image.description="Policy-enforcing proxy for AI agent access to remote systems" \
   org.opencontainers.image.source="https://github.com/ascemama/proxyma" \
   org.opencontainers.image.licenses="AGPL-3.0-only"
 RUN apk add --no-cache ca-certificates tzdata \

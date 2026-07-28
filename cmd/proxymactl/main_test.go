@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"proxyma/internal/agents"
 	"proxyma/internal/users"
 )
 
@@ -69,6 +70,51 @@ func TestRunCreateRejectsInputID(t *testing.T) {
 		t.Fatalf("expected failure stdout = %s", stdout.String())
 	}
 	if !strings.Contains(stderr.String(), "must not include id") {
+		t.Fatalf("stderr = %s", stderr.String())
+	}
+}
+
+func TestRunAgentsCreateUsesAgentJWTSigningKeyAndRejectsFormerField(t *testing.T) {
+	root := t.TempDir()
+	userID := "fcd2f3a9-d546-44f4-837b-0c7aa4219752"
+	userDir := filepath.Join(root, "users")
+	if err := os.MkdirAll(userDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(userDir, userID+".json"),
+		[]byte(`{"id":"`+userID+`","username":"operator","name":"Operator","admin":true,"status":"active","passwd_hash":"`+validTestPasswdHash+`"}`),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	input := `{"display_name":"Build Agent","agent_jwt_signing_key":"build-agent-signing-key","enabled":true,"user_ids":["` + userID + `"]}`
+	code := run(append(testGlobalArgs(root), "agents", "create", "--file", "-"), &stdout, &stderr, strings.NewReader(input), emptyEnv)
+	if code != 0 {
+		t.Fatalf("code = %d stderr = %s", code, stderr.String())
+	}
+	var created users.MutationResult
+	if err := json.Unmarshal(stdout.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	var stored agents.Agent
+	readJSONFile(t, filepath.Join(root, "agents", created.ID+".json"), &stored)
+	if stored.AgentJWTSigningKey != "build-agent-signing-key" {
+		t.Fatalf("stored = %#v", stored)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	formerField := "shared" + "_" + "secret"
+	formerInput := `{"` + formerField + `":"legacy-signing-key","enabled":true,"user_ids":["` + userID + `"]}`
+	code = run(append(testGlobalArgs(root), "agents", "create", "--file", "-"), &stdout, &stderr, strings.NewReader(formerInput), emptyEnv)
+	if code == 0 {
+		t.Fatalf("former field was accepted stdout = %s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "unknown field") {
 		t.Fatalf("stderr = %s", stderr.String())
 	}
 }

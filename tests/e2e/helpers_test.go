@@ -22,7 +22,7 @@ import (
 const quickSSHCommand = `ssh -o BatchMode=yes -o ConnectTimeout=1 {user}@127.0.0.1 hostname`
 const quickPlaceholderSSHCommand = `ssh -o BatchMode=yes -o ConnectTimeout=1 {user}@127.0.0.1 'echo {password}'`
 
-var testAgent = agents.Agent{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", SharedSecret: "test-secret", Enabled: true}
+var testAgent = agents.Agent{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "test-signing-key", Enabled: true}
 
 type fakeE2ESSHClient struct {
 	result sshclient.Result
