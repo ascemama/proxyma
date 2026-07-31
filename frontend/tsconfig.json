@@ -17,6 +17,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "e2e", "playwright.config.ts"],
+  "include": ["src", "e2e", "playwright.config.ts", "playwright.production.config.ts"],
   "references": []
 }

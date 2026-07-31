@@ -645,7 +645,7 @@ code {
   gap: 8px;
 }
 
-.target-section-actions {
+.prerequisite-section-actions {
   align-items: flex-end;
   display: grid;
   gap: 5px;
@@ -653,7 +653,7 @@ code {
   padding: 3px 0;
 }
 
-.target-prerequisite-guidance {
+.prerequisite-guidance {
   align-items: center;
   color: var(--muted);
   display: flex;
@@ -665,13 +665,13 @@ code {
   text-align: right;
 }
 
-.target-prerequisite-shortcuts {
+.prerequisite-shortcuts {
   align-items: center;
   display: inline-flex;
   gap: 8px;
 }
 
-.target-prerequisite-shortcuts .link-button {
+.prerequisite-shortcuts .link-button {
   font-size: 11px;
   padding: 0;
 }
@@ -715,6 +715,11 @@ code {
   border: 0;
   color: var(--teal);
   font-weight: 700;
+}
+
+.link-button:disabled {
+  color: var(--text-disabled);
+  opacity: 0.72;
 }
 
 .icon-button {
