@@ -86,6 +86,7 @@ import {
   type UserSession
 } from '../api/client';
 import { applyTheme, type Theme } from '../theme';
+import { showLocalInteraction } from '../environment';
 import { ApplicationFooter } from './ApplicationFooter';
 
 type DashboardProps = {
@@ -159,6 +160,11 @@ type TargetCreationPrerequisites = {
   message: string;
   missingAgent: boolean;
   missingPolicy: boolean;
+};
+
+type AgentCreationPrerequisites = {
+  status: 'loading' | 'error' | 'missing' | 'ready';
+  message: string;
 };
 
 const navItems: NavItem[] = [
@@ -294,6 +300,12 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
     agentsQuery.isLoading || policiesQuery.isLoading,
     Boolean(agentsQuery.error || policiesQuery.error)
   );
+  const agentCreationPrerequisites = getAgentCreationPrerequisites(
+    interactions,
+    session.user.id,
+    interactionsQuery.isLoading,
+    Boolean(interactionsQuery.error)
+  );
 
   async function handleLogout() {
     await logout(session.csrf_token);
@@ -307,6 +319,16 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   async function handleSaveTheme(theme: Theme) {
     const user = await updateSettingsMutation.mutateAsync(theme);
     onUserUpdated(user);
+  }
+
+  function openCreateAgent() {
+    if (agentCreationPrerequisites.status === 'ready') {
+      setAgentDialog({ mode: 'create' });
+    }
+  }
+
+  function openCreateInteraction() {
+    setInteractionDialog({ mode: 'choose' });
   }
 
   async function handleSaveTarget(input: TargetMutationInput) {
@@ -527,16 +549,19 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
 
         {activePage === 'target' ? (
           <TargetPage
+            agentCreationPrerequisites={agentCreationPrerequisites}
             commands={commands}
             error={targetsQuery.error}
             isLoading={targetsQuery.isLoading}
             managedUsers={managedUsers}
             onAdd={() => setTargetDialog({ mode: 'create' })}
-            onAddAgent={() => setAgentDialog({ mode: 'create' })}
+            onAddAgent={openCreateAgent}
+            onAddInteraction={openCreateInteraction}
             onAddPolicy={() => setPolicyDialog({ mode: 'create' })}
             onDelete={setDeleteCandidate}
             onEdit={(target) => setTargetDialog({ mode: 'edit', target })}
             onRefresh={() => void targetsQuery.refetch()}
+            onRetryAgentPrerequisites={() => void interactionsQuery.refetch()}
             onRetryPrerequisites={() => void Promise.all([agentsQuery.refetch(), policiesQuery.refetch()])}
             showOwners={session.user.admin}
             targetCreationPrerequisites={targetCreationPrerequisites}
@@ -544,15 +569,18 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
           />
         ) : activePage === 'agent' ? (
           <AgentPage
+            agentCreationPrerequisites={agentCreationPrerequisites}
             agents={agents}
             commands={commands}
             error={agentsQuery.error}
             isLoading={agentsQuery.isLoading}
             managedUsers={managedUsers}
-            onAdd={() => setAgentDialog({ mode: 'create' })}
+            onAdd={openCreateAgent}
+            onAddInteraction={openCreateInteraction}
             onDelete={setDeleteAgentCandidate}
             onEdit={(agent) => setAgentDialog({ mode: 'edit', agent })}
             onRefresh={() => void agentsQuery.refetch()}
+            onRetryPrerequisites={() => void interactionsQuery.refetch()}
             showOwners={session.user.admin}
             targets={targets}
           />
@@ -563,7 +591,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             interactions={interactions}
             isLoading={interactionsQuery.isLoading}
             managedUsers={managedUsers}
-            onAdd={() => setInteractionDialog({ mode: 'choose' })}
+            onAdd={openCreateInteraction}
             onDelete={setDeleteInteractionCandidate}
             onEdit={(interaction) => setInteractionDialog({ mode: 'edit', interaction })}
             onRefresh={() => void interactionsQuery.refetch()}
@@ -607,6 +635,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
           />
         ) : (
           <DashboardPage
+            agentCreationPrerequisites={agentCreationPrerequisites}
             agents={agents}
             agentsError={agentsQuery.error}
             agentsLoading={agentsQuery.isLoading}
@@ -616,7 +645,8 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             managedUsers={managedUsers}
             onRefreshHistory={() => void historyQuery.refetch()}
             onViewCommandHistory={() => setActivePage('command-history')}
-            onAddAgent={() => setAgentDialog({ mode: 'create' })}
+            onAddAgent={openCreateAgent}
+            onAddInteraction={openCreateInteraction}
             onAddPolicy={() => setPolicyDialog({ mode: 'create' })}
             onAddTarget={() => setTargetDialog({ mode: 'create' })}
             onDeleteAgent={setDeleteAgentCandidate}
@@ -625,6 +655,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             onEditTarget={(target) => setTargetDialog({ mode: 'edit', target })}
             onRefreshAgents={() => void agentsQuery.refetch()}
             onRefreshTargets={() => void targetsQuery.refetch()}
+            onRetryAgentPrerequisites={() => void interactionsQuery.refetch()}
             onRetryTargetPrerequisites={() => void Promise.all([agentsQuery.refetch(), policiesQuery.refetch()])}
             showOwners={session.user.admin}
             targetCreationPrerequisites={targetCreationPrerequisites}
@@ -824,6 +855,7 @@ function NavButton({
 }
 
 function DashboardPage({
+  agentCreationPrerequisites,
   agents,
   agentsError,
   agentsLoading,
@@ -834,6 +866,7 @@ function DashboardPage({
   onRefreshHistory,
   onViewCommandHistory,
   onAddAgent,
+  onAddInteraction,
   onAddPolicy,
   onAddTarget,
   onDeleteAgent,
@@ -842,6 +875,7 @@ function DashboardPage({
   onEditTarget,
   onRefreshAgents,
   onRefreshTargets,
+  onRetryAgentPrerequisites,
   onRetryTargetPrerequisites,
   showOwners,
   targetCreationPrerequisites,
@@ -849,6 +883,7 @@ function DashboardPage({
   targetsError,
   targetsLoading
 }: {
+  agentCreationPrerequisites: AgentCreationPrerequisites;
   agents: Agent[];
   agentsError: Error | null;
   agentsLoading: boolean;
@@ -859,6 +894,7 @@ function DashboardPage({
   onRefreshHistory: () => void;
   onViewCommandHistory: () => void;
   onAddAgent: () => void;
+  onAddInteraction: () => void;
   onAddPolicy: () => void;
   onAddTarget: () => void;
   onDeleteAgent: (agent: Agent) => void;
@@ -867,6 +903,7 @@ function DashboardPage({
   onEditTarget: (target: Target) => void;
   onRefreshAgents: () => void;
   onRefreshTargets: () => void;
+  onRetryAgentPrerequisites: () => void;
   onRetryTargetPrerequisites: () => void;
   showOwners: boolean;
   targetCreationPrerequisites: TargetCreationPrerequisites;
@@ -884,15 +921,18 @@ function DashboardPage({
         onViewAll={onViewCommandHistory}
       />
       <TargetsSection
+        agentCreationPrerequisites={agentCreationPrerequisites}
         commands={commands}
         error={targetsError}
         isLoading={targetsLoading}
         onAdd={onAddTarget}
         onAddAgent={onAddAgent}
+        onAddInteraction={onAddInteraction}
         onAddPolicy={onAddPolicy}
         onDelete={onDeleteTarget}
         onEdit={onEditTarget}
         onRefresh={onRefreshTargets}
+        onRetryAgentPrerequisites={onRetryAgentPrerequisites}
         onRetryPrerequisites={onRetryTargetPrerequisites}
         managedUsers={managedUsers}
         showOwners={showOwners}
@@ -901,14 +941,17 @@ function DashboardPage({
         title={showOwners ? 'Targets' : 'Owned Targets'}
       />
       <AgentsSection
+        agentCreationPrerequisites={agentCreationPrerequisites}
         agents={agents}
         commands={commands}
         error={agentsError}
         isLoading={agentsLoading}
         onAdd={onAddAgent}
+        onAddInteraction={onAddInteraction}
         onDelete={onDeleteAgent}
         onEdit={onEditAgent}
         onRefresh={onRefreshAgents}
+        onRetryPrerequisites={onRetryAgentPrerequisites}
         managedUsers={managedUsers}
         showOwners={showOwners}
         targets={targets}
@@ -1018,41 +1061,50 @@ function UsersSection({
 }
 
 function AgentPage({
+  agentCreationPrerequisites,
   agents,
   commands,
   error,
   isLoading,
   managedUsers,
   onAdd,
+  onAddInteraction,
   onDelete,
   onEdit,
   onRefresh,
+  onRetryPrerequisites,
   showOwners,
   targets
 }: {
+  agentCreationPrerequisites: AgentCreationPrerequisites;
   agents: Agent[];
   commands: CommandHistoryItem[];
   error: Error | null;
   isLoading: boolean;
   managedUsers: UserProfile[];
   onAdd: () => void;
+  onAddInteraction: () => void;
   onDelete: (agent: Agent) => void;
   onEdit: (agent: Agent) => void;
   onRefresh: () => void;
+  onRetryPrerequisites: () => void;
   showOwners: boolean;
   targets: Target[];
 }) {
   return (
     <section className="dashboard-stack">
       <AgentsSection
+        agentCreationPrerequisites={agentCreationPrerequisites}
         agents={agents}
         commands={commands}
         error={error}
         isLoading={isLoading}
         onAdd={onAdd}
+        onAddInteraction={onAddInteraction}
         onDelete={onDelete}
         onEdit={onEdit}
         onRefresh={onRefresh}
+        onRetryPrerequisites={onRetryPrerequisites}
         managedUsers={managedUsers}
         showOwners={showOwners}
         targets={targets}
@@ -1062,31 +1114,37 @@ function AgentPage({
 }
 
 function TargetPage({
+  agentCreationPrerequisites,
   commands,
   error,
   isLoading,
   managedUsers,
   onAdd,
   onAddAgent,
+  onAddInteraction,
   onAddPolicy,
   onDelete,
   onEdit,
   onRefresh,
+  onRetryAgentPrerequisites,
   onRetryPrerequisites,
   showOwners,
   targetCreationPrerequisites,
   targets
 }: {
+  agentCreationPrerequisites: AgentCreationPrerequisites;
   commands: CommandHistoryItem[];
   error: Error | null;
   isLoading: boolean;
   managedUsers: UserProfile[];
   onAdd: () => void;
   onAddAgent: () => void;
+  onAddInteraction: () => void;
   onAddPolicy: () => void;
   onDelete: (target: Target) => void;
   onEdit: (target: Target) => void;
   onRefresh: () => void;
+  onRetryAgentPrerequisites: () => void;
   onRetryPrerequisites: () => void;
   showOwners: boolean;
   targetCreationPrerequisites: TargetCreationPrerequisites;
@@ -1095,15 +1153,18 @@ function TargetPage({
   return (
     <section className="dashboard-stack">
       <TargetsSection
+        agentCreationPrerequisites={agentCreationPrerequisites}
         commands={commands}
         error={error}
         isLoading={isLoading}
         onAdd={onAdd}
         onAddAgent={onAddAgent}
+        onAddInteraction={onAddInteraction}
         onAddPolicy={onAddPolicy}
         onDelete={onDelete}
         onEdit={onEdit}
         onRefresh={onRefresh}
+        onRetryAgentPrerequisites={onRetryAgentPrerequisites}
         onRetryPrerequisites={onRetryPrerequisites}
         managedUsers={managedUsers}
         showOwners={showOwners}
@@ -1333,7 +1394,7 @@ function InteractionHistoryPage({
             <span>Provider instance</span>
             <select value={draftFilters.interaction_instance_id} onChange={(event) => updateFilter('interaction_instance_id', event.target.value)}>
               <option value="">All instances</option>
-              <option value="local">Local</option>
+              {showLocalInteraction ? <option value="local">Local</option> : null}
               {interactions.map((interaction) => (
                 <option key={interaction.id} value={interaction.id}>
                   {interactionLabel(interaction)}
@@ -1710,32 +1771,38 @@ function CommandHistoryTable({ commands, includeStatus = false }: { commands: Co
 }
 
 function TargetsSection({
+  agentCreationPrerequisites,
   commands,
   error,
   isLoading,
   managedUsers,
   onAdd,
   onAddAgent,
+  onAddInteraction,
   onAddPolicy,
   onDelete,
   onEdit,
   onRefresh,
+  onRetryAgentPrerequisites,
   onRetryPrerequisites,
   showOwners,
   targetCreationPrerequisites,
   targets,
   title
 }: {
+  agentCreationPrerequisites: AgentCreationPrerequisites;
   commands: CommandHistoryItem[];
   error: Error | null;
   isLoading: boolean;
   managedUsers: UserProfile[];
   onAdd: () => void;
   onAddAgent: () => void;
+  onAddInteraction: () => void;
   onAddPolicy: () => void;
   onDelete: (target: Target) => void;
   onEdit: (target: Target) => void;
   onRefresh: () => void;
+  onRetryAgentPrerequisites: () => void;
   onRetryPrerequisites: () => void;
   showOwners: boolean;
   targetCreationPrerequisites: TargetCreationPrerequisites;
@@ -1746,10 +1813,13 @@ function TargetsSection({
     <Panel
       action={(
         <TargetSectionActions
+          agentCreationPrerequisites={agentCreationPrerequisites}
           onAdd={onAdd}
           onAddAgent={onAddAgent}
+          onAddInteraction={onAddInteraction}
           onAddPolicy={onAddPolicy}
           onRefresh={onRefresh}
+          onRetryAgentPrerequisites={onRetryAgentPrerequisites}
           onRetryPrerequisites={onRetryPrerequisites}
           prerequisites={targetCreationPrerequisites}
         />
@@ -1795,26 +1865,32 @@ function TargetsSection({
 }
 
 function AgentsSection({
+  agentCreationPrerequisites,
   agents,
   targets,
   commands,
   managedUsers,
   onAdd,
+  onAddInteraction,
   onDelete,
   onEdit,
   onRefresh,
+  onRetryPrerequisites,
   showOwners,
   isLoading,
   error
 }: {
+  agentCreationPrerequisites: AgentCreationPrerequisites;
   agents: Agent[];
   targets: Target[];
   commands: CommandHistoryItem[];
   managedUsers: UserProfile[];
   onAdd: () => void;
+  onAddInteraction: () => void;
   onDelete: (agent: Agent) => void;
   onEdit: (agent: Agent) => void;
   onRefresh: () => void;
+  onRetryPrerequisites: () => void;
   showOwners: boolean;
   isLoading: boolean;
   error: Error | null;
@@ -1823,7 +1899,15 @@ function AgentsSection({
 
   return (
     <Panel
-      action={<SectionActions label="Add Agent" onAdd={onAdd} onRefresh={onRefresh} />}
+      action={(
+        <AgentSectionActions
+          onAdd={onAdd}
+          onAddInteraction={onAddInteraction}
+          onRefresh={onRefresh}
+          onRetryPrerequisites={onRetryPrerequisites}
+          prerequisites={agentCreationPrerequisites}
+        />
+      )}
       count={agents.length}
       error={error}
       icon={<Bot size={18} />}
@@ -1992,25 +2076,89 @@ function SectionActions({ label, onAdd, onRefresh }: { label: string; onAdd?: ()
   );
 }
 
-function TargetSectionActions({
+function AgentSectionActions({
   onAdd,
-  onAddAgent,
-  onAddPolicy,
+  onAddInteraction,
   onRefresh,
   onRetryPrerequisites,
   prerequisites
 }: {
   onAdd: () => void;
+  onAddInteraction: () => void;
+  onRefresh: () => void;
+  onRetryPrerequisites: () => void;
+  prerequisites: AgentCreationPrerequisites;
+}) {
+  const canAddAgent = prerequisites.status === 'ready';
+
+  return (
+    <div className="prerequisite-section-actions">
+      <div className="section-actions">
+        <button
+          aria-label={canAddAgent ? 'Add Agent' : `Add Agent unavailable: ${prerequisites.message}`}
+          className="primary-action"
+          disabled={!canAddAgent}
+          type="button"
+          onClick={onAdd}
+        >
+          <Plus size={16} />
+          Add Agent
+        </button>
+        <button className="icon-button bordered" type="button" aria-label="Refresh" onClick={onRefresh}>
+          <RefreshCw size={16} />
+        </button>
+        <button className="icon-button bordered" type="button" aria-label="More actions">
+          <MoreHorizontal size={16} />
+        </button>
+      </div>
+
+      {!canAddAgent ? (
+        <div className="prerequisite-guidance" role="status">
+          <span>{prerequisites.message}</span>
+          <div className="prerequisite-shortcuts">
+            {prerequisites.status === 'error' ? (
+              <button className="link-button" type="button" onClick={onRetryPrerequisites}>
+                Retry
+              </button>
+            ) : null}
+            {prerequisites.status === 'missing' ? (
+              <button className="link-button" type="button" onClick={onAddInteraction}>
+                Add Interaction
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TargetSectionActions({
+  agentCreationPrerequisites,
+  onAdd,
+  onAddAgent,
+  onAddInteraction,
+  onAddPolicy,
+  onRefresh,
+  onRetryAgentPrerequisites,
+  onRetryPrerequisites,
+  prerequisites
+}: {
+  agentCreationPrerequisites: AgentCreationPrerequisites;
+  onAdd: () => void;
   onAddAgent: () => void;
+  onAddInteraction: () => void;
   onAddPolicy: () => void;
   onRefresh: () => void;
+  onRetryAgentPrerequisites: () => void;
   onRetryPrerequisites: () => void;
   prerequisites: TargetCreationPrerequisites;
 }) {
   const canAddTarget = prerequisites.status === 'ready';
+  const canAddAgent = agentCreationPrerequisites.status === 'ready';
 
   return (
-    <div className="target-section-actions">
+    <div className="prerequisite-section-actions">
       <div className="section-actions">
         <button
           aria-label={canAddTarget ? 'Add Target' : `Add Target unavailable: ${prerequisites.message}`}
@@ -2031,19 +2179,39 @@ function TargetSectionActions({
       </div>
 
       {!canAddTarget ? (
-        <div className="target-prerequisite-guidance" role="status">
+        <div className="prerequisite-guidance" role="status">
           <span>{prerequisites.message}</span>
-          <div className="target-prerequisite-shortcuts">
+          <div className="prerequisite-shortcuts">
             {prerequisites.status === 'error' ? (
               <button className="link-button" type="button" onClick={onRetryPrerequisites}>
                 Retry
               </button>
             ) : null}
             {prerequisites.status === 'missing' && prerequisites.missingAgent ? (
-              <button className="link-button" type="button" onClick={onAddAgent}>
+              <button
+                aria-label={canAddAgent ? 'Add Agent' : `Add Agent unavailable: ${agentCreationPrerequisites.message}`}
+                className="link-button"
+                disabled={!canAddAgent}
+                type="button"
+                onClick={onAddAgent}
+              >
                 Add Agent
               </button>
             ) : null}
+            {prerequisites.status === 'missing'
+              && prerequisites.missingAgent
+              && agentCreationPrerequisites.status === 'missing' ? (
+                <button className="link-button" type="button" onClick={onAddInteraction}>
+                  Add Interaction
+                </button>
+              ) : null}
+            {prerequisites.status === 'missing'
+              && prerequisites.missingAgent
+              && agentCreationPrerequisites.status === 'error' ? (
+                <button className="link-button" type="button" onClick={onRetryAgentPrerequisites}>
+                  Retry interactions
+                </button>
+              ) : null}
             {prerequisites.status === 'missing' && prerequisites.missingPolicy ? (
               <button className="link-button" type="button" onClick={onAddPolicy}>
                 Add Policy
@@ -2550,13 +2718,18 @@ function AgentFormModal({
   const [agentJwtSigningKey, setAgentJwtSigningKey] = useState('');
   const [showAgentJwtSigningKey, setShowAgentJwtSigningKey] = useState(false);
   const [enabled, setEnabled] = useState(agent?.enabled ?? true);
-  const [interactionInstanceID, setInteractionInstanceID] = useState(agent?.interaction_instance_id || 'local');
+  const [interactionInstanceID, setInteractionInstanceID] = useState(() => {
+    const assignedInteraction = agent?.interaction_instance_id;
+    if (assignedInteraction && (showLocalInteraction || assignedInteraction !== 'local')) {
+      return assignedInteraction;
+    }
+    return showLocalInteraction ? 'local' : '';
+  });
   const [localError, setLocalError] = useState('');
   const [createdAgent, setCreatedAgent] = useState<Agent | null>(null);
   const [copied, setCopied] = useState<'id' | 'configuration' | null>(null);
 
-  const ownedInteractions = interactions
-    .filter((interaction) => interaction.enabled && interaction.creator_user_id === currentUserID)
+  const ownedInteractions = selectableInteractions(interactions, currentUserID)
     .sort((left, right) => interactionLabel(left).localeCompare(interactionLabel(right)));
   const currentInteraction = interactions.find((interaction) => interaction.id === interactionInstanceID);
   const currentAssignmentUnavailable = interactionInstanceID !== 'local'
@@ -2567,6 +2740,10 @@ function AgentFormModal({
     setLocalError('');
     if (mode === 'create' && !agentJwtSigningKey.trim()) {
       setLocalError('Agent JWT Signing Key is required for a new agent.');
+      return;
+    }
+    if (!showLocalInteraction && !interactionInstanceID) {
+      setLocalError('Select an enabled interaction before saving the agent.');
       return;
     }
     const input: AgentMutationInput = {
@@ -2729,7 +2906,9 @@ function AgentFormModal({
                 value={interactionInstanceID}
                 onChange={(event) => setInteractionInstanceID(event.target.value)}
               >
-                <option value="local">Local console · built in</option>
+                {showLocalInteraction
+                  ? <option value="local">Local console · built in</option>
+                  : <option disabled value="">Select an interaction</option>}
                 {ownedInteractions.map((interaction) => (
                   <option key={interaction.id} value={interaction.id}>
                     {interactionLabel(interaction)} · {interaction.type.toUpperCase()}
@@ -2743,8 +2922,12 @@ function AgentFormModal({
               </select>
               <small>
                 {currentAssignmentUnavailable
-                  ? 'This assignment belongs to another user or is unavailable. Keep it unchanged, or replace it with Local or one of your interactions.'
-                  : 'Choose Local or an enabled interaction you created.'}
+                  ? showLocalInteraction
+                    ? 'This assignment belongs to another user or is unavailable. Keep it unchanged, or replace it with Local or one of your interactions.'
+                    : 'This assignment belongs to another user or is unavailable. Keep it unchanged, or replace it with one of your interactions.'
+                  : showLocalInteraction
+                    ? 'Choose Local or an enabled interaction you created.'
+                    : 'Choose an enabled interaction you created.'}
               </small>
             </label>
             <label className="toggle-field wide">
@@ -2794,13 +2977,15 @@ function InteractionTypeModal({ onClose, onSelectNtfy }: { onClose: () => void; 
               <small>Publish approval requests to an ntfy topic.</small>
             </span>
           </button>
-          <button className="type-choice" type="button" disabled>
-            <PlugZap size={20} />
-            <span>
-              <strong>Local</strong>
-              <small>Built-in singleton. No file-backed instance is created.</small>
-            </span>
-          </button>
+          {showLocalInteraction ? (
+            <button className="type-choice" type="button" disabled>
+              <PlugZap size={20} />
+              <span>
+                <strong>Local</strong>
+                <small>Built-in singleton. No file-backed instance is created.</small>
+              </span>
+            </button>
+          ) : null}
         </div>
       </section>
     </div>
@@ -3964,6 +4149,31 @@ function getTargetCreationPrerequisites(
   }
 
   return { status: 'ready', message: '', missingAgent: false, missingPolicy: false };
+}
+
+function getAgentCreationPrerequisites(
+  interactions: InteractionInstance[],
+  currentUserID: string,
+  isLoading: boolean,
+  hasError: boolean
+): AgentCreationPrerequisites {
+  if (showLocalInteraction) {
+    return { status: 'ready', message: '' };
+  }
+  if (isLoading) {
+    return { status: 'loading', message: 'Checking interaction prerequisites…' };
+  }
+  if (hasError) {
+    return { status: 'error', message: 'Unable to verify interactions.' };
+  }
+  if (selectableInteractions(interactions, currentUserID).length === 0) {
+    return { status: 'missing', message: 'Create an interaction before adding an agent.' };
+  }
+  return { status: 'ready', message: '' };
+}
+
+function selectableInteractions(interactions: InteractionInstance[], currentUserID: string) {
+  return interactions.filter((interaction) => interaction.enabled && interaction.creator_user_id === currentUserID);
 }
 
 function policySelectOptions(policies: Policy[], selectedPolicyID: string) {

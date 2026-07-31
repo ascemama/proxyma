@@ -61,6 +61,10 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByRole('row', { name: /Example ntfy.*NTFY.*Enabled/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Logs', exact: true })).toBeDisabled();
 
+  await page.getByRole('button', { name: 'Interaction History', exact: true }).click();
+  const providerInstanceFilter = page.getByLabel('Provider instance');
+  await expect(providerInstanceFilter.locator('option[value="local"]')).toHaveCount(1);
+
   expect(consoleErrors).toEqual([]);
 });
 
@@ -275,6 +279,7 @@ test('user can manage agents from the agent tab', async ({ context, page }) => {
   await agentJwtSigningKeyInput.fill('deploy-agent-signing-key');
   const interactionSelect = addAgentDialog.getByLabel('Interaction');
   await expect(interactionSelect).toHaveValue('local');
+  await expect(interactionSelect.locator('option[value="local"]')).toHaveCount(1);
   await expect(interactionSelect.getByRole('option', { name: /Example ntfy.*NTFY/ })).toHaveCount(1);
   await interactionSelect.selectOption('6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8');
   await expect(agentJwtSigningKeyInput).toHaveAttribute('type', 'password');
@@ -545,6 +550,31 @@ test('non-admin user can view add and delete policies without editing', async ({
   expect(consoleErrors).toEqual([]);
 });
 
+test('development Local interaction keeps Agent creation enabled without configured interactions', async ({ page }) => {
+  await page.route('**/v1/user/interactions', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ interactions: [] }) });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Password', { exact: true }).fill('correct-password');
+  await page.getByRole('button', { name: 'Sign In' }).click();
+
+  let agentsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Agents', exact: true }) });
+  await expect(agentsPanel.getByRole('button', { name: 'Add Agent', exact: true })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Agent', exact: true }).click();
+  agentsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Agents', exact: true }) });
+  await agentsPanel.getByRole('button', { name: 'Add Agent', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add Agent' });
+  await expect(dialog.getByLabel('Interaction')).toHaveValue('local');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+});
+
 test('target creation requires both an agent and a policy on every target entry point', async ({ page }) => {
   await page.route('**/v1/user/agents', async (route) => {
     if (route.request().method() === 'GET') {
@@ -613,7 +643,8 @@ test('non-admin target creation identifies each missing prerequisite and enables
   let targetsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Owned Targets', exact: true }) });
   await expect(targetsPanel.getByRole('button', { name: /^Add Target unavailable:/ })).toBeDisabled();
   await expect(targetsPanel.getByText('Create an agent before adding a target.', { exact: true })).toBeVisible();
-  await expect(targetsPanel.getByRole('button', { name: 'Add Agent', exact: true })).toBeVisible();
+  await expect(targetsPanel.getByRole('button', { name: /^Add Agent unavailable:/ })).toBeDisabled();
+  await expect(targetsPanel.getByRole('button', { name: 'Add Interaction', exact: true })).toBeVisible();
   await expect(targetsPanel.getByRole('button', { name: 'Add Policy', exact: true })).toHaveCount(0);
 
   agentsMissing = false;

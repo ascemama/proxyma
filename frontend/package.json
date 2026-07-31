@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "docs:toc": "doctoc ../README.md --github",
     "test:e2e": "playwright test",
+    "test:e2e:production": "playwright test --config playwright.production.config.ts",
     "test:e2e:visual": "playwright test e2e/visual.spec.ts"
   },
   "dependencies": {
