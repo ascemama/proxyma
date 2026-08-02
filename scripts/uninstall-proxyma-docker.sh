@@ -2,6 +2,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EXPECTED_ROOT="${PROXYMA_DOCKER_INSTALL_ROOT:-/opt/proxyma}"
+if [[ "$ROOT" != "$EXPECTED_ROOT" ]]; then
+  echo "Refusing to uninstall outside the managed Docker installation root: $EXPECTED_ROOT" >&2
+  exit 1
+fi
 
 COMPOSE_FILE="$ROOT/docker-compose.example.yml"
 COMPOSE_ENV_FILE="$ROOT/proxyma-compose.env"
@@ -14,7 +19,7 @@ CAPTURED_IMAGE_ID=""
 
 usage() {
   cat <<EOF
-Usage: sudo bash ./scripts/uninstall-docker.sh --yes [options]
+Usage: sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh --yes [options]
 
 Options:
   --yes                Confirm destructive removal of the Docker deployment.
@@ -60,7 +65,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  echo "Run as root, for example: sudo bash ./scripts/uninstall-docker.sh --yes" >&2
+  echo "Run as root, for example: sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh --yes" >&2
   exit 1
 fi
 
@@ -114,7 +119,7 @@ require_safe_deployment_dir() {
 
   parent="$(dirname "$path")"
   if [[ "$parent" != "$ROOT" || "$path" == "$ROOT" || "$path" == "/" ]]; then
-    echo "$label is outside the expected repository root: $path" >&2
+    echo "$label is outside the expected Docker installation root: $path" >&2
     exit 1
   fi
   if [[ -L "$path" ]]; then
@@ -177,5 +182,12 @@ if [[ "$REMOVE_IMAGE" == true ]]; then
   fi
 fi
 
+rm -f -- \
+  "$ROOT/docker-compose.example.yml" \
+  "$ROOT/RELEASE" \
+  "$ROOT/scripts/install-proxyma-docker.sh" \
+  "$ROOT/scripts/deployment-endpoint.sh" \
+  "$ROOT/scripts/uninstall-proxyma-docker.sh"
+rmdir "$ROOT/scripts" "$ROOT" 2>/dev/null || true
 echo "Uninstalled the Proxyma Docker deployment."
-echo "Docker Engine, Docker Compose, container images not selected above, and the source checkout were retained."
+echo "Docker Engine, Docker Compose, and container images not selected above were retained."

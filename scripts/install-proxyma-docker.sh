@@ -1,18 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT/scripts/deployment-endpoint.sh"
+SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INSTALL_ROOT="${PROXYMA_DOCKER_INSTALL_ROOT:-/opt/proxyma}"
+source "$SOURCE_ROOT/scripts/deployment-endpoint.sh"
 
-COMPOSE_FILE="$ROOT/docker-compose.example.yml"
-CONFIG_DIR="$ROOT/proxyma-config"
-DATA_DIR="$ROOT/proxyma-data"
-COMPOSE_ENV_FILE="$ROOT/proxyma-compose.env"
+SOURCE_COMPOSE_FILE="$SOURCE_ROOT/docker-compose.example.yml"
+SOURCE_INSTALLER="$SOURCE_ROOT/scripts/install-proxyma-docker.sh"
+SOURCE_UNINSTALLER="$SOURCE_ROOT/scripts/uninstall-proxyma-docker.sh"
+SOURCE_HELPER="$SOURCE_ROOT/scripts/deployment-endpoint.sh"
+COMPOSE_FILE="$INSTALL_ROOT/docker-compose.example.yml"
+CONFIG_DIR="$INSTALL_ROOT/proxyma-config"
+DATA_DIR="$INSTALL_ROOT/proxyma-data"
+COMPOSE_ENV_FILE="$INSTALL_ROOT/proxyma-compose.env"
 CONTAINER_UID=10001
 CONTAINER_GID=10001
 BOOTSTRAP_ADMIN=true
 BOOTSTRAP_ADMIN_FILE=""
-IMAGE_REFERENCE="${PROXYMA_IMAGE:-ghcr.io/ascemama/proxyma:latest}"
+RELEASE_VERSION=""
+if [[ -f "$SOURCE_ROOT/RELEASE" ]]; then
+  RELEASE_VERSION="$(sed -n 's/^version=//p' "$SOURCE_ROOT/RELEASE")"
+fi
+if [[ "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+  DEFAULT_IMAGE="ghcr.io/ascemama/proxyma:${RELEASE_VERSION#v}"
+else
+  DEFAULT_IMAGE="ghcr.io/ascemama/proxyma:latest"
+fi
+IMAGE_REFERENCE="${PROXYMA_IMAGE:-$DEFAULT_IMAGE}"
+IMAGE_REFERENCE_SET=false
+if [[ -n "${PROXYMA_IMAGE:-}" ]]; then
+  IMAGE_REFERENCE_SET=true
+fi
+PULL_IMAGE=true
 BIND_ADDRESS="0.0.0.0"
 HOST_PORT="8080"
 BIND_ADDRESS_SET=false
@@ -24,7 +43,7 @@ TLS_SERVER_NAME=""
 
 usage() {
   cat <<EOF
-Usage: sudo bash ./scripts/install-docker.sh [options]
+Usage: sudo bash ./scripts/install-proxyma-docker.sh [options]
 
 Options:
   --bind-address ADDRESS Publish Proxyma on host ADDRESS (default: 0.0.0.0).
@@ -35,7 +54,8 @@ Options:
   --tls-cert FILE        Install a provided PEM certificate or full chain.
   --tls-key FILE         Install the matching unencrypted PEM private key.
   --tls-server-name NAME Add NAME to a generated certificate's SANs.
-  --image IMAGE          Pull and run IMAGE instead of ghcr.io/ascemama/proxyma:latest.
+  --image IMAGE          Run IMAGE instead of the image matching this release.
+  --no-pull              Use an image already present on the host without pulling it.
   --no-bootstrap-admin  Do not prompt to create the first administrator.
   -h, --help            Show this help text.
 EOF
@@ -70,7 +90,11 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       IMAGE_REFERENCE="$2"
+      IMAGE_REFERENCE_SET=true
       shift
+      ;;
+    --no-pull)
+      PULL_IMAGE=false
       ;;
     --http)
       if [[ -n "$TRANSPORT_ACTION" && "$TRANSPORT_ACTION" != "http" ]]; then
@@ -135,6 +159,10 @@ done
 
 validate_bind_address "$BIND_ADDRESS"
 validate_port "Host port" "$HOST_PORT"
+if [[ -z "$IMAGE_REFERENCE" || "$IMAGE_REFERENCE" =~ [[:space:]] ]]; then
+  echo "The Docker image reference must be non-empty and contain no whitespace." >&2
+  exit 1
+fi
 if [[ -n "$TLS_CERT_SOURCE" || -n "$TLS_KEY_SOURCE" ]]; then
   if [[ -z "$TLS_CERT_SOURCE" || -z "$TLS_KEY_SOURCE" ]]; then
     echo "--tls-cert and --tls-key must be supplied together." >&2
@@ -179,7 +207,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  echo "Run as root, for example: sudo bash ./scripts/install-docker.sh" >&2
+  echo "Run as root, for example: sudo bash ./scripts/install-proxyma-docker.sh" >&2
   exit 1
 fi
 
@@ -220,17 +248,48 @@ if ! docker compose up --help 2>/dev/null | grep -q -- '--wait'; then
   exit 1
 fi
 
-if [[ ! -f "$COMPOSE_FILE" ]]; then
-  echo "Missing Docker Compose file: $COMPOSE_FILE" >&2
-  exit 1
-fi
-
 for required in install find mktemp; do
   if ! command -v "$required" >/dev/null 2>&1; then
     echo "Required host command is not installed: $required" >&2
     exit 1
   fi
 done
+
+for required_file in "$SOURCE_COMPOSE_FILE" "$SOURCE_INSTALLER" "$SOURCE_UNINSTALLER" "$SOURCE_HELPER"; do
+  if [[ ! -f "$required_file" || -L "$required_file" ]]; then
+    echo "Missing or unsafe Docker release file: $required_file" >&2
+    exit 1
+  fi
+done
+
+if [[ "$INSTALL_ROOT" != /* || "$INSTALL_ROOT" == "/" ]]; then
+  echo "The Docker installation root must be an absolute path other than /: $INSTALL_ROOT" >&2
+  exit 1
+fi
+if [[ -L "$INSTALL_ROOT" ]]; then
+  echo "Refusing to use a symbolic link as the Docker installation root: $INSTALL_ROOT" >&2
+  exit 1
+fi
+install -d -o root -g root -m 0755 "$INSTALL_ROOT" "$INSTALL_ROOT/scripts"
+
+install_release_file() {
+  local mode="$1"
+  local source_path="$2"
+  local destination_path="$3"
+  if [[ -e "$destination_path" && "$source_path" -ef "$destination_path" ]]; then
+    chmod "$mode" "$destination_path"
+  else
+    install -o root -g root -m "$mode" "$source_path" "$destination_path"
+  fi
+}
+
+install_release_file 0644 "$SOURCE_COMPOSE_FILE" "$COMPOSE_FILE"
+install_release_file 0755 "$SOURCE_INSTALLER" "$INSTALL_ROOT/scripts/install-proxyma-docker.sh"
+install_release_file 0755 "$SOURCE_UNINSTALLER" "$INSTALL_ROOT/scripts/uninstall-proxyma-docker.sh"
+install_release_file 0644 "$SOURCE_HELPER" "$INSTALL_ROOT/scripts/deployment-endpoint.sh"
+if [[ -f "$SOURCE_ROOT/RELEASE" && ! -L "$SOURCE_ROOT/RELEASE" ]]; then
+  install_release_file 0644 "$SOURCE_ROOT/RELEASE" "$INSTALL_ROOT/RELEASE"
+fi
 
 read_compose_endpoint() {
   local key="$1"
@@ -241,6 +300,19 @@ read_compose_endpoint() {
     exit 1
   fi
   printf '%s' "${matches[0]}"
+}
+
+read_optional_compose_setting() {
+  local key="$1"
+  local matches=()
+  mapfile -t matches < <(sed -n "s/^${key}=//p" "$COMPOSE_ENV_FILE")
+  if [[ "${#matches[@]}" -gt 1 ]]; then
+    echo "Expected at most one $key setting in $COMPOSE_ENV_FILE." >&2
+    exit 1
+  fi
+  if [[ "${#matches[@]}" -eq 1 ]]; then
+    printf '%s' "${matches[0]}"
+  fi
 }
 
 if [[ -L "$COMPOSE_ENV_FILE" ]]; then
@@ -260,13 +332,23 @@ elif [[ -f "$COMPOSE_ENV_FILE" ]]; then
   if [[ "$HOST_PORT_SET" != true ]]; then
     HOST_PORT="$EXISTING_HOST_PORT"
   fi
+  EXISTING_IMAGE_REFERENCE="$(read_optional_compose_setting PROXYMA_IMAGE)"
+  if [[ "$IMAGE_REFERENCE_SET" != true && -z "$RELEASE_VERSION" && -n "$EXISTING_IMAGE_REFERENCE" ]]; then
+    IMAGE_REFERENCE="$EXISTING_IMAGE_REFERENCE"
+  fi
 fi
 
-COMPOSE_ENV_TEMP="$(mktemp "$ROOT/.proxyma-compose.env.XXXXXX")"
+if [[ -z "$IMAGE_REFERENCE" || "$IMAGE_REFERENCE" =~ [[:space:]] ]]; then
+  echo "The Docker image reference in $COMPOSE_ENV_FILE is invalid." >&2
+  exit 1
+fi
+
+COMPOSE_ENV_TEMP="$(mktemp "$INSTALL_ROOT/.proxyma-compose.env.XXXXXX")"
 trap 'rm -f "${COMPOSE_ENV_TEMP:-}" "${BOOTSTRAP_ADMIN_FILE:-}"' EXIT
 cat > "$COMPOSE_ENV_TEMP" <<EOF
 PROXYMA_BIND_ADDRESS=$BIND_ADDRESS
 PROXYMA_HOST_PORT=$HOST_PORT
+PROXYMA_IMAGE=$IMAGE_REFERENCE
 EOF
 chmod 0644 "$COMPOSE_ENV_TEMP"
 mv -f "$COMPOSE_ENV_TEMP" "$COMPOSE_ENV_FILE"
@@ -392,11 +474,19 @@ chmod -R u=rwX,g=,o= "$CONFIG_DIR" "$DATA_DIR"
 export PROXYMA_IMAGE="$IMAGE_REFERENCE"
 
 compose() {
-  docker compose --env-file "$COMPOSE_ENV_FILE" --project-directory "$ROOT" -f "$COMPOSE_FILE" "$@"
+  docker compose --env-file "$COMPOSE_ENV_FILE" --project-directory "$INSTALL_ROOT" -f "$COMPOSE_FILE" "$@"
 }
 
-echo "Pulling $PROXYMA_IMAGE"
-compose pull Proxyma
+if [[ "$PULL_IMAGE" == true ]]; then
+  echo "Pulling $PROXYMA_IMAGE"
+  compose pull Proxyma
+else
+  if ! docker image inspect "$PROXYMA_IMAGE" >/dev/null 2>&1; then
+    echo "The image selected with --no-pull is not present locally: $PROXYMA_IMAGE" >&2
+    exit 1
+  fi
+  echo "Using local image without pulling: $PROXYMA_IMAGE"
+fi
 
 if [[ "$TRANSPORT_ACTION" == "provided" ]]; then
   CERT_TEMP="$(mktemp "$TLS_DIR/.provided-cert.XXXXXX")"
@@ -516,8 +606,9 @@ fi
 
 echo "Proxyma is installed and healthy."
 echo "Image:  $PROXYMA_IMAGE"
-echo "Status: docker compose --env-file proxyma-compose.env -f docker-compose.example.yml ps"
-echo "Logs:   docker compose --env-file proxyma-compose.env -f docker-compose.example.yml logs -f Proxyma"
+echo "Files:  $INSTALL_ROOT"
+echo "Status: docker compose --env-file $COMPOSE_ENV_FILE --project-directory $INSTALL_ROOT -f $COMPOSE_FILE ps"
+echo "Logs:   docker compose --env-file $COMPOSE_ENV_FILE --project-directory $INSTALL_ROOT -f $COMPOSE_FILE logs -f Proxyma"
 if [[ "$BIND_ADDRESS" == "0.0.0.0" || "$BIND_ADDRESS" == "[::]" ]]; then
   DISPLAY_ADDRESS="<server-ip>"
 else
