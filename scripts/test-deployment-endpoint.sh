@@ -51,7 +51,7 @@ update_json_listen_address "$CONFIG_FILE" "[::]:9443"
 grep -q '"unrelated": {"preserve": true}' "$CONFIG_FILE" || fail "unrelated JSON preservation"
 
 LINUX_HELP="$(bash "$ROOT/scripts/install-linux-release.sh" --help)"
-DOCKER_HELP="$(bash "$ROOT/scripts/install-docker.sh" --help)"
+DOCKER_HELP="$(bash "$ROOT/scripts/install-proxyma-docker.sh" --help)"
 grep -q -- '--bind-address ADDRESS' <<<"$LINUX_HELP" || fail "Linux bind-address help"
 grep -q -- '--port PORT' <<<"$LINUX_HELP" || fail "Linux port help"
 grep -q -- '--bind-address ADDRESS' <<<"$DOCKER_HELP" || fail "Docker bind-address help"
@@ -67,11 +67,11 @@ expect_failure bash "$ROOT/scripts/install-linux-release.sh" --http --self-signe
 expect_failure bash "$ROOT/scripts/install-linux-release.sh" --tls-cert cert.pem
 expect_failure bash "$ROOT/scripts/install-linux-release.sh" --https --tls-server-name proxyma.example.com
 expect_failure bash "$ROOT/scripts/install-linux-release.sh" --tls-server-name "bad/name"
-expect_failure bash "$ROOT/scripts/install-docker.sh" --host-port invalid
-expect_failure bash "$ROOT/scripts/install-docker.sh" --bind-address "bad/address"
-expect_failure bash "$ROOT/scripts/install-docker.sh" --http --https
-expect_failure bash "$ROOT/scripts/install-docker.sh" --tls-key key.pem
-expect_failure bash "$ROOT/scripts/install-docker.sh" --tls-server-name "bad/name"
+expect_failure bash "$ROOT/scripts/install-proxyma-docker.sh" --host-port invalid
+expect_failure bash "$ROOT/scripts/install-proxyma-docker.sh" --bind-address "bad/address"
+expect_failure bash "$ROOT/scripts/install-proxyma-docker.sh" --http --https
+expect_failure bash "$ROOT/scripts/install-proxyma-docker.sh" --tls-key key.pem
+expect_failure bash "$ROOT/scripts/install-proxyma-docker.sh" --tls-server-name "bad/name"
 
 grep -q 'BIND_ADDRESS="0.0.0.0"' "$ROOT/scripts/install-linux-release.sh" || fail "Linux default address"
 grep -q 'LISTEN_PORT="8080"' "$ROOT/scripts/install-linux-release.sh" || fail "Linux default port"
@@ -79,9 +79,9 @@ grep -q 'PROXYMA_BIND_ADDRESS:-0.0.0.0' "$ROOT/docker-compose.example.yml" || fa
 grep -q 'PROXYMA_HOST_PORT:-8080' "$ROOT/docker-compose.example.yml" || fail "Compose default host port"
 grep -q 'PROXYMA_LISTEN=0.0.0.0:8080' "$ROOT/docker-compose.example.yml" || fail "fixed container listener"
 grep -q '"scheme": "$CONFIG_SCHEME"' "$ROOT/scripts/install-linux-release.sh" || fail "Linux fresh transport configuration"
-grep -q '"scheme": "$CONFIG_SCHEME"' "$ROOT/scripts/install-docker.sh" || fail "Docker fresh transport configuration"
+grep -q '"scheme": "$CONFIG_SCHEME"' "$ROOT/scripts/install-proxyma-docker.sh" || fail "Docker fresh transport configuration"
 grep -q 'LEGACY_SCHEME="http"' "$ROOT/scripts/install-linux-release.sh" || fail "Linux legacy HTTP preservation"
-grep -q 'LEGACY_SCHEME="http"' "$ROOT/scripts/install-docker.sh" || fail "Docker legacy HTTP preservation"
+grep -q 'LEGACY_SCHEME="http"' "$ROOT/scripts/install-proxyma-docker.sh" || fail "Docker legacy HTTP preservation"
 grep -q 'https://127.0.0.1:8080/' "$ROOT/docker-compose.example.yml" || fail "HTTPS health check"
 grep -q 'http://127.0.0.1:8080/' "$ROOT/docker-compose.example.yml" || fail "HTTP health-check fallback"
 if grep -q 'ALLOW_INSECURE_USER_COOKIES' "$ROOT/docker-compose.example.yml"; then

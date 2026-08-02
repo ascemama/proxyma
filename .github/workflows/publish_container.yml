@@ -1,10 +1,10 @@
-name: Container
+name: Publish container
 run-name: ${{ github.event_name == 'push' && format('Publish container release {0}', github.ref_name) || 'Validate container release changes' }}
 
 on:
   pull_request:
     paths:
-      - ".github/workflows/container.yml"
+      - ".github/workflows/publish_container.yml"
       - ".dockerignore"
       - "Dockerfile"
       - "LICENSE"
@@ -43,6 +43,9 @@ jobs:
 
       - name: Validate release shell scripts
         run: bash -n scripts/*.sh
+
+      - name: Test deployment endpoint scripts
+        run: bash scripts/test-deployment-endpoint.sh
 
       - name: Validate PowerShell lifecycle scripts
         shell: pwsh

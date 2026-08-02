@@ -1,10 +1,10 @@
-name: Linux binary release
+name: Publish binary package
 run-name: ${{ github.event_name == 'push' && format('Publish precompiled Linux binary release {0}', github.ref_name) || 'Validate precompiled Linux binary release changes' }}
 
 on:
   pull_request:
     paths:
-      - ".github/workflows/release.yml"
+      - ".github/workflows/publish_binary_package.yml"
       - "LICENSE"
       - "cmd/**"
       - "frontend/**"
@@ -45,6 +45,12 @@ jobs:
 
       - name: Test precompiled downloader
         run: bash scripts/test-install-linux.sh
+
+      - name: Test Docker release downloader and package
+        run: bash scripts/test-install-docker.sh
+
+      - name: Test deployment endpoint scripts
+        run: bash scripts/test-deployment-endpoint.sh
 
   frontend:
     needs: validate
@@ -145,9 +151,45 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  docker-package:
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v0.0.0-ci.{0}', github.run_number) }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Package Docker deployment bundle
+        shell: bash
+        run: |
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          bash scripts/package-docker-release.sh \
+            "$RELEASE_VERSION" \
+            "${{ github.sha }}" \
+            release-assets
+
+      - name: Inspect Docker deployment bundle
+        shell: bash
+        run: |
+          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/RELEASE'
+          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/docker-compose.example.yml'
+          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/scripts/install-proxyma-docker.sh'
+          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/scripts/uninstall-proxyma-docker.sh'
+
+      - name: Upload Docker deployment bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docker-release
+          path: release-assets/proxyma_docker.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
   publish:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs:
+      - build
+      - docker-package
     runs-on: ubuntu-latest
     permissions:
       artifact-metadata: write
@@ -165,13 +207,25 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Prepare checksums and downloader
+      - name: Download Docker deployment bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: docker-release
+          path: release-assets
+
+      - name: Prepare checksums and release installers
         shell: bash
         run: |
           install -m 0755 scripts/install-proxyma.sh release-assets/install-proxyma.sh
+          install -m 0755 scripts/download-proxyma-docker.sh release-assets/install-proxyma-docker.sh
           (
             cd release-assets
-            sha256sum proxyma_linux_amd64.tar.gz proxyma_linux_arm64.tar.gz install-proxyma.sh \
+            sha256sum \
+              proxyma_linux_amd64.tar.gz \
+              proxyma_linux_arm64.tar.gz \
+              proxyma_docker.tar.gz \
+              install-proxyma.sh \
+              install-proxyma-docker.sh \
               | sort -k2 >SHA256SUMS
           )
 
@@ -203,5 +257,7 @@ jobs:
             "${release_flags[@]}" \
             release-assets/proxyma_linux_amd64.tar.gz \
             release-assets/proxyma_linux_arm64.tar.gz \
+            release-assets/proxyma_docker.tar.gz \
             release-assets/install-proxyma.sh \
+            release-assets/install-proxyma-docker.sh \
             release-assets/SHA256SUMS
