@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/masterzen/winrm v0.0.0-20260407182533-5570be7f80cf
 	golang.org/x/crypto v0.54.0
-	modernc.org/sqlite v1.54.0
+	modernc.org/sqlite v1.55.0
 )
 
 require (
