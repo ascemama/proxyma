@@ -122,10 +122,14 @@ configuration, users, and state are preserved on installer reruns. Endpoint
 options update only the selected components; omitted address and port values
 are read from the existing Compose environment file.
 
-## Method 2: Build and Install from Source
+## Method 2: Build Locally and Install Automatically
 
-Use this method when testing a source change or building a custom image. Clone
-the repository and build the image locally:
+Use this method when testing a source change or building a custom image. You
+only need to build the image yourself; the installer still performs the full
+deployment setup. Do not manually create `/opt/proxyma`, configuration or data
+directories, ownership, or Compose files.
+
+Clone the repository and build the image on the host where Proxyma will run:
 
 ```bash
 git clone https://github.com/ascemama/proxyma.git
@@ -133,9 +137,9 @@ cd proxyma
 docker build -t proxyma:local .
 ```
 
-Deploy the local image with the repository installer. `--no-pull` requires that
-the selected image already exists locally and prevents Docker from contacting a
-registry for it:
+Pass the resulting image to the repository installer. `--no-pull` requires that
+the selected image exists in the Docker daemon used by the installer and
+prevents Docker from contacting a registry for it:
 
 ```bash
 sudo bash ./scripts/install-proxyma-docker.sh \
@@ -143,10 +147,15 @@ sudo bash ./scripts/install-proxyma-docker.sh \
   --no-pull
 ```
 
-All endpoint, TLS, and bootstrap options described for the published installer
-also apply here. The source checkout is used only to build the image and provide
-the current deployment files; the installed deployment still lives under
-`/opt/proxyma` and does not depend on the checkout afterward.
+This command follows the same installation flow as Method 1: it creates and
+permissions the managed directories, installs the Compose and lifecycle files,
+initializes configuration when needed, offers to create the first administrator,
+and starts the service. All endpoint, TLS, and bootstrap options described for
+the published installer also apply here.
+
+The source checkout is used only to build the image and provide the current
+deployment files. The installed deployment lives under `/opt/proxyma` and does
+not depend on the checkout afterward.
 
 After additional source changes, rebuild the same image and rerun the command:
 
