@@ -12,6 +12,8 @@ on:
       - "go.sum"
       - "internal/**"
       - "scripts/*.sh"
+      - "scripts/*.ps1"
+      - "harness/**"
   push:
     tags:
       - "v*"
@@ -42,6 +44,10 @@ jobs:
 
       - name: Validate shell scripts
         run: bash -n scripts/*.sh
+
+      - name: Validate harness v2 assets
+        shell: pwsh
+        run: ./harness/tests/validate-harness-assets.ps1
 
       - name: Test precompiled downloader
         run: bash scripts/test-install-linux.sh
@@ -151,6 +157,87 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  agent-platform-test:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test agent CLI and atomic state
+        run: go test ./internal/agentcli ./internal/store
+      - name: Validate PowerShell assets
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = @()
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path './scripts/build-agent-release.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path './harness/tests/claude-code-smoke.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
+  agent-build:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            asset: proxyma-agent-linux-amd64
+          - os: linux
+            arch: arm64
+            asset: proxyma-agent-linux-arm64
+          - os: windows
+            arch: amd64
+            asset: proxyma-agent-windows-amd64.exe
+          - os: windows
+            arch: arm64
+            asset: proxyma-agent-windows-arm64.exe
+          - os: darwin
+            arch: amd64
+            asset: proxyma-agent-darwin-amd64
+          - os: darwin
+            arch: arm64
+            asset: proxyma-agent-darwin-arm64
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v0.0.0-ci.{0}', github.run_number) }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build standalone agent CLI
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+          OUT_DIR: release-assets
+          PROXYMA_VERSION: ${{ env.RELEASE_VERSION }}
+          PROXYMA_COMMIT: ${{ github.sha }}
+        run: bash scripts/build-agent-release.sh
+      - name: Inspect binary metadata
+        run: go version -m "release-assets/${{ matrix.asset }}"
+      - name: Upload standalone agent CLI
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-${{ matrix.os }}-${{ matrix.arch }}
+          path: release-assets/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 1
+
   docker-package:
     needs: validate
     runs-on: ubuntu-latest
@@ -190,6 +277,8 @@ jobs:
     needs:
       - build
       - docker-package
+      - agent-build
+      - agent-platform-test
     runs-on: ubuntu-latest
     permissions:
       artifact-metadata: write
@@ -213,6 +302,13 @@ jobs:
           name: docker-release
           path: release-assets
 
+      - name: Download standalone agent CLIs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: agent-*
+          path: release-assets
+          merge-multiple: true
+
       - name: Prepare checksums and release installers
         shell: bash
         run: |
@@ -226,6 +322,7 @@ jobs:
               proxyma_docker.tar.gz \
               install-proxyma.sh \
               install-proxyma-docker.sh \
+              proxyma-agent-* \
               | sort -k2 >SHA256SUMS
           )
 
@@ -260,4 +357,5 @@ jobs:
             release-assets/proxyma_docker.tar.gz \
             release-assets/install-proxyma.sh \
             release-assets/install-proxyma-docker.sh \
+            release-assets/proxyma-agent-* \
             release-assets/SHA256SUMS
