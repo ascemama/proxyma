@@ -3,8 +3,10 @@ package tasks
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +16,107 @@ import (
 	"proxyma/internal/transcriptor"
 	"proxyma/internal/winrmclient"
 )
+
+func TestSubmitIdempotentReplaysAndConflicts(t *testing.T) {
+	manager := NewManager(newMemoryTaskStore(), executor.Executor{})
+	command := CommandContext{AgentID: "agent-1", ClientOperationID: "op-1", ClientRequestHash: "sha256:one", Command: "echo done", Reasoning: "test"}
+	first, replayed, err := manager.SubmitIdempotent(context.Background(), command)
+	if err != nil || replayed {
+		t.Fatalf("first submit replayed=%t err=%v", replayed, err)
+	}
+	second, replayed, err := manager.SubmitIdempotent(context.Background(), command)
+	if err != nil || !replayed || second.TaskID != first.TaskID {
+		t.Fatalf("replay task=%#v replayed=%t err=%v", second, replayed, err)
+	}
+	command.ClientRequestHash = "sha256:two"
+	if _, _, err := manager.SubmitIdempotent(context.Background(), command); !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("conflict err=%v", err)
+	}
+}
+
+func TestSubmitIdempotentConcurrentRequestsCreateOneTask(t *testing.T) {
+	manager := NewManager(newMemoryTaskStore(), executor.Executor{})
+	command := CommandContext{AgentID: "agent-1", ClientOperationID: "op-1", ClientRequestHash: "sha256:one", Command: "echo done", Reasoning: "test"}
+	const count = 12
+	ids := make(chan string, count)
+	errs := make(chan error, count)
+	var wait sync.WaitGroup
+	for range count {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			task, _, err := manager.SubmitIdempotent(context.Background(), command)
+			if err != nil {
+				errs <- err
+				return
+			}
+			ids <- task.TaskID
+		}()
+	}
+	wait.Wait()
+	close(ids)
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	var first string
+	for id := range ids {
+		if first == "" {
+			first = id
+		}
+		if id != first {
+			t.Fatalf("task ids differ: %q and %q", first, id)
+		}
+	}
+	if got := len(manager.List()); got != 1 {
+		t.Fatalf("task count=%d", got)
+	}
+}
+
+func TestClientOperationScopeAndOptionalBehavior(t *testing.T) {
+	manager := NewManager(newMemoryTaskStore(), executor.Executor{})
+	base := CommandContext{ClientOperationID: "op-1", ClientRequestHash: "sha256:one", Command: "echo done", Reasoning: "test"}
+	base.AgentID = "agent-1"
+	first, _, err := manager.SubmitIdempotent(context.Background(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.AgentID = "agent-2"
+	second, replayed, err := manager.SubmitIdempotent(context.Background(), base)
+	if err != nil || replayed || second.TaskID == first.TaskID {
+		t.Fatalf("scoped submit task=%#v replayed=%t err=%v", second, replayed, err)
+	}
+	withoutKey := CommandContext{Command: "echo done", Reasoning: "test"}
+	third, _ := manager.Submit(context.Background(), withoutKey)
+	fourth, _ := manager.Submit(context.Background(), withoutKey)
+	if third.TaskID == fourth.TaskID {
+		t.Fatal("requests without operation ids must create distinct tasks")
+	}
+}
+
+func TestRecoverRebuildsIdempotencyIndex(t *testing.T) {
+	created := time.Now().UTC()
+	store := newMemoryTaskStore(Task{TaskID: "task-1", AgentID: "agent-1", ClientOperationID: "op-1", ClientRequestHash: "sha256:one", Command: "echo done", Reasoning: "test", Status: StatusCompleted, CreatedAt: created})
+	manager := NewManager(store, executor.Executor{})
+	if err := manager.Recover(); err != nil {
+		t.Fatal(err)
+	}
+	task, found, err := manager.LookupOperation("agent-1", "op-1", "sha256:one")
+	if err != nil || !found || task.TaskID != "task-1" {
+		t.Fatalf("task=%#v found=%t err=%v", task, found, err)
+	}
+}
+
+func TestRecoverRejectsDuplicateOperationIndex(t *testing.T) {
+	created := time.Now().UTC()
+	store := newMemoryTaskStore(
+		Task{TaskID: "task-1", AgentID: "agent-1", ClientOperationID: "op-1", ClientRequestHash: "sha256:one", Command: "one", Reasoning: "test", Status: StatusCompleted, CreatedAt: created},
+		Task{TaskID: "task-2", AgentID: "agent-1", ClientOperationID: "op-1", ClientRequestHash: "sha256:two", Command: "two", Reasoning: "test", Status: StatusCompleted, CreatedAt: created},
+	)
+	if err := NewManager(store, executor.Executor{}).Recover(); err == nil {
+		t.Fatal("expected duplicate operation recovery error")
+	}
+}
 
 type memoryTaskStore struct {
 	records map[string]Task

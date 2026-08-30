@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -28,6 +29,7 @@ type Manager struct {
 	winrm        winrmclient.Client
 	now          func() time.Time
 	tasks        map[string]*Task
+	operations   map[string]string
 	debug        bool
 	logger       *log.Logger
 }
@@ -56,6 +58,7 @@ func NewManagerWithOptions(taskStore Store, exec executor.Executor, options Mana
 		winrm:        options.WinRMClient,
 		now:          time.Now,
 		tasks:        make(map[string]*Task),
+		operations:   make(map[string]string),
 		debug:        options.Debug,
 		logger:       options.Logger,
 	}
@@ -71,6 +74,13 @@ func (m *Manager) Recover() error {
 		return err
 	}
 	for _, task := range records {
+		if task.ClientOperationID != "" {
+			key := operationKey(task.AgentID, task.ClientOperationID)
+			if existing, ok := m.operations[key]; ok && existing != task.TaskID {
+				return fmt.Errorf("duplicate persisted client operation %q for agent %q", task.ClientOperationID, task.AgentID)
+			}
+			m.operations[key] = task.TaskID
+		}
 		if task.Status == StatusWaitingUserResponse {
 			copied := task
 			m.tasks[task.TaskID] = &copied
@@ -93,18 +103,53 @@ func (m *Manager) Recover() error {
 	return nil
 }
 
+// ErrIdempotencyConflict reports reuse of a client operation ID with a different request.
+var ErrIdempotencyConflict = errors.New("client operation id was already used for a different request")
+
+// LookupOperation returns a previously submitted task for an idempotent client operation.
+func (m *Manager) LookupOperation(agentID, operationID, requestHash string) (*Task, bool, error) {
+	if strings.TrimSpace(operationID) == "" {
+		return nil, false, nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	taskID, ok := m.operations[operationKey(agentID, operationID)]
+	if !ok {
+		return nil, false, nil
+	}
+	task, ok := m.tasks[taskID]
+	if !ok {
+		return nil, false, fmt.Errorf("idempotency index references missing task %q", taskID)
+	}
+	if task.ClientRequestHash != requestHash {
+		return nil, true, ErrIdempotencyConflict
+	}
+	return cloneTask(task), true, nil
+}
+
 // Submit creates and persists a task.
 func (m *Manager) Submit(ctx context.Context, command CommandContext) (*Task, error) {
+	task, _, err := m.SubmitIdempotent(ctx, command)
+	return task, err
+}
+
+// SubmitIdempotent creates a task or returns the existing task for a matching operation.
+func (m *Manager) SubmitIdempotent(_ context.Context, command CommandContext) (*Task, bool, error) {
 	if strings.TrimSpace(command.Command) == "" {
-		return nil, fmt.Errorf("command is required")
+		return nil, false, fmt.Errorf("command is required")
+	}
+	if command.ClientOperationID != "" && strings.TrimSpace(command.ClientRequestHash) == "" {
+		return nil, false, fmt.Errorf("client request hash is required with client operation id")
 	}
 	id, err := newID()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	now := m.now().UTC()
 	task := &Task{
 		TaskID:                id,
+		ClientOperationID:     command.ClientOperationID,
+		ClientRequestHash:     command.ClientRequestHash,
 		AgentID:               command.AgentID,
 		Target:                cloneTarget(command.Target),
 		Command:               command.Command,
@@ -120,10 +165,39 @@ func (m *Manager) Submit(ctx context.Context, command CommandContext) (*Task, er
 		ExecutionPlan:         clonePlan(command.ExecutionPlan),
 		SensitiveValues:       append([]string(nil), command.SensitiveValues...),
 	}
-	if err := m.save(task); err != nil {
-		return nil, err
+	if m.store == nil {
+		return nil, false, fmt.Errorf("task store is not configured")
 	}
-	return cloneTask(task), nil
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if task.ClientOperationID != "" {
+		key := operationKey(task.AgentID, task.ClientOperationID)
+		if taskID, ok := m.operations[key]; ok {
+			existing, exists := m.tasks[taskID]
+			if !exists {
+				return nil, false, fmt.Errorf("idempotency index references missing task %q", taskID)
+			}
+			if existing.ClientRequestHash != task.ClientRequestHash {
+				return nil, false, ErrIdempotencyConflict
+			}
+			return cloneTask(existing), true, nil
+		}
+		if err := m.store.Save(*cloneTask(task)); err != nil {
+			return nil, false, err
+		}
+		m.tasks[task.TaskID] = cloneTask(task)
+		m.operations[key] = task.TaskID
+		return cloneTask(task), false, nil
+	}
+	if err := m.store.Save(*cloneTask(task)); err != nil {
+		return nil, false, err
+	}
+	m.tasks[task.TaskID] = cloneTask(task)
+	return cloneTask(task), false, nil
+}
+
+func operationKey(agentID, operationID string) string {
+	return strings.TrimSpace(agentID) + "\x00" + strings.TrimSpace(operationID)
 }
 
 func normalizeInteractionInstanceID(id string) string {
