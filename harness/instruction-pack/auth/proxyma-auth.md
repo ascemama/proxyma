@@ -1,25 +1,15 @@
 # Proxyma Agent Authentication
 
-Every Proxyma API request must include a short-lived bearer token:
+`proxyma-agent` owns bearer-token creation and refresh. It reads `agent_id` (or `id`
+from a Proxyma server agent record) and the HS256 signing key from the `agent_config`
+referenced by `proxyma-agent.json`.
+`PROXYMA_AGENT_JWT_SIGNING_KEY` overrides the file value for deployments that inject
+the secret through the environment.
 
-```http
-Authorization: Bearer <jwt>
-```
+The CLI creates a short-lived token with `kid` and `sub` equal to the agent ID, retries
+one `token_expired` response with a fresh token, and never prints the token or signing
+key. Harness adapters and models must not create JWTs or construct Authorization
+headers.
 
-The harness reads its agent configuration from the `agent_config` path in
-`harness/proxyma-harness-run.json`. The config contains `agent_id` and
-`agent_jwt_signing_key`. The Agent JWT Signing Key is symmetric HS256 key
-material: the harness uses it to sign short-lived JWTs, but never sends the key
-itself in the `Authorization` header. Generate a new JWT before the first
-Proxyma call, reuse it until it is near expiry, and regenerate it when the token
-is missing, expired, or Proxyma returns `401` with code `token_expired`.
-
-JWT requirements:
-
-- Header includes `alg` = `HS256`, `typ` = `JWT`, and `kid` = agent ID.
-- Payload includes `sub` = agent ID, `iat`, and `exp`.
-- `exp` must be no more than 10 minutes after `iat`.
-
-Use `new-proxyma-jwt.ps1` on PowerShell hosts and `new-proxyma-jwt.sh` on Bash hosts.
-
-For powershell use the following command line :  powershell.exe -ExecutionPolicy Bypass -File .\harness\instruction-pack\auth\new-proxyma-jwt.ps1
+The scripts in this directory remain reference utilities for human API debugging only;
+they are not part of the v2 model-facing harness workflow.

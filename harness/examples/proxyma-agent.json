@@ -1,0 +1,9 @@
+{
+  "schema_version": "2",
+  "proxyma_base_url": "https://proxyma.example",
+  "agent_config": "agent-configuration/agent.json",
+  "state_dir": "task-state",
+  "http_timeout_seconds": 15,
+  "lock_timeout_seconds": 5,
+  "active_poll_interval_seconds": 30
+}

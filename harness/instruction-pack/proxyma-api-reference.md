@@ -74,6 +74,7 @@ Success response:
 
 ```json
 {
+  "client_operation_id": "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f",
   "target": {
     "transport": "ssh",
     "os": "linux",
@@ -148,6 +149,11 @@ Copyable example file: `harness/instruction-pack/api-examples/commands.request.j
 
 Rules:
 
+- `client_operation_id` is an optional UUID. It is strongly recommended for all
+  automated clients.
+- Repeating the same operation ID and request for the same authenticated agent returns
+  the original task. Reusing it for different request content returns `409` with code
+  `idempotency_conflict`.
 - `command` is required and must be a canonical Proxyma-supported remote SSH or WinRM command.
 - `target` is required and must contain `hostname`, `ip`, or both.
 - `reasoning` is required.
@@ -199,7 +205,8 @@ Success response:
 ```json
 {
   "task_id": "generated-task-id",
-  "status": "created"
+  "status": "created",
+  "client_operation_id": "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f"
 }
 ```
 
@@ -211,6 +218,7 @@ Failure responses:
 - `403` when the authenticated Proxyma agent is not listed in the target's `agent_ids`
 - `400` for invalid JSON, missing required fields, target/command mismatch, or unsupported command format
 - `404` when no configured target matches the submitted target hostname or IP
+- `409` when a client operation ID is reused with different request content
 
 Copyable retryable transcriptor error example:
 `harness/instruction-pack/api-examples/commands.transcriptor-error.response.json`.
@@ -250,6 +258,7 @@ Example:
 ```json
 {
   "task_id": "generated-task-id",
+  "client_operation_id": "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f",
   "agent_id": "df9ec8bb-1a22-4181-a7c8-126ad553221d",
   "target": {
     "hostname": "local-dev",
@@ -415,7 +424,8 @@ Success response:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "capabilities": ["agent_command_idempotency_v1"]
 }
 ```
 
@@ -427,3 +437,4 @@ Harness behavior:
 - This endpoint is optional for preflight or troubleshooting.
 - Do not use `GET /v1/health` as a substitute for polling `GET /v1/agent/tasks/{task_id}`.
 - A healthy response shows the Proxyma service is reachable, not that a submitted task has completed.
+- `proxyma-agent` requires `agent_command_idempotency_v1` before state-changing work.
