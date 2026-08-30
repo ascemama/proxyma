@@ -36,6 +36,8 @@ const (
 
 // CommandContext is the agent-provided JSON command request.
 type CommandContext struct {
+	ClientOperationID     string                 `json:"-"`
+	ClientRequestHash     string                 `json:"-"`
 	Command               string                 `json:"command"`
 	Reasoning             string                 `json:"reasoning"`
 	RequestedBy           string                 `json:"requested_by,omitempty"`
@@ -61,6 +63,8 @@ type Target struct {
 // Task is a durable Proxyma work item.
 type Task struct {
 	TaskID                string                 `json:"task_id"`
+	ClientOperationID     string                 `json:"client_operation_id,omitempty"`
+	ClientRequestHash     string                 `json:"client_request_hash,omitempty"`
 	AgentID               string                 `json:"agent_id,omitempty"`
 	Target                *Target                `json:"target,omitempty"`
 	Command               string                 `json:"command"`
