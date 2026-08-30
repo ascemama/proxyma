@@ -59,6 +59,9 @@ harness/task-state/failed/*.json
 harness/task-state/blocked/*.json
 harness/task-state/summaries/*.md
 harness/task-state/done/*.json
+harness/task-state/tasks/*.json
+harness/task-state/.journal/*.json
+harness/task-state/.proxyma-agent.lock
 harness/agent-configuration/*.json
 !harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json
 

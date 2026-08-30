@@ -1,5 +1,6 @@
 {
   "task_id": "generated-task-id",
+  "client_operation_id": "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f",
   "agent_id": "df9ec8bb-1a22-4181-a7c8-126ad553221d",
   "target": {
     "ip": "127.0.0.1",
