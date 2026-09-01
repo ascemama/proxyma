@@ -1,3 +1,4 @@
 {
-  "status": "ok"
+  "status": "ok",
+  "capabilities": ["agent_command_idempotency_v1"]
 }

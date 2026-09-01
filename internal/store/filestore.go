@@ -35,10 +35,19 @@ func (s *FileStore) WriteJSON(id string, value any) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	if err := tmpFileSync(tmpName); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, path)
+	return replaceFile(tmpName, path)
+}
+
+func tmpFileSync(path string) error {
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return file.Sync()
 }
 
 // DeleteJSON removes the JSON record for id if it exists.

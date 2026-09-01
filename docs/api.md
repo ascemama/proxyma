@@ -113,6 +113,7 @@ Content-Type: application/json
 Authorization: Bearer <jwt>
 
 {
+  "client_operation_id": "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f",
   "target": {
     "hostname": "app.example"
   },
@@ -121,6 +122,10 @@ Authorization: Bearer <jwt>
   "requested_by": "operations-agent"
 }
 ```
+
+`client_operation_id` is optional for backward compatibility. For an authenticated
+agent, repeating the same UUID and identical request returns the original task;
+reusing it with different request content returns `409 idempotency_conflict`.
 
 Proxyma checks that the authenticated agent is listed in the target's
 `agent_ids`, verifies that the command destination matches the explicit target,

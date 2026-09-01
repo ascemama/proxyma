@@ -107,6 +107,7 @@ See the [deployment overview](docs/deployment.md) for a side-by-side comparison.
 ```text
 .github/workflows/         Release and container automation
 cmd/proxyma/               Proxyma server entry point
+cmd/proxyma-agent/         Cross-platform deterministic agent harness CLI
 cmd/proxymactl/            Administrator CLI entry point
 deploy/systemd/            Linux systemd service definition
 docs/                      Deployment, operation, API, and architecture guides
@@ -206,30 +207,30 @@ installed server binary without starting it.
 
 ## Agent Harness
 
-The harness assets teach an existing agent runtime how to use Proxyma; they do
-not provide a separate client executable or scheduler. The operating contract
-requires agents to:
+The cross-platform `proxyma-agent` CLI gives existing agent runtimes one
+deterministic interface for Proxyma authentication, target resolution, command
+submission, polling, duplicate prevention, and durable client task state. Agents:
 
 - route target-machine commands through Proxyma instead of connecting directly;
-- inspect and resume persisted waiting tasks before starting new work;
-- poll Proxyma while active and preserve durable JSON task state;
-- build commands from the target-resolution response without reading or
-  exposing target credentials.
+- run `proxyma-agent resume` before new remote work;
+- supply only target identity, remote payload, and reasoning;
+- interpret results and decide when the logical user goal is complete.
 
 Start with the
 [harness instruction pack](harness/instruction-pack/proxyma-harness.md),
-[agent API reference](harness/instruction-pack/proxyma-api-reference.md), and
-[authentication guide](harness/instruction-pack/auth/proxyma-auth.md). The
-[run schema](harness/instruction-pack/proxyma-harness-run.schema.json),
+and [CLI authentication guide](harness/instruction-pack/auth/proxyma-auth.md). The
+[harness configuration schema](harness/instruction-pack/proxyma-agent.schema.json),
 [task-state schema](harness/instruction-pack/task-state.schema.json),
 [examples](harness/examples/), and
 [validation instructions](harness/tests/README.md) support integrations. A
-[Codex adapter](harness/adapters/codex/SKILL.md) is included as the first
-concrete harness adapter.
+[Codex project skill](harness/.agents/skills/proxyma-harness/SKILL.md) and a
+Claude Code project skill under `harness/.claude/skills/` are included. Harness v1 state and run
+configuration are intentionally unsupported.
 
 ## Documentation
 
 - [Deployment overview](docs/deployment.md)
+- [`proxyma-agent` harness installation](docs/proxyma-agent-installation.md)
 - [Configuration records and runtime settings](docs/configuration.md)
 - [User and agent API usage](docs/api.md)
 - [Build and version metadata](docs/build-version.md)

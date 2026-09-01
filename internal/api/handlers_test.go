@@ -425,6 +425,54 @@ func TestSubmitCommandCreated(t *testing.T) {
 	_ = waitHTTPStatus(t, server, response.TaskID)
 }
 
+func TestSubmitCommandIdempotencyReplayAndConflict(t *testing.T) {
+	server := testServer(t)
+	operationID := "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f"
+	body := `{"client_operation_id":"` + operationID + `","target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`
+	submit := func(payload string) (int, CommandCreatedResponse, ErrorResponse) {
+		req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", strings.NewReader(payload))
+		rec := httptest.NewRecorder()
+		server.Routes().ServeHTTP(rec, req)
+		var created CommandCreatedResponse
+		var apiErr ErrorResponse
+		_ = json.Unmarshal(rec.Body.Bytes(), &created)
+		_ = json.Unmarshal(rec.Body.Bytes(), &apiErr)
+		return rec.Code, created, apiErr
+	}
+	status, first, _ := submit(body)
+	if status != http.StatusAccepted || first.TaskID == "" || first.Replayed || first.ClientOperationID != operationID {
+		t.Fatalf("first status=%d response=%#v", status, first)
+	}
+	statusRequest := newAuthenticatedRequest(t, http.MethodGet, "/v1/agent/tasks/"+first.TaskID, nil)
+	statusRecorder := httptest.NewRecorder()
+	server.Routes().ServeHTTP(statusRecorder, statusRequest)
+	var taskStatus TaskStatusResponse
+	if statusRecorder.Code != http.StatusOK || json.Unmarshal(statusRecorder.Body.Bytes(), &taskStatus) != nil || taskStatus.ClientOperationID != operationID {
+		t.Fatalf("task status code=%d response=%#v body=%s", statusRecorder.Code, taskStatus, statusRecorder.Body.String())
+	}
+	server.Targets = targets.NewRegistry(nil)
+	status, replay, _ := submit(body)
+	if status != http.StatusAccepted || replay.TaskID != first.TaskID || !replay.Replayed {
+		t.Fatalf("replay status=%d response=%#v", status, replay)
+	}
+	conflictBody := strings.Replace(body, `"reasoning":"test"`, `"reasoning":"different"`, 1)
+	status, _, apiErr := submit(conflictBody)
+	if status != http.StatusConflict || apiErr.Code != "idempotency_conflict" {
+		t.Fatalf("conflict status=%d error=%#v", status, apiErr)
+	}
+}
+
+func TestSubmitCommandRejectsInvalidOperationID(t *testing.T) {
+	server := testServer(t)
+	body := `{"client_operation_id":"not-a-uuid","target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`
+	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	server.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "invalid_client_operation_id") {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestDebugLogsRequestAndCreatedCommand(t *testing.T) {
 	var logs bytes.Buffer
 	server := testServer(t)
@@ -531,6 +579,13 @@ func TestHealth(t *testing.T) {
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
+	}
+	var response HealthResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Capabilities) != 1 || response.Capabilities[0] != agentCommandIdempotencyCapability {
+		t.Fatalf("capabilities=%#v", response.Capabilities)
 	}
 }
 

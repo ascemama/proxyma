@@ -2,8 +2,10 @@ package api
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -23,7 +25,11 @@ import (
 	"proxyma/internal/transcriptor"
 	"proxyma/internal/users"
 	"proxyma/internal/winrmclient"
+
+	"github.com/google/uuid"
 )
+
+const agentCommandIdempotencyCapability = "agent_command_idempotency_v1"
 
 // Server owns Proxyma HTTP dependencies.
 type Server struct {
@@ -84,7 +90,7 @@ func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 	var wireRequest CommandRequest
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&wireRequest); err != nil {
+	if err := decoder.Decode(&wireRequest); err != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		s.debugf("debug command request decode failed error=%q", err.Error())
 		writeError(w, http.StatusBadRequest, "invalid JSON command request")
 		return
@@ -96,6 +102,32 @@ func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	request.AgentID = agent.ID
+	if wireRequest.ClientOperationID != "" {
+		if _, err := uuid.Parse(wireRequest.ClientOperationID); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "client_operation_id must be a UUID", Code: "invalid_client_operation_id"})
+			return
+		}
+		requestHash, err := commandRequestHash(wireRequest)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not hash command request")
+			return
+		}
+		request.ClientRequestHash = requestHash
+		existing, found, lookupErr := s.Tasks.LookupOperation(agent.ID, wireRequest.ClientOperationID, requestHash)
+		if errors.Is(lookupErr, tasks.ErrIdempotencyConflict) {
+			status, payload := errorResponse(idempotencyConflictError())
+			writeJSON(w, status, payload)
+			return
+		}
+		if lookupErr != nil {
+			writeError(w, http.StatusInternalServerError, lookupErr.Error())
+			return
+		}
+		if found {
+			writeJSON(w, http.StatusAccepted, CommandCreatedResponse{TaskID: existing.TaskID, Status: existing.Status, ClientOperationID: existing.ClientOperationID, Replayed: true})
+			return
+		}
+	}
 	if err := s.prepareCommand(&request, agent); err != nil {
 		status, payload := errorResponse(err)
 		s.debugf("debug command request rejected status=%d error=%q code=%q retryable=%t",
@@ -103,14 +135,29 @@ func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, status, payload)
 		return
 	}
-	task, err := s.Tasks.Submit(r.Context(), request)
+	task, replayed, err := s.Tasks.SubmitIdempotent(r.Context(), request)
 	if err != nil {
+		if errors.Is(err, tasks.ErrIdempotencyConflict) {
+			status, payload := errorResponse(idempotencyConflictError())
+			writeJSON(w, status, payload)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	s.debugf("debug command created task_id=%s target=%s command_family=%s strategy=%s requested_by=%q command_len=%d metadata_keys=%s",
 		task.TaskID, formatTarget(task.Target), transcriptionFamily(task.Transcription), transcriptionStrategy(task.Transcription), request.RequestedBy, len(request.Command), strings.Join(metadataKeys(request.Metadata), ","))
-	writeJSON(w, http.StatusAccepted, CommandCreatedResponse{TaskID: task.TaskID, Status: tasks.StatusCreated})
+	writeJSON(w, http.StatusAccepted, CommandCreatedResponse{TaskID: task.TaskID, Status: task.Status, ClientOperationID: task.ClientOperationID, Replayed: replayed})
+}
+
+func commandRequestHash(request CommandRequest) (string, error) {
+	request.ClientOperationID = ""
+	data, err := json.Marshal(request)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("sha256:%x", sum[:]), nil
 }
 
 func (s *Server) debugf(format string, args ...any) {
@@ -470,7 +517,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok", Capabilities: []string{agentCommandIdempotencyCapability}})
 }
 
 func formatTarget(target *tasks.Target) string {
