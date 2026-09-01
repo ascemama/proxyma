@@ -116,6 +116,35 @@ type ResolvedTarget struct {
 	} `json:"canonical_command"`
 }
 
+type HelpFlag struct {
+	Name        string `json:"name"`
+	Value       string `json:"value,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+	Description string `json:"description"`
+}
+
+type HelpField struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Required    bool   `json:"required,omitempty"`
+	Description string `json:"description"`
+}
+
+type HelpCommand struct {
+	Name    string `json:"name"`
+	Summary string `json:"summary"`
+}
+
+type HelpInfo struct {
+	Usage       string        `json:"usage"`
+	Summary     string        `json:"summary"`
+	Flags       []HelpFlag    `json:"flags,omitempty"`
+	InputFields []HelpField   `json:"input_fields,omitempty"`
+	Example     any           `json:"example,omitempty"`
+	Notes       []string      `json:"notes,omitempty"`
+	Commands    []HelpCommand `json:"commands,omitempty"`
+}
+
 type Envelope struct {
 	ProtocolVersion string          `json:"protocol_version"`
 	OK              bool            `json:"ok"`
@@ -128,6 +157,7 @@ type Envelope struct {
 	Version         string          `json:"version,omitempty"`
 	Commit          string          `json:"commit,omitempty"`
 	StateSchema     string          `json:"state_schema,omitempty"`
+	Help            *HelpInfo       `json:"help,omitempty"`
 	Error           *SafeError      `json:"error,omitempty"`
 	Warnings        []string        `json:"warnings,omitempty"`
 }

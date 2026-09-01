@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"proxyma/internal/buildinfo"
 )
@@ -19,15 +20,46 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	configPath := global.String("config", "", "path to harness v2 configuration")
 	pretty := global.Bool("pretty", false, "indent JSON output")
 	if err := global.Parse(args); err != nil {
-		return writeFailure(stdout, "", cliError("invalid_usage", err.Error(), 2), *pretty)
+		if err == flag.ErrHelp {
+			envelope, _ := helpEnvelope("")
+			writeEnvelope(stdout, envelope, *pretty)
+			return 0
+		}
+		return writeFailure(stdout, "", usageError("", err.Error()), *pretty)
 	}
 	remaining := global.Args()
 	if len(remaining) == 0 {
-		return writeFailure(stdout, "", cliError("invalid_usage", "a command is required", 2), *pretty)
+		return writeFailure(stdout, "", usageError("", "a command is required"), *pretty)
 	}
 	command := remaining[0]
 	commandArgs := remaining[1:]
+	if isHelpRequest(commandArgs) {
+		envelope, helpErr := helpEnvelope(command)
+		if helpErr != nil {
+			return writeFailure(stdout, command, helpErr, *pretty)
+		}
+		writeEnvelope(stdout, envelope, *pretty)
+		return 0
+	}
+	if command == "help" {
+		if len(commandArgs) > 1 {
+			return writeFailure(stdout, command, usageError("help", "help accepts at most one command name"), *pretty)
+		}
+		helpCommand := ""
+		if len(commandArgs) == 1 {
+			helpCommand = commandArgs[0]
+		}
+		envelope, helpErr := helpEnvelope(helpCommand)
+		if helpErr != nil {
+			return writeFailure(stdout, command, helpErr, *pretty)
+		}
+		writeEnvelope(stdout, envelope, *pretty)
+		return 0
+	}
 	if command == "version" {
+		if len(commandArgs) != 0 {
+			return writeFailure(stdout, command, usageError(command, "version does not accept arguments"), *pretty)
+		}
 		info := buildinfo.Current()
 		writeEnvelope(stdout, Envelope{ProtocolVersion: ProtocolVersion, OK: true, Command: "version", Version: info.Version, Commit: info.Commit, StateSchema: StateVersion}, *pretty)
 		return 0
@@ -47,12 +79,12 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			break
 		}
 		var input SubmitInput
-		if err = decodeInput(inputPath, &input); err == nil {
+		if err = decodeInput(command, inputPath, &input); err == nil {
 			envelope, err = service.WithStateLock(func() (Envelope, error) { return service.Submit(ctx, input) })
 		}
 	case "resume":
 		if len(commandArgs) != 0 {
-			err = cliError("invalid_usage", "resume does not accept arguments", 2)
+			err = usageError(command, "resume does not accept arguments")
 			break
 		}
 		envelope, err = service.WithStateLock(func() (Envelope, error) { return service.Resume(ctx) })
@@ -70,7 +102,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			break
 		}
 		var input UpdateInput
-		if err = decodeInput(inputPath, &input); err == nil {
+		if err = decodeInput(command, inputPath, &input); err == nil {
 			envelope, err = service.WithStateLock(func() (Envelope, error) { return service.Update(input) })
 		}
 	case "task-complete":
@@ -80,19 +112,19 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			break
 		}
 		var input CompleteInput
-		if err = decodeInput(inputPath, &input); err == nil {
+		if err = decodeInput(command, inputPath, &input); err == nil {
 			envelope, err = service.WithStateLock(func() (Envelope, error) { return service.Complete(input) })
 		}
 	case "inspect":
 		envelope, err = runInspect(ctx, service, commandArgs)
 	case "doctor":
 		if len(commandArgs) != 0 {
-			err = cliError("invalid_usage", "doctor does not accept arguments", 2)
+			err = usageError(command, "doctor does not accept arguments")
 			break
 		}
 		envelope, err = service.WithStateLock(func() (Envelope, error) { return service.Doctor(ctx) })
 	default:
-		err = cliError("invalid_usage", fmt.Sprintf("unknown command %q", command), 2)
+		err = usageError("", fmt.Sprintf("unknown command %q", command))
 	}
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
@@ -107,11 +139,14 @@ func runInspect(ctx context.Context, service *Service, args []string) (Envelope,
 	flags.SetOutput(io.Discard)
 	taskID := flags.String("task", "", "client task ID")
 	targetValue := flags.String("target", "", "target hostname or IP")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
-		return Envelope{}, cliError("invalid_usage", "inspect accepts --task or --target", 2)
+	if err := flags.Parse(args); err != nil {
+		return Envelope{}, usageError("inspect", "inspect: "+err.Error())
+	}
+	if flags.NArg() != 0 {
+		return Envelope{}, usageError("inspect", "inspect received unexpected positional arguments")
 	}
 	if (*taskID == "") == (*targetValue == "") {
-		return Envelope{}, cliError("invalid_usage", "inspect requires exactly one of --task or --target", 2)
+		return Envelope{}, usageError("inspect", "inspect requires exactly one of --task or --target")
 	}
 	if *taskID != "" {
 		return service.WithStateLock(func() (Envelope, error) { return service.InspectTask(*taskID) })
@@ -127,8 +162,11 @@ func parseInputFlag(command string, args []string) (string, error) {
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	input := flags.String("input", "-", "JSON input file or - for stdin")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
-		return "", cliError("invalid_usage", command+" accepts only --input", 2)
+	if err := flags.Parse(args); err != nil {
+		return "", usageError(command, command+": "+err.Error())
+	}
+	if flags.NArg() != 0 {
+		return "", usageError(command, command+" accepts only --input FILE_OR_DASH")
 	}
 	return *input, nil
 }
@@ -137,13 +175,19 @@ func parseSingleFlag(command string, args []string, name string) (string, error)
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	value := flags.String(name, "", name)
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || strings.TrimSpace(*value) == "" {
-		return "", cliError("invalid_usage", fmt.Sprintf("%s requires --%s", command, name), 2)
+	if err := flags.Parse(args); err != nil {
+		return "", usageError(command, command+": "+err.Error())
+	}
+	if flags.NArg() != 0 {
+		return "", usageError(command, command+" received unexpected positional arguments")
+	}
+	if strings.TrimSpace(*value) == "" {
+		return "", usageError(command, fmt.Sprintf("%s requires --%s", command, name))
 	}
 	return *value, nil
 }
 
-func decodeInput(path string, target any) error {
+func decodeInput(command, path string, target any) error {
 	var reader io.Reader
 	var file *os.File
 	if path == "-" {
@@ -151,7 +195,7 @@ func decodeInput(path string, target any) error {
 	} else {
 		opened, err := os.Open(path)
 		if err != nil {
-			return cliError("invalid_input", err.Error(), 2)
+			return inputError(command, err.Error())
 		}
 		file = opened
 		defer file.Close()
@@ -160,10 +204,10 @@ func decodeInput(path string, target any) error {
 	decoder := json.NewDecoder(reader)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
-		return cliError("invalid_input", err.Error(), 2)
+		return inputError(command, err.Error())
 	}
 	if decoder.Decode(&struct{}{}) != io.EOF {
-		return cliError("invalid_input", "input must contain exactly one JSON object", 2)
+		return inputError(command, "input must contain exactly one JSON object")
 	}
 	return nil
 }
@@ -178,10 +222,31 @@ func writeFailure(output io.Writer, command string, err error, pretty bool) int 
 		OK:              false,
 		Command:         command,
 		Task:            typed.task,
-		Error:           &SafeError{Code: typed.code, Message: typed.message, Retryable: typed.retryable, Hint: typed.hint},
+		Error:           &SafeError{Code: typed.code, Message: typed.message, Retryable: typed.retryable, Hint: typed.hint, At: time.Now().UTC()},
 	}
 	writeEnvelope(output, envelope, pretty)
 	return typed.exitCode
+}
+
+func isHelpRequest(args []string) bool {
+	return len(args) == 1 && (args[0] == "--help" || args[0] == "-h")
+}
+
+func usageError(command, message string) *commandError {
+	hint := "Run \"proxyma-agent --help\" for usage."
+	if command != "" {
+		hint = fmt.Sprintf("Run \"proxyma-agent %s --help\" for usage and examples.", command)
+	}
+	return &commandError{code: "invalid_usage", message: message, hint: hint, exitCode: 2}
+}
+
+func inputError(command, message string) *commandError {
+	return &commandError{
+		code:     "invalid_input",
+		message:  message,
+		hint:     fmt.Sprintf("Run \"proxyma-agent %s --help\" for the accepted JSON fields and an example.", command),
+		exitCode: 2,
+	}
 }
 
 func writeEnvelope(output io.Writer, envelope Envelope, pretty bool) {
