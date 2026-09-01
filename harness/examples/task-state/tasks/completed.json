@@ -1,0 +1,31 @@
+{
+  "schema_version": "2",
+  "client_task_id": "6d4958ed-8860-4f50-839b-79a77f8e9014",
+  "revision": 5,
+  "user_goal": "Identify the target host",
+  "status": "completed",
+  "created_at": "2026-08-30T07:00:00Z",
+  "updated_at": "2026-08-30T07:00:10Z",
+  "last_checked_at": "2026-08-30T07:00:08Z",
+  "remaining_work": "",
+  "operations": [
+    {
+      "operation_id": "4a8bcabb-370d-403b-a6a2-482ea087e38b",
+      "request_hash": "sha256:1653c1dda605d7d180b6ba33ebff0fa71295cf90af962558fbac8ace4c4eef25",
+      "phase": "completed",
+      "target": {"ip": "192.0.2.10"},
+      "payload": "hostname",
+      "payload_kind": "posix_shell",
+      "canonical_command": "ssh {user}@192.0.2.10 hostname",
+      "reasoning": "Identify the target host",
+      "requested_by": "codex",
+      "proxyma_task_id": "proxyma-task-2",
+      "proxyma_status": "completed",
+      "prepared_at": "2026-08-30T07:00:00Z",
+      "submitted_at": "2026-08-30T07:00:02Z",
+      "checked_at": "2026-08-30T07:00:08Z",
+      "result": {"stdout": "host-01\n", "stderr": "", "exit_status": 0, "truncated": false}
+    }
+  ],
+  "final_summary": "The target hostname is host-01."
+}

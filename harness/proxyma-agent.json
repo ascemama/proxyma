@@ -1,0 +1,9 @@
+{
+  "schema_version": "2",
+  "proxyma_base_url": "http://127.0.0.1:8080",
+  "agent_config": "agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json",
+  "state_dir": "task-state",
+  "http_timeout_seconds": 15,
+  "lock_timeout_seconds": 5,
+  "active_poll_interval_seconds": 30
+}

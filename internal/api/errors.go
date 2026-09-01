@@ -35,6 +35,13 @@ func notFoundError(message string) error {
 	return requestError{status: http.StatusNotFound, payload: ErrorResponse{Error: message}}
 }
 
+func idempotencyConflictError() error {
+	return requestError{status: http.StatusConflict, payload: ErrorResponse{
+		Error: "client operation id was already used for a different request",
+		Code:  "idempotency_conflict",
+	}}
+}
+
 func transcriptorRequestError(err *transcriptor.Error) error {
 	return requestError{
 		status: http.StatusBadRequest,

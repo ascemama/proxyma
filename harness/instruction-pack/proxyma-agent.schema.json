@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma-agent.schema.json",
+  "title": "ProxymaAgentHarnessConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "proxyma_base_url", "agent_config", "state_dir"],
+  "properties": {
+    "schema_version": {"const": "2"},
+    "proxyma_base_url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+    "agent_config": {"type": "string", "minLength": 1},
+    "state_dir": {"type": "string", "minLength": 1},
+    "http_timeout_seconds": {"type": "integer", "minimum": 1, "default": 15},
+    "lock_timeout_seconds": {"type": "integer", "minimum": 1, "default": 5},
+    "active_poll_interval_seconds": {"type": "integer", "minimum": 1, "default": 30}
+  }
+}

@@ -11,11 +11,12 @@ import (
 
 // CommandRequest is the JSON body submitted to POST /v1/agent/commands.
 type CommandRequest struct {
-	Command     string                `json:"command"`
-	Reasoning   string                `json:"reasoning"`
-	Target      *CommandTargetRequest `json:"target"`
-	RequestedBy string                `json:"requested_by,omitempty"`
-	Metadata    map[string]any        `json:"metadata,omitempty"`
+	ClientOperationID string                `json:"client_operation_id,omitempty"`
+	Command           string                `json:"command"`
+	Reasoning         string                `json:"reasoning"`
+	Target            *CommandTargetRequest `json:"target"`
+	RequestedBy       string                `json:"requested_by,omitempty"`
+	Metadata          map[string]any        `json:"metadata,omitempty"`
 }
 
 // CommandTargetRequest identifies the Proxyma-managed target to use for a command.
@@ -26,13 +27,16 @@ type CommandTargetRequest struct {
 
 // CommandCreatedResponse is returned when a command task is created.
 type CommandCreatedResponse struct {
-	TaskID string `json:"task_id"`
-	Status string `json:"status"`
+	TaskID            string `json:"task_id"`
+	Status            string `json:"status"`
+	ClientOperationID string `json:"client_operation_id,omitempty"`
+	Replayed          bool   `json:"replayed,omitempty"`
 }
 
 // TaskStatusResponse is the JSON response returned by GET /v1/agent/tasks/{task_id}.
 type TaskStatusResponse struct {
 	TaskID             string                      `json:"task_id"`
+	ClientOperationID  string                      `json:"client_operation_id,omitempty"`
 	AgentID            string                      `json:"agent_id,omitempty"`
 	Target             *TaskTargetResponse         `json:"target,omitempty"`
 	Command            string                      `json:"command"`
@@ -131,7 +135,8 @@ type TranscriptionResponse struct {
 
 // HealthResponse is returned by GET /v1/health.
 type HealthResponse struct {
-	Status string `json:"status"`
+	Status       string   `json:"status"`
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 // ErrorResponse is the JSON error shape returned by Proxyma.
@@ -467,11 +472,12 @@ type InteractionDeliveryResponse struct {
 
 func commandContextFromRequest(request CommandRequest) tasks.CommandContext {
 	return tasks.CommandContext{
-		Command:     request.Command,
-		Reasoning:   request.Reasoning,
-		Target:      taskTargetFromCommandTarget(request.Target),
-		RequestedBy: request.RequestedBy,
-		Metadata:    request.Metadata,
+		ClientOperationID: request.ClientOperationID,
+		Command:           request.Command,
+		Reasoning:         request.Reasoning,
+		Target:            taskTargetFromCommandTarget(request.Target),
+		RequestedBy:       request.RequestedBy,
+		Metadata:          request.Metadata,
 	}
 }
 
@@ -488,6 +494,7 @@ func taskStatusResponseFromTask(task *tasks.Task) TaskStatusResponse {
 	}
 	response := TaskStatusResponse{
 		TaskID:             task.TaskID,
+		ClientOperationID:  task.ClientOperationID,
 		AgentID:            task.AgentID,
 		Target:             targetResponseFromTaskTarget(task.Target),
 		Command:            task.Command,
