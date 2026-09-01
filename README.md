@@ -230,7 +230,7 @@ configuration are intentionally unsupported.
 ## Documentation
 
 - [Deployment overview](docs/deployment.md)
-- [`proxyma-agent` harness CLI](docs/proxyma-agent.md)
+- [`proxyma-agent` harness installation](docs/proxyma-agent-installation.md)
 - [Configuration records and runtime settings](docs/configuration.md)
 - [User and agent API usage](docs/api.md)
 - [Build and version metadata](docs/build-version.md)
