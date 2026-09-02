@@ -216,6 +216,11 @@ submission, polling, duplicate prevention, and durable client task state. Agents
 - supply only target identity, remote payload, and reasoning;
 - interpret results and decide when the logical user goal is complete.
 
+GitHub releases include verified user-local installers for Windows, Linux, and
+macOS. They select the native executable and install the matching sanitized
+harness package and Codex adapter from the same release; see the
+[`proxyma-agent` installation guide](docs/proxyma-agent-installation.md).
+
 Start with the
 [harness instruction pack](harness/instruction-pack/proxyma-harness.md),
 and [CLI authentication guide](harness/instruction-pack/auth/proxyma-auth.md). The
