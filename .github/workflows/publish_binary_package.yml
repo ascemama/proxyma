@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/publish_binary_package.yml"
+      - "README.md"
       - "LICENSE"
       - "cmd/**"
       - "frontend/**"
@@ -14,6 +15,7 @@ on:
       - "scripts/*.sh"
       - "scripts/*.ps1"
       - "harness/**"
+      - "docs/proxyma-agent-installation.md"
   push:
     tags:
       - "v*"
@@ -48,6 +50,9 @@ jobs:
       - name: Validate harness v2 assets
         shell: pwsh
         run: ./harness/tests/validate-harness-assets.ps1
+
+      - name: Test sanitized agent harness package
+        run: bash scripts/test-package-agent-harness.sh
 
       - name: Test precompiled downloader
         run: bash scripts/test-install-linux.sh
@@ -174,15 +179,68 @@ jobs:
           cache: true
       - name: Test agent CLI and atomic state
         run: go test ./internal/agentcli ./internal/store
+      - name: Test POSIX agent release installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash scripts/test-install-agent.sh
+      - name: Test Windows agent release installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-install-agent.ps1
       - name: Validate PowerShell assets
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $tokens = $null
           $errors = @()
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path './scripts/build-agent-release.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path './harness/tests/claude-code-smoke.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
+          foreach ($file in @(
+            './scripts/build-agent-release.ps1',
+            './scripts/install-proxyma-agent.ps1',
+            './scripts/test-install-agent.ps1',
+            './harness/tests/claude-code-smoke.ps1'
+          )) {
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
+          }
           if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
+  agent-harness-package:
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v0.0.0-ci.{0}', github.run_number) }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Package sanitized agent harness and installers
+        shell: bash
+        run: |
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          bash scripts/package-agent-harness.sh \
+            "$RELEASE_VERSION" \
+            "${{ github.sha }}" \
+            release-assets
+          install -m 0755 scripts/install-proxyma-agent.sh release-assets/install-proxyma-agent.sh
+          install -m 0644 scripts/install-proxyma-agent.ps1 release-assets/install-proxyma-agent.ps1
+
+      - name: Inspect agent harness release assets
+        shell: bash
+        run: |
+          tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -Fx 'harness/RELEASE'
+          tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -Fx 'harness/proxyma-agent.json'
+          tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -Fx 'harness/.agents/skills/proxyma-harness/SKILL.md'
+          ! tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -F 'df9ec8bb-1a22-4181-a7c8-126ad553221d.json'
+
+      - name: Upload agent harness and installers
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: proxyma-agent-installation
+          path: |
+            release-assets/proxyma-agent-harness.tar.gz
+            release-assets/install-proxyma-agent.sh
+            release-assets/install-proxyma-agent.ps1
+          if-no-files-found: error
+          retention-days: 1
 
   agent-build:
     needs: validate
@@ -278,6 +336,7 @@ jobs:
       - build
       - docker-package
       - agent-build
+      - agent-harness-package
       - agent-platform-test
     runs-on: ubuntu-latest
     permissions:
@@ -309,6 +368,12 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Download agent harness and installers
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: proxyma-agent-installation
+          path: release-assets
+
       - name: Prepare checksums and release installers
         shell: bash
         run: |
@@ -322,7 +387,12 @@ jobs:
               proxyma_docker.tar.gz \
               install-proxyma.sh \
               install-proxyma-docker.sh \
-              proxyma-agent-* \
+              install-proxyma-agent.sh \
+              install-proxyma-agent.ps1 \
+              proxyma-agent-harness.tar.gz \
+              proxyma-agent-linux-* \
+              proxyma-agent-windows-* \
+              proxyma-agent-darwin-* \
               | sort -k2 >SHA256SUMS
           )
 
@@ -357,5 +427,10 @@ jobs:
             release-assets/proxyma_docker.tar.gz \
             release-assets/install-proxyma.sh \
             release-assets/install-proxyma-docker.sh \
-            release-assets/proxyma-agent-* \
+            release-assets/install-proxyma-agent.sh \
+            release-assets/install-proxyma-agent.ps1 \
+            release-assets/proxyma-agent-harness.tar.gz \
+            release-assets/proxyma-agent-linux-* \
+            release-assets/proxyma-agent-windows-* \
+            release-assets/proxyma-agent-darwin-* \
             release-assets/SHA256SUMS

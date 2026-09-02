@@ -1,11 +1,122 @@
-# Installing the `proxyma-agent` Harness
+# Installing `proxyma-agent`
 
-`proxyma-agent` is the deterministic client used by an AI coding agent to work
-through Proxyma. The executable owns authentication, target resolution, canonical
-command construction, idempotent submission, polling, and durable task state. The
-Codex skill supplies only the agent-facing policy and lifecycle instructions.
+`proxyma-agent` is the deterministic client used by Codex or another AI coding
+agent to work through Proxyma. It owns authentication, target resolution,
+idempotent command submission, polling, and durable client task state.
 
-This guide uses a project-local installation because it is the simplest Codex setup:
+The Proxyma server and `proxyma-agent` normally run on different machines:
+
+- install the Proxyma server on the managed server host using one of the
+  [deployment guides](deployment.md); and
+- install `proxyma-agent`, its matching harness, and the model adapter on the
+  workstation where Codex or Claude Code runs.
+
+The standalone server installers remain server-only. Every GitHub release
+publishes the agent binaries and `proxyma-agent-harness.tar.gz` together so the
+client executable, instruction pack, schemas, and adapters come from the same
+release.
+
+## Supported client platforms
+
+| Platform | AMD64 asset | ARM64 asset | Installer |
+|---|---|---|---|
+| Linux | `proxyma-agent-linux-amd64` | `proxyma-agent-linux-arm64` | `install-proxyma-agent.sh` |
+| macOS | `proxyma-agent-darwin-amd64` | `proxyma-agent-darwin-arm64` | `install-proxyma-agent.sh` |
+| Windows | `proxyma-agent-windows-amd64.exe` | `proxyma-agent-windows-arm64.exe` | `install-proxyma-agent.ps1` |
+
+The POSIX installer requires `curl`, `tar`, `mktemp`, and either `sha256sum` or
+`shasum`. The Windows installer supports Windows PowerShell 5.1 and PowerShell
+7 and requires `Get-FileHash` and the `tar.exe` included with supported Windows
+versions.
+
+Before configuring the harness, obtain the UUID and JWT signing key of a
+Proxyma agent authorized for the required targets. Do not put that signing key
+in a prompt, installer argument, command history, or release download.
+
+## Install the latest stable release
+
+Run the installer from the root of the project where Codex will work. Download
+it as a file so it can be inspected before execution; do not pipe a remote
+script directly into a shell.
+
+### Linux or macOS
+
+```bash
+curl -fL -o install-proxyma-agent.sh \
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-agent.sh
+bash ./install-proxyma-agent.sh
+```
+
+The default executable location is `$HOME/.local/bin/proxyma-agent`.
+
+### Windows
+
+```powershell
+Invoke-WebRequest `
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-agent.ps1 `
+  -OutFile .\install-proxyma-agent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\install-proxyma-agent.ps1
+```
+
+The default executable location is
+`%LOCALAPPDATA%\Programs\Proxyma\bin\proxyma-agent.exe`.
+
+Both installers:
+
+1. Detect the native operating system and AMD64 or ARM64 architecture.
+2. Download that binary, `proxyma-agent-harness.tar.gz`, and `SHA256SUMS` from
+   one release.
+3. Require exactly one valid checksum entry for each downloaded payload and
+   verify both SHA-256 hashes.
+4. Reject unsafe archive paths, links, special files, and unsafe install
+   destinations.
+5. Install the binary for the current user, create or refresh `./harness`, and
+   install the Codex adapter at `.agents/skills/proxyma-harness/SKILL.md`.
+
+The installers never request or create a signing key and never modify `PATH`.
+If the user-local binary directory is not already on `PATH`, follow the printed
+instruction and restart Codex so it inherits the new environment.
+
+## Install a pinned release or custom location
+
+Use the same exact release for the installer and its `--version`/`-Version`
+argument. This keeps the downloaded binary and harness pinned during
+reproducible provisioning or rollback.
+
+Linux or macOS:
+
+```bash
+version=v1.2.3
+curl -fL -o install-proxyma-agent.sh \
+  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-agent.sh"
+bash ./install-proxyma-agent.sh \
+  --version "$version" \
+  --project-dir /path/to/project \
+  --bin-dir "$HOME/.local/bin"
+```
+
+Windows:
+
+```powershell
+$version = "v1.2.3"
+Invoke-WebRequest `
+  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-agent.ps1" `
+  -OutFile .\install-proxyma-agent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\install-proxyma-agent.ps1 `
+  -Version $version `
+  -ProjectDir C:\path\to\project `
+  -BinDir "$env:LOCALAPPDATA\Programs\Proxyma\bin"
+```
+
+Versions must be `latest` or a complete semantic version beginning with `v`,
+including an exact prerelease such as `v1.2.3-rc.1`. `latest` resolves only the
+latest stable GitHub release.
+
+## Installed project layout
+
+After a new installation, the project contains:
 
 ```text
 your-project/
@@ -14,198 +125,48 @@ your-project/
 │       └── proxyma-harness/
 │           └── SKILL.md
 └── harness/
-    ├── proxyma-agent.json
-    ├── agent-configuration/
-    │   └── local-agent.json
-    ├── instruction-pack/
-    │   └── proxyma-harness.md
-    └── task-state/
+    ├── .agents/                 Release copy of the Codex adapter
+    ├── .claude/                 Claude Code adapter
+    ├── agent-configuration/     Local credentials; initially empty
+    ├── examples/                Configuration and task examples
+    ├── instruction-pack/        Harness policy, schemas, and API reference
+    ├── task-state/              CLI-owned durable task state
+    ├── tests/                   Validation material and scenarios
+    ├── proxyma-agent.json       Local harness configuration
+    └── RELEASE                  Harness release version and commit
 ```
 
-The two directories have different purposes:
+The `.agents/skills/proxyma-harness` copy at the project root is what Codex
+discovers. The `harness/` directory is the shared runtime root and can also be
+used by the included Claude Code adapter.
 
-- `.agents/skills/proxyma-harness/` is the small Codex adapter. Codex discovers the
-  skill there.
-- `harness/` is the shared, harness-neutral runtime root. Keep its configuration,
-  policy, schemas, and CLI-owned state together rather than copying its files into
-  `.agents/skills`.
+## Safe updates and rollback
 
-## Prerequisites
+Run the selected release installer again. Updates replace the executable and
+release-owned harness material transactionally. They preserve these local,
+potentially sensitive paths:
 
-Before installation, obtain:
+- `harness/proxyma-agent.json`;
+- `harness/agent-configuration/`; and
+- `harness/task-state/`.
 
-- a Proxyma server that includes the `agent_command_idempotency_v1` capability;
-- the UUID and JWT signing key of a Proxyma agent authorized for the required
-  targets;
-- the `harness/` directory from this repository; and
-- either a released `proxyma-agent` executable or Go for a source build.
+Instructions, schemas, examples, tests, bundled adapters, `RELEASE`, and the
+project Codex adapter are refreshed from the selected release. The installer
+refuses symbolic links or reparse points at managed destinations instead of
+following them.
 
-The CLI runs on the same machine as Codex. The Proxyma server and managed targets can
-run on other machines.
+Back up the three preserved paths before a downgrade. Harness v1 state is not
+compatible with harness v2 and is not migrated.
 
-## 1. Install the CLI executable
+## Configure the harness
 
-Download the executable for the machine that runs Codex from a
-[Proxyma release](https://github.com/ascemama/proxyma/releases):
-
-| Platform | Intel/AMD 64-bit | ARM 64-bit |
-|---|---|---|
-| Linux | `proxyma-agent-linux-amd64` | `proxyma-agent-linux-arm64` |
-| Windows | `proxyma-agent-windows-amd64.exe` | `proxyma-agent-windows-arm64.exe` |
-| macOS | `proxyma-agent-darwin-amd64` | `proxyma-agent-darwin-arm64` |
-
-Verify the downloaded file against the release's `SHA256SUMS` before installing it.
-
-### Windows
-
-Rename the download to `proxyma-agent.exe` and put it in a directory on your user
-`Path`. For example, after creating a user tools directory and adding it to `Path` in
-Windows **Environment Variables**, copy the executable there:
-
-```powershell
-New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\Programs\Proxyma\bin"
-Copy-Item .\proxyma-agent-windows-amd64.exe `
-  "$env:LOCALAPPDATA\Programs\Proxyma\bin\proxyma-agent.exe"
-```
-
-Add `%LOCALAPPDATA%\Programs\Proxyma\bin` to the user `Path` if it is not already
-present. Restart Codex after changing `Path`; an already running application does not
-inherit later environment changes.
-
-Verify the release checksum with PowerShell:
-
-```powershell
-Get-FileHash .\proxyma-agent-windows-amd64.exe -Algorithm SHA256
-```
-
-Compare the displayed hash with the entry in `SHA256SUMS`.
-
-### Linux
-
-```sh
-mkdir -p "$HOME/.local/bin"
-install -m 0755 ./proxyma-agent-linux-amd64 "$HOME/.local/bin/proxyma-agent"
-sha256sum ./proxyma-agent-linux-amd64
-```
-
-Use the ARM64 filename on an ARM64 host. Ensure `$HOME/.local/bin` is on `PATH` before
-starting Codex.
-
-### macOS
-
-```sh
-mkdir -p "$HOME/.local/bin"
-install -m 0755 ./proxyma-agent-darwin-arm64 "$HOME/.local/bin/proxyma-agent"
-shasum -a 256 ./proxyma-agent-darwin-arm64
-```
-
-Use `darwin-amd64` on an Intel Mac. Ensure `$HOME/.local/bin` is on `PATH` before
-starting Codex.
-
-### Build from source
-
-From the Proxyma repository root:
-
-```powershell
-# Windows
-New-Item -ItemType Directory -Force .\bin
-go build -o .\bin\proxyma-agent.exe .\cmd\proxyma-agent
-```
-
-```sh
-# Linux or macOS
-mkdir -p ./bin
-go build -o ./bin/proxyma-agent ./cmd/proxyma-agent
-```
-
-Move the built executable to a directory on `PATH`, or add its directory to `PATH`
-before launching Codex.
-
-Confirm that a new terminal can find the executable:
-
-```sh
-proxyma-agent version
-proxyma-agent --help
-```
-
-The command returns a compact JSON envelope. `version` does not require a harness
-configuration.
-
-## 2. Place the shared harness root
-
-Copy the complete repository `harness/` directory to the root of the project where
-Codex will work. Do not copy each instruction-pack file into a Codex directory.
-
-For an initial installation, the useful runtime files are:
-
-| Path under `harness/` | Purpose | Required at runtime |
-|---|---|---|
-| `proxyma-agent.json` | CLI configuration and path anchor | Yes |
-| `agent-configuration/<name>.json` | Agent UUID and optionally its signing key | Yes |
-| `instruction-pack/proxyma-harness.md` | Harness-neutral policy loaded by the skill | Yes |
-| `task-state/` | Durable state written exclusively by the CLI | Created as needed |
-| `.agents/skills/proxyma-harness/` | Source copy of the Codex adapter | Copied in step 3 |
-| `.claude/skills/` | Claude Code adapter | No for Codex |
-| `examples/`, `tests/`, and schemas | Examples, validation, and operator reference | No, but safe to retain |
-
-Keeping the complete directory is recommended. It preserves the schemas and
-diagnostic material and makes the same root reusable with another supported adapter.
-
-If you are working directly in this Proxyma repository, `harness/` is already in the
-correct location; do not make a second copy.
-
-## 3. Install the Codex skill adapter
-
-Codex discovers repository skills under `.agents/skills` from the current working
-directory through the repository root. It does not discover the nested
-`harness/.agents/skills` directory merely because `harness/` exists below the project
-root. Copy or symlink the supplied adapter into the project discovery location.
-
-From the target project root on Windows:
-
-```powershell
-New-Item -ItemType Directory -Force .\.agents\skills
-Copy-Item -Recurse -Force `
-  .\harness\.agents\skills\proxyma-harness `
-  .\.agents\skills\proxyma-harness
-```
-
-On Linux or macOS:
-
-```sh
-mkdir -p .agents/skills
-cp -R harness/.agents/skills/proxyma-harness .agents/skills/
-```
-
-The resulting file must be:
-
-```text
-<project-root>/.agents/skills/proxyma-harness/SKILL.md
-```
-
-Codex normally detects skill changes automatically. If the skill does not appear,
-restart Codex and open the project root again. Invoke it explicitly in a prompt as
-`$proxyma-harness`.
-
-For a personal installation shared by many projects, place the adapter at
-`$HOME/.agents/skills/proxyma-harness/` instead. The shared skill still needs a
-harness root for each task, either at `<project>/harness` or selected with the
-configuration override described below.
-
-See the [official Codex skills documentation](https://developers.openai.com/codex/skills)
-for current discovery locations and explicit skill invocation.
-
-## 4. Configure `harness/proxyma-agent.json`
-
-This is the harness configuration you normally edit. Start with
-`harness/examples/proxyma-agent.json`, or update the supplied
-`harness/proxyma-agent.json`:
+Edit `harness/proxyma-agent.json`:
 
 ```json
 {
   "schema_version": "2",
   "proxyma_base_url": "https://proxyma.example",
-  "agent_config": "agent-configuration/local-agent.json",
+  "agent_config": "agent-configuration/agent.json",
   "state_dir": "task-state",
   "http_timeout_seconds": 15,
   "lock_timeout_seconds": 5,
@@ -213,25 +174,12 @@ This is the harness configuration you normally edit. Start with
 }
 ```
 
-Change at least:
+Set `proxyma_base_url` to the server URL reachable from the Codex workstation.
+Relative `agent_config` and `state_dir` paths resolve from the directory that
+contains `proxyma-agent.json`.
 
-- `proxyma_base_url` to the URL reachable from the machine running Codex; and
-- `agent_config` to the agent credential file created in step 5.
-
-Relative `agent_config` and `state_dir` paths are resolved from the directory that
-contains `proxyma-agent.json`, not from the shell's current directory. Keeping them
-relative makes the complete `harness/` directory portable.
-
-Use HTTPS outside an explicitly controlled local-development environment. A private
-or self-signed certificate must be trusted by the operating system used by the CLI.
-
-The included `df9ec8bb-1a22-4181-a7c8-126ad553221d.json` is a development fixture.
-Do not use its key as a production credential.
-
-## 5. Configure the Proxyma agent credential
-
-Create the file referenced by `agent_config`, for example
-`harness/agent-configuration/local-agent.json`:
+Create the referenced credential file locally; it is deliberately absent from
+the release package:
 
 ```json
 {
@@ -240,182 +188,137 @@ Create the file referenced by `agent_config`, for example
 }
 ```
 
-The UUID and signing key must match an enabled agent record on the Proxyma server,
-and that agent must be assigned to the intended targets. Restrict the file so only
-the local user running Codex can read it.
+Restrict it to the user who runs Codex. On Linux or macOS:
 
-For injected-secret environments, the file can contain only `agent_id`. Set
-`PROXYMA_AGENT_JWT_SIGNING_KEY` through the operating system, a secret manager, or the
-process launcher. The environment value overrides a key in the file. Set it before
-starting Codex so CLI processes launched by Codex inherit it; never place the secret
-in a Codex prompt or a CLI argument.
+```bash
+chmod 700 ./harness/agent-configuration
+chmod 600 ./harness/agent-configuration/agent.json
+```
 
-When adding the harness to another repository, add its local credentials and runtime
-state to that repository's ignore rules. For example:
+On Windows, remove inherited access and grant the current user access through
+the Security tab or an equivalent managed endpoint policy. For example:
+
+```powershell
+icacls .\harness\agent-configuration\agent.json /inheritance:r `
+  /grant:r "$($env:USERNAME):(R,W)"
+```
+
+For injected-secret environments, store only `agent_id` in the file and set
+`PROXYMA_AGENT_JWT_SIGNING_KEY` through the operating system, secret manager, or
+process launcher before starting Codex. The environment value overrides a key
+in the file. Never pass the key to the installer or place it in a prompt.
+
+Add local credentials and state to the containing project's ignore rules:
 
 ```gitignore
-/harness/agent-configuration/local-agent.json
+/harness/agent-configuration/*.json
 /harness/task-state/tasks/
 /harness/task-state/summaries/
 /harness/task-state/.journal/
 /harness/task-state/.proxyma-agent.lock
 ```
 
-Adjust the credential filename if you chose a different one. The Proxyma repository
-already contains equivalent ignore rules for its local harness state.
+## Validate the installation
 
-## 6. Understand configuration discovery
+Open a new terminal after any `PATH` change, then run from the project:
 
-The CLI selects one configuration in this order:
-
-1. `--config <path>` before the command name;
-2. `PROXYMA_HARNESS_CONFIG`;
-3. an upward search from the current directory for
-   `harness/proxyma-agent.json`.
-
-With the recommended project-local layout, start Codex anywhere inside the project
-and no override is needed.
-
-For an explicit configuration:
-
-```sh
-proxyma-agent --config /absolute/path/to/harness/proxyma-agent.json doctor
-```
-
-On Windows:
-
-```powershell
-proxyma-agent --config C:\absolute\path\to\harness\proxyma-agent.json doctor
-```
-
-The global `--config` option must appear before `doctor`, `resume`, or another command.
-
-If the harness root is outside the project, set `PROXYMA_HARNESS_CONFIG` to the
-absolute configuration path before starting Codex. Also tell Codex the absolute
-harness-root path in the first prompt so the skill can read
-`instruction-pack/proxyma-harness.md`.
-
-## 7. Validate the installation
-
-From the target project root, run:
-
-```sh
+```bash
 proxyma-agent version
 proxyma-agent doctor
 proxyma-agent resume
 ```
 
-`doctor` validates configuration, credentials, task state, locking, server health,
-and the required server capability. `resume` recovers interrupted local work and
-polls existing non-final operations once. On a new installation it should report no
-open tasks.
+`doctor` validates configuration, credentials, state locking, server health,
+and the required `agent_command_idempotency_v1` server capability. `resume`
+recovers interrupted local work and polls existing non-final operations once.
 
-Optionally verify a target without submitting a command:
+Optionally resolve a target without submitting a command:
 
-```sh
+```bash
 proxyma-agent inspect --target server.example
 ```
 
-These commands write machine-readable JSON to stdout and diagnostics to stderr.
-Exit code 2 indicates usage or configuration trouble, 3 indicates state or revision
-conflicts, and 4 indicates a Proxyma, connectivity, or authentication failure.
-
-## 8. Run the first Codex test
-
-Open the target project in Codex and use a prompt that names the skill and harness
-root explicitly on the first run, for example:
+Invoke the installed Codex skill explicitly on the first run:
 
 ```text
-$proxyma-harness Use the harness at ./harness. Run proxyma-agent doctor and resume,
-then inspect the Proxyma target server.example. Do not submit a command yet.
+$proxyma-harness Run proxyma-agent doctor and resume, then inspect the Proxyma
+target server.example. Do not submit a command yet.
 ```
 
-After that succeeds, ask Codex to perform a harmless remote check through Proxyma.
-The agent should run `resume` first, submit only the remote payload through
-`proxyma-agent`, and never construct its own SSH or WinRM wrapper.
+Task JSON under `harness/task-state/tasks/` is authoritative and CLI-owned. Do
+not edit it manually.
 
-Task JSON under `harness/task-state/tasks/` is authoritative and CLI-owned. Do not
-edit it manually. Use `inspect`, `task-update`, and `task-complete` for lifecycle
-changes.
+## Manual download and verification
 
-## Using the same harness outside a project
+If an installer cannot be used, download the binary for the client platform,
+`proxyma-agent-harness.tar.gz`, and `SHA256SUMS` from the same exact release.
+Require an exact filename match and verify both payloads before extraction or
+installation. For example on Linux:
 
-A single shared harness root can serve multiple Codex projects when local state and
-credentials are intentionally shared:
-
-1. Install the skill once under `$HOME/.agents/skills/proxyma-harness/`.
-2. Keep the complete harness at a stable absolute path.
-3. Set `PROXYMA_HARNESS_CONFIG` before starting Codex.
-4. State the harness-root path when invoking the skill.
-
-Be aware that one `state_dir` means every project sees the same durable logical task
-set. Use a separate `proxyma-agent.json` and state directory when projects require
-separate credentials, authorization boundaries, or task histories.
-
-## Claude Code adapter
-
-The same shared `harness/` root also contains a Claude Code adapter. Keep the root
-intact and launch Claude Code with:
-
-```sh
-claude --add-dir /absolute/path/to/harness
+```bash
+version=v1.2.3
+asset=proxyma-agent-linux-amd64
+base="https://github.com/ascemama/proxyma/releases/download/$version"
+curl -fLO "$base/$asset"
+curl -fLO "$base/proxyma-agent-harness.tar.gz"
+curl -fLO "$base/SHA256SUMS"
+grep "  $asset$" SHA256SUMS | sha256sum --check
+grep '  proxyma-agent-harness.tar.gz$' SHA256SUMS | sha256sum --check
 ```
 
-Do not copy the Claude adapter into the Codex `.agents/skills` directory. Both
-adapters call the same CLI and use the same harness-neutral policy and state.
+GitHub artifact attestations provide an additional provenance check:
 
-## Clean v2 upgrade
+```bash
+gh attestation verify "$asset" --repo ascemama/proxyma
+gh attestation verify proxyma-agent-harness.tar.gz --repo ascemama/proxyma
+```
 
-Harness v1 run configuration and status-directory task state are not migrated.
-Archive v1 state outside the configured v2 `state_dir`, create the v2
-`proxyma-agent.json`, and run `doctor`. Do not copy old pending, active, completed,
-failed, or blocked files into `task-state/tasks/`.
+SHA-256 verification remains mandatory; attestation verification is an
+additional check that GitHub Actions produced the asset for this repository.
 
-Existing API clients remain compatible when they omit `client_operation_id`, but the
-v2 CLI refuses state-changing submissions unless the server advertises
-`agent_command_idempotency_v1`.
+## Build from source
 
-## Command quick reference
+From a trusted Proxyma source checkout:
 
-| Command | Purpose |
-|---|---|
-| `--help` or `<command> --help` | Show machine-readable global or command help |
-| `version` | Show CLI, commit, protocol, and state-schema versions |
-| `doctor` | Validate the complete local and server setup |
-| `resume` | Recover writes and safely resume all open operations |
-| `inspect --target HOST` | Resolve safe target metadata without submission |
-| `inspect --task ID` | Read authoritative logical task state |
-| `submit --input FILE` | Create or extend a task from strict JSON input |
-| `poll --task ID` | Poll all non-final operations for one task |
-| `task-update --input FILE` | Update agent-owned task fields by revision |
-| `task-complete --input FILE` | Record the final summary and complete a task |
+```powershell
+# Windows
+.\scripts\build-agent-release.ps1 -OutDir .\bin
+```
 
-`submit`, `task-update`, and `task-complete` accept `--input -` for stdin. Avoid
-putting secrets in input documents or command arguments.
+```bash
+# Linux or macOS
+OUT_DIR=./bin bash ./scripts/build-agent-release.sh
+```
 
-## Troubleshooting
+A source build creates the executable only. Use a release harness archive or a
+matching trusted source `harness/` tree for the model-facing assets.
 
-- **`proxyma-agent` is not recognized or found:** the executable directory is not on
-  the environment inherited by Codex. Fix `Path`/`PATH`, restart Codex, and rerun
-  `proxyma-agent version`.
-- **The skill is not available:** verify the exact path
+## Configuration discovery and troubleshooting
+
+The CLI selects configuration in this order:
+
+1. `--config <path>` before the command name;
+2. `PROXYMA_HARNESS_CONFIG`;
+3. an upward search for `harness/proxyma-agent.json`.
+
+Common failures:
+
+- **`proxyma-agent` is not found:** add the printed user-local binary directory
+  to `PATH`, restart Codex, and open a new terminal.
+- **The skill is unavailable:** verify
   `<project>/.agents/skills/proxyma-harness/SKILL.md`, then restart Codex.
-- **`config_not_found`:** put `harness/proxyma-agent.json` beneath the project root,
-  or select it with `--config` or `PROXYMA_HARNESS_CONFIG`.
-- **`server_capability_missing`:** upgrade the Proxyma server to a harness-v2 release.
-- **Authentication failure:** verify the agent UUID, signing key, server time, and
-  that the environment variable was present when Codex started.
-- **Target authorization failure:** ensure the server target record lists the same
-  agent UUID.
-- **TLS error:** use a certificate trusted by the CLI host; do not disable TLS
-  verification as a routine fix.
-- **`state_locked`:** another CLI process is mutating the same state directory; wait
-  for it to finish and retry.
-- **`state_conflict`:** inspect the task and retry with its latest revision.
-- **`state_corrupt`:** preserve the reported file and repair or restore it manually;
-  the CLI intentionally leaves malformed state untouched.
-- **`submission_unknown`:** run `proxyma-agent resume`; never create a replacement
-  submission.
+- **Checksum or archive validation fails:** do not install the download. Remove
+  it and retry from the same release; report persistent failures.
+- **The installer refuses an existing path:** remove the unexpected symlink,
+  reparse point, non-regular file, or stale `.proxyma-*` transaction path only
+  after confirming it is safe.
+- **`config_not_found`:** run inside the project or select the configuration
+  with `--config` or `PROXYMA_HARNESS_CONFIG`.
+- **`server_capability_missing`:** upgrade the Proxyma server.
+- **Authentication failure:** verify the agent UUID, signing key, server time,
+  and that the secret environment was inherited when Codex started.
+- **`submission_unknown`:** run `proxyma-agent resume`; never create a
+  replacement submission.
 
-The CLI reduces accidental secret exposure but is not a security boundary against
-another unrestricted process running as the same operating-system user.
+The CLI reduces accidental secret exposure but is not a security boundary
+against another unrestricted process running as the same operating-system user.

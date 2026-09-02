@@ -1,0 +1,246 @@
+[CmdletBinding()]
+param(
+    [string]$Version = "latest",
+    [string]$ProjectDir = (Get-Location).Path,
+    [string]$BinDir = ""
+)
+
+$ErrorActionPreference = "Stop"
+$RepositoryUrl = if ($env:PROXYMA_RELEASE_BASE_URL) { $env:PROXYMA_RELEASE_BASE_URL.TrimEnd('/') } else { "https://github.com/ascemama/proxyma" }
+$ArchiveName = "proxyma-agent-harness.tar.gz"
+
+function Test-Version([string]$Value) {
+    if ($Value -eq "latest") { return }
+    if ($Value -notmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$') {
+        throw "Invalid version '$Value'. Use latest or vMAJOR.MINOR.PATCH[-PRERELEASE]."
+    }
+    if ($Matches[4]) {
+        foreach ($identifier in $Matches[4].TrimStart('-').Split('.')) {
+            if ($identifier -match '^[0-9]+$' -and $identifier.Length -gt 1 -and $identifier.StartsWith('0')) {
+                throw "Invalid numeric prerelease identifier with a leading zero: $identifier"
+            }
+        }
+    }
+}
+
+function Assert-NotReparsePoint([string]$Path, [string]$Label) {
+    if (Test-Path -LiteralPath $Path) {
+        $item = Get-Item -Force -LiteralPath $Path
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "$Label must not be a symbolic link or reparse point: $Path"
+        }
+    }
+}
+
+function Copy-ReleaseAsset([string]$Source, [string]$Destination) {
+    $uri = [Uri]$Source
+    if ($uri.IsFile) {
+        Copy-Item -LiteralPath $uri.LocalPath -Destination $Destination
+    }
+    else {
+        Invoke-WebRequest -Uri $uri -OutFile $Destination -UseBasicParsing
+    }
+}
+
+function Get-ExpectedHash([string]$ChecksumPath, [string]$AssetName) {
+    $foundHashes = @()
+    foreach ($line in Get-Content -LiteralPath $ChecksumPath) {
+        if ($line -match '^([0-9A-Fa-f]{64})[\t ]+\*?(.+?)\s*$' -and $Matches[2] -eq $AssetName) {
+            $foundHashes += $Matches[1].ToLowerInvariant()
+        }
+    }
+    if ($foundHashes.Count -ne 1) {
+        throw "SHA256SUMS does not contain exactly one valid entry for $AssetName."
+    }
+    return $foundHashes[0]
+}
+
+function Confirm-Checksum([string]$ChecksumPath, [string]$AssetPath, [string]$AssetName) {
+    $expected = Get-ExpectedHash $ChecksumPath $AssetName
+    $actual = (Get-FileHash -LiteralPath $AssetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) { throw "SHA-256 checksum mismatch for $AssetName." }
+    Write-Host "Verified SHA-256 checksum for $AssetName."
+}
+
+function Replace-InstalledPath([string]$Source, [string]$Destination) {
+    Assert-NotReparsePoint $Destination "Install destination"
+    $newPath = "$Destination.proxyma-new.$PID"
+    $backupPath = "$Destination.proxyma-backup.$PID"
+    if ((Test-Path -LiteralPath $newPath) -or (Test-Path -LiteralPath $backupPath)) {
+        throw "Conflicting temporary install path for $Destination."
+    }
+    Copy-Item -LiteralPath $Source -Destination $newPath -Recurse
+    $hadDestination = Test-Path -LiteralPath $Destination
+    if ($hadDestination) { Move-Item -LiteralPath $Destination -Destination $backupPath }
+    try {
+        Move-Item -LiteralPath $newPath -Destination $Destination
+    }
+    catch {
+        if ($hadDestination -and (Test-Path -LiteralPath $backupPath)) {
+            Move-Item -LiteralPath $backupPath -Destination $Destination
+        }
+        throw
+    }
+    if (Test-Path -LiteralPath $backupPath) { Remove-Item -LiteralPath $backupPath -Recurse -Force }
+}
+
+Test-Version $Version
+if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA) -and [string]::IsNullOrWhiteSpace($BinDir)) {
+    throw "LOCALAPPDATA is required when -BinDir is not supplied."
+}
+if ([string]::IsNullOrWhiteSpace($BinDir)) {
+    $BinDir = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin"
+}
+
+$targetOS = if ($env:PROXYMA_AGENT_OS) { $env:PROXYMA_AGENT_OS } else { "windows" }
+if ($targetOS -ne "windows") { throw "Unsupported operating system: $targetOS" }
+$targetArch = if ($env:PROXYMA_AGENT_ARCH) { $env:PROXYMA_AGENT_ARCH } else { [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant() }
+switch ($targetArch.ToLowerInvariant()) {
+    { $_ -in @("x64", "x86_64", "amd64") } { $targetArch = "amd64"; break }
+    { $_ -in @("arm64", "aarch64") } { $targetArch = "arm64"; break }
+    default { throw "Unsupported architecture: $targetArch" }
+}
+
+if (-not (Test-Path -LiteralPath $ProjectDir -PathType Container)) {
+    throw "Project directory must be an existing directory: $ProjectDir"
+}
+Assert-NotReparsePoint $ProjectDir "Project directory"
+$ProjectDir = (Resolve-Path -LiteralPath $ProjectDir).Path
+
+Assert-NotReparsePoint $BinDir "Binary directory"
+if ((Test-Path -LiteralPath $BinDir) -and -not (Test-Path -LiteralPath $BinDir -PathType Container)) {
+    throw "Binary directory must be a directory: $BinDir"
+}
+New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+$BinDir = (Resolve-Path -LiteralPath $BinDir).Path
+
+$releaseUrl = if ($Version -eq "latest") { "$RepositoryUrl/releases/latest/download" } else { "$RepositoryUrl/releases/download/$Version" }
+$binaryName = "proxyma-agent-windows-$targetArch.exe"
+$tempDir = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-agent-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $tempDir | Out-Null
+try {
+    $binaryPath = Join-Path $tempDir $binaryName
+    $archivePath = Join-Path $tempDir $ArchiveName
+    $checksumPath = Join-Path $tempDir "SHA256SUMS"
+    Write-Host "Downloading proxyma-agent $Version for windows/$targetArch..."
+    foreach ($assetName in @($binaryName, $ArchiveName, "SHA256SUMS")) {
+        Copy-ReleaseAsset "$releaseUrl/$assetName" (Join-Path $tempDir $assetName)
+    }
+    Confirm-Checksum $checksumPath $binaryPath $binaryName
+    Confirm-Checksum $checksumPath $archivePath $ArchiveName
+
+    $entries = @(& tar -tzf $archivePath)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to inspect the harness archive." }
+    foreach ($entry in $entries) {
+        $normalized = $entry.Replace('\', '/')
+        if ($normalized -ne "harness" -and -not $normalized.StartsWith("harness/")) {
+            throw "Harness archive contains an unsafe path: $entry"
+        }
+        if ("/$normalized/" -match '/\.\.?/') { throw "Harness archive contains path traversal: $entry" }
+    }
+    $verboseEntries = @(& tar -tvzf $archivePath)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to inspect harness archive entry types." }
+    foreach ($listing in $verboseEntries) {
+        if ($listing.Length -eq 0 -or $listing[0] -notin @('-', 'd')) {
+            throw "Harness archive contains a link or special file."
+        }
+    }
+    & tar -xzf $archivePath -C $tempDir
+    if ($LASTEXITCODE -ne 0) { throw "Unable to extract the harness archive." }
+    $payloadDir = Join-Path $tempDir "harness"
+    foreach ($relative in @(
+        "RELEASE",
+        "proxyma-agent.json",
+        "instruction-pack\proxyma-harness.md",
+        ".agents\skills\proxyma-harness\SKILL.md",
+        ".claude\skills\proxyma-harness\SKILL.md"
+    )) {
+        $required = Join-Path $payloadDir $relative
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Harness archive is missing required file: $relative" }
+        Assert-NotReparsePoint $required "Harness payload file"
+    }
+
+    $installedBinary = Join-Path $BinDir "proxyma-agent.exe"
+    $harnessDir = Join-Path $ProjectDir "harness"
+    $agentsDir = Join-Path $ProjectDir ".agents"
+    $skillsDir = Join-Path $agentsDir "skills"
+    Assert-NotReparsePoint $installedBinary "Installed binary"
+    if ((Test-Path -LiteralPath $installedBinary) -and -not (Test-Path -LiteralPath $installedBinary -PathType Leaf)) {
+        throw "Installed binary target must be a regular file: $installedBinary"
+    }
+    Assert-NotReparsePoint $harnessDir "Harness target"
+    if ((Test-Path -LiteralPath $harnessDir) -and -not (Test-Path -LiteralPath $harnessDir -PathType Container)) {
+        throw "Harness target must be a directory: $harnessDir"
+    }
+    $configPath = Join-Path $harnessDir "proxyma-agent.json"
+    foreach ($preserved in @(
+        $configPath,
+        (Join-Path $harnessDir "agent-configuration"),
+        (Join-Path $harnessDir "task-state"),
+        (Join-Path $harnessDir "task-state\tasks"),
+        (Join-Path $harnessDir "task-state\summaries")
+    )) {
+        Assert-NotReparsePoint $preserved "Preserved harness data"
+    }
+    if ((Test-Path -LiteralPath $configPath) -and -not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+        throw "Harness configuration must be a regular file: $configPath"
+    }
+    foreach ($preservedDir in @("agent-configuration", "task-state", "task-state\tasks", "task-state\summaries")) {
+        $path = Join-Path $harnessDir $preservedDir
+        if ((Test-Path -LiteralPath $path) -and -not (Test-Path -LiteralPath $path -PathType Container)) {
+            throw "Preserved harness path must be a directory: $path"
+        }
+    }
+    foreach ($directory in @($agentsDir, $skillsDir)) {
+        Assert-NotReparsePoint $directory "Skill directory"
+        if ((Test-Path -LiteralPath $directory) -and -not (Test-Path -LiteralPath $directory -PathType Container)) {
+            throw "Skill directory must be a directory: $directory"
+        }
+    }
+    $ownedDestinations = @(
+        (Join-Path $harnessDir "instruction-pack"),
+        (Join-Path $harnessDir "examples"),
+        (Join-Path $harnessDir "tests"),
+        (Join-Path $harnessDir ".agents"),
+        (Join-Path $harnessDir ".claude"),
+        (Join-Path $harnessDir "RELEASE"),
+        (Join-Path $skillsDir "proxyma-harness"),
+        $installedBinary
+    )
+    foreach ($destination in $ownedDestinations) {
+        Assert-NotReparsePoint $destination "Install destination"
+        if ((Test-Path -LiteralPath "$destination.proxyma-new.$PID") -or (Test-Path -LiteralPath "$destination.proxyma-backup.$PID")) {
+            throw "Conflicting temporary install path for $destination."
+        }
+    }
+
+    Replace-InstalledPath $binaryPath $installedBinary
+    New-Item -ItemType Directory -Force -Path $harnessDir | Out-Null
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        Copy-Item -LiteralPath (Join-Path $payloadDir "proxyma-agent.json") -Destination $configPath
+    }
+    foreach ($relativeDir in @("agent-configuration", "task-state", "task-state\tasks", "task-state\summaries")) {
+        New-Item -ItemType Directory -Force -Path (Join-Path $harnessDir $relativeDir) | Out-Null
+    }
+    foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "RELEASE")) {
+        Replace-InstalledPath (Join-Path $payloadDir $owned) (Join-Path $harnessDir $owned)
+    }
+    foreach ($directory in @($agentsDir, $skillsDir)) {
+        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    }
+    Replace-InstalledPath (Join-Path $payloadDir ".agents\skills\proxyma-harness") (Join-Path $skillsDir "proxyma-harness")
+
+    Write-Host "Installed proxyma-agent at $installedBinary"
+    Write-Host "Installed the matching harness at $harnessDir"
+    Write-Host "Installed the Codex adapter at $(Join-Path $skillsDir 'proxyma-harness')"
+    $pathEntries = @($env:PATH -split ';' | ForEach-Object { $_.TrimEnd('\') })
+    if ($pathEntries -contains $BinDir.TrimEnd('\')) {
+        Write-Host "$BinDir is already on PATH."
+    }
+    else {
+        Write-Host "$BinDir is not on PATH. Add it to the user Path in Windows Environment Variables, then restart Codex."
+    }
+}
+finally {
+    if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force }
+}
