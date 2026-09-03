@@ -33,7 +33,25 @@ Before configuring the harness, obtain the UUID and JWT signing key of a
 Proxyma agent authorized for the required targets. Do not put that signing key
 in a prompt, installer argument, command history, or release download.
 
-## Install the latest stable release
+## Choose an installation path
+
+Use one of the following paths. Do not mix the release installer with a binary
+built from source: the CLI and harness should come from the same source or
+release version.
+
+- [Case 1: install the official GitHub release artifact](#case-1-install-the-official-github-release-artifact)
+  for production workstations.
+- [Case 2: build from source and install](#case-2-build-from-source-and-install)
+  for development, testing, or a controlled source revision.
+
+## Case 1: install the official GitHub release artifact
+
+This is the recommended path for production. The installer downloads the
+platform-specific executable, the matching harness archive, and the checksum
+manifest from one GitHub release, verifies them, and installs them for the
+current user and project.
+
+### Install the latest stable release
 
 Run the installer from the root of the project where Codex will work. Download
 it as a file so it can be inspected before execution; do not pipe a remote
@@ -78,7 +96,7 @@ The installers never request or create a signing key and never modify `PATH`.
 If the user-local binary directory is not already on `PATH`, follow the printed
 instruction and restart Codex so it inherits the new environment.
 
-## Install a pinned release or custom location
+### Install a pinned release or custom location
 
 Use the same exact release for the installer and its `--version`/`-Version`
 argument. This keeps the downloaded binary and harness pinned during
@@ -113,6 +131,175 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 Versions must be `latest` or a complete semantic version beginning with `v`,
 including an exact prerelease such as `v1.2.3-rc.1`. `latest` resolves only the
 latest stable GitHub release.
+
+### Verify the downloaded artifacts manually (optional)
+
+If the installer cannot be used, download the binary for the client platform,
+`proxyma-agent-harness.tar.gz`, and `SHA256SUMS` from the same exact release.
+Require an exact filename match and verify both payloads before extraction or
+installation. For example on Linux:
+
+```bash
+version=v1.2.3
+asset=proxyma-agent-linux-amd64
+base="https://github.com/ascemama/proxyma/releases/download/$version"
+curl -fLO "$base/$asset"
+curl -fLO "$base/proxyma-agent-harness.tar.gz"
+curl -fLO "$base/SHA256SUMS"
+grep "  $asset$" SHA256SUMS | sha256sum --check
+grep '  proxyma-agent-harness.tar.gz$' SHA256SUMS | sha256sum --check
+```
+
+GitHub artifact attestations provide an additional provenance check:
+
+```bash
+gh attestation verify "$asset" --repo ascemama/proxyma
+gh attestation verify proxyma-agent-harness.tar.gz --repo ascemama/proxyma
+```
+
+SHA-256 verification remains mandatory; attestation verification is an
+additional check that GitHub Actions produced the asset for this repository.
+
+## Case 2: build from source and install
+
+Use this path when the installed CLI must come from a local checkout or a
+specific source revision. Build and package the CLI and harness from the same
+checkout, then install both into the project where Codex will run.
+
+### 1. Prepare a trusted source checkout
+
+Install Git and Go, then clone Proxyma and select the source revision to use.
+Go must be a version supported by the `go` directive in `go.mod`.
+
+Linux or macOS:
+
+```bash
+git clone https://github.com/ascemama/proxyma.git
+cd proxyma
+git checkout v1.2.3       # replace with the trusted tag or commit
+go version
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/ascemama/proxyma.git
+Set-Location .\proxyma
+git checkout v1.2.3       # replace with the trusted tag or commit
+go version
+```
+
+For an existing checkout, run the commands from its root and verify the
+revision before building:
+
+```bash
+git status --short
+git rev-parse --verify HEAD
+```
+
+### 2. Build the agent executable
+
+The build scripts disable CGO and embed the selected version and commit in the
+binary. They write a platform-specific executable to `dist/`.
+
+Linux or macOS:
+
+```bash
+OUT_DIR="$PWD/dist" bash ./scripts/build-agent-release.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\build-agent-release.ps1 -OutDir .\dist
+```
+
+If dependencies are not already cached, the build downloads the Go module
+dependencies automatically. To fetch them explicitly first, run:
+
+```bash
+go mod download
+```
+
+Confirm that the executable was created:
+
+```bash
+# Linux or macOS
+ls -l "dist/proxyma-agent-$(go env GOOS)-$(go env GOARCH)"
+```
+
+```powershell
+# Windows PowerShell
+Get-Item ".\dist\proxyma-agent-$(go env GOOS)-$(go env GOARCH).exe"
+```
+
+### 3. Package the matching harness from source
+
+The CLI executable is not the complete agent installation. Package the
+instruction pack, schemas, examples, and adapters from this same checkout.
+The package script deliberately excludes the development credential and local
+task state.
+
+Linux or macOS:
+
+```bash
+SOURCE_VERSION="$(git describe --tags --exact-match 2>/dev/null || printf 'v0.0.0-source')"
+SOURCE_COMMIT="$(git rev-parse --short=7 HEAD)"
+bash ./scripts/package-agent-harness.sh \
+  "$SOURCE_VERSION" \
+  "$SOURCE_COMMIT" \
+  ./dist
+```
+
+Windows PowerShell (run from Git Bash, because the packaging script is a
+POSIX shell script):
+
+```powershell
+git describe --tags --exact-match 2>$null
+git rev-parse --short=7 HEAD
+```
+
+Then run the same `package-agent-harness.sh` command from Git Bash. Use the
+semantic-version tag printed by the first command as `SOURCE_VERSION`; if no
+tag is present, use `v0.0.0-source`. Use the commit printed by the second
+command as `SOURCE_COMMIT`.
+
+### 4. Install the built executable and harness
+
+Set `PROJECT_DIR` to the project where Codex will work. Use a separate project
+directory if the source checkout is only a build checkout.
+
+Linux or macOS:
+
+```bash
+PROJECT_DIR="$PWD"                         # change this when needed
+BIN_DIR="$HOME/.local/bin"
+ASSET="dist/proxyma-agent-$(go env GOOS)-$(go env GOARCH)"
+
+bash ./scripts/install-proxyma-agent.sh \
+  --binary "$ASSET" \
+  --harness "$PWD/dist/proxyma-agent-harness.tar.gz" \
+  --project-dir "$PROJECT_DIR" \
+  --bin-dir "$BIN_DIR"
+```
+
+Windows PowerShell:
+
+```powershell
+$ProjectDir = (Get-Location).Path       # change this when needed
+$BinDir = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin"
+$Asset = ".\dist\proxyma-agent-$(& go env GOOS)-$(& go env GOARCH).exe"
+
+& .\scripts\install-proxyma-agent.ps1 `
+  -Binary $Asset `
+  -Harness ".\dist\proxyma-agent-harness.tar.gz" `
+  -ProjectDir $ProjectDir `
+  -BinDir $BinDir
+```
+
+The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
+Linux or macOS, or `%LOCALAPPDATA%\Programs\Proxyma\bin` on Windows, to
+`PATH`, then open a new terminal and restart Codex.
 
 ## Installed project layout
 
@@ -247,51 +434,6 @@ target server.example. Do not submit a command yet.
 
 Task JSON under `harness/task-state/tasks/` is authoritative and CLI-owned. Do
 not edit it manually.
-
-## Manual download and verification
-
-If an installer cannot be used, download the binary for the client platform,
-`proxyma-agent-harness.tar.gz`, and `SHA256SUMS` from the same exact release.
-Require an exact filename match and verify both payloads before extraction or
-installation. For example on Linux:
-
-```bash
-version=v1.2.3
-asset=proxyma-agent-linux-amd64
-base="https://github.com/ascemama/proxyma/releases/download/$version"
-curl -fLO "$base/$asset"
-curl -fLO "$base/proxyma-agent-harness.tar.gz"
-curl -fLO "$base/SHA256SUMS"
-grep "  $asset$" SHA256SUMS | sha256sum --check
-grep '  proxyma-agent-harness.tar.gz$' SHA256SUMS | sha256sum --check
-```
-
-GitHub artifact attestations provide an additional provenance check:
-
-```bash
-gh attestation verify "$asset" --repo ascemama/proxyma
-gh attestation verify proxyma-agent-harness.tar.gz --repo ascemama/proxyma
-```
-
-SHA-256 verification remains mandatory; attestation verification is an
-additional check that GitHub Actions produced the asset for this repository.
-
-## Build from source
-
-From a trusted Proxyma source checkout:
-
-```powershell
-# Windows
-.\scripts\build-agent-release.ps1 -OutDir .\bin
-```
-
-```bash
-# Linux or macOS
-OUT_DIR=./bin bash ./scripts/build-agent-release.sh
-```
-
-A source build creates the executable only. Use a release harness archive or a
-matching trusted source `harness/` tree for the model-facing assets.
 
 ## Configuration discovery and troubleshooting
 
