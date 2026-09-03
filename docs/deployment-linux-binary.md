@@ -28,7 +28,7 @@ cd proxyma
 Build on Linux from the repository root:
 
 ```bash
-GOOS=linux GOARCH=amd64 bash ./scripts/build-release.sh
+GOOS=linux GOARCH=amd64 bash ./scripts/build-server-release.sh
 ```
 
 The script:
@@ -41,13 +41,13 @@ The script:
 For ARM64 Linux, use:
 
 ```bash
-GOOS=linux GOARCH=arm64 bash ./scripts/build-release.sh
+GOOS=linux GOARCH=arm64 bash ./scripts/build-server-release.sh
 ```
 
 On Windows PowerShell, cross-build the Linux artifacts with:
 
 ```powershell
-.\scripts\build-release.ps1 -TargetOS linux -TargetArch amd64
+.\scripts\build-server-release.ps1 -TargetOS linux -TargetArch amd64
 ```
 
 The build scripts embed the nearest reachable Git tag and the first seven
@@ -61,13 +61,13 @@ sidebar, to inspect the resulting build identity.
 After the release binaries are built, install them on the Linux host:
 
 ```bash
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh
 ```
 
 For ARM64 Linux:
 
 ```bash
-sudo GOARCH=arm64 bash ./scripts/install-linux-release.sh
+sudo GOARCH=arm64 bash ./scripts/install-proxyma-server-linux-release.sh
 ```
 
 If `GOARCH` is omitted, the installer detects `amd64` on `x86_64` hosts and
@@ -78,7 +78,7 @@ TLS options are supplied, Proxyma creates an ECDSA self-signed certificate
 under `/etc/proxyma/tls`. Add the DNS name or IP clients use to its SANs:
 
 ```bash
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh \
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh \
   --bind-address 192.0.2.10 \
   --port 8443 \
   --tls-server-name proxyma.example.com
@@ -112,7 +112,7 @@ For unattended installation, or when the first administrator will be
 provisioned separately, disable the prompt explicitly:
 
 ```bash
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh --no-bootstrap-admin
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh --no-bootstrap-admin
 ```
 
 Add policies, agents, targets, and interaction instances as needed after the
@@ -162,7 +162,7 @@ Install a PEM certificate/full chain and its matching unencrypted PEM private
 key during the first installation or on any later installer run:
 
 ```bash
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh \
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh \
   --tls-cert /secure/proxyma-fullchain.pem \
   --tls-key /secure/proxyma-key.pem
 ```
@@ -180,14 +180,14 @@ Switch modes without deleting inactive certificate files:
 
 ```bash
 # Return to an automatically managed self-signed certificate.
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh \
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh \
   --self-signed --tls-server-name proxyma.example.com
 
 # Development/debugging only.
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh --http
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh --http
 
 # Re-enable HTTPS with whichever TLS mode is currently selected.
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh --https
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh --https
 ```
 
 Self-signed certificates include localhost, loopbacks, the machine hostname,
@@ -210,8 +210,8 @@ Build the desired release artifacts using the commands above, then rerun the
 installer for the host architecture:
 
 ```bash
-GOOS=linux GOARCH=amd64 bash ./scripts/build-release.sh
-sudo GOARCH=amd64 bash ./scripts/install-linux-release.sh
+GOOS=linux GOARCH=amd64 bash ./scripts/build-server-release.sh
+sudo GOARCH=amd64 bash ./scripts/install-proxyma-server-linux-release.sh
 ```
 
 The installer stops the service, replaces both binaries, preserves the existing
@@ -303,7 +303,7 @@ Back up `/etc/proxyma` and `/var/lib/proxyma` first if the host contains data
 you want to keep. Then run:
 
 ```bash
-sudo bash ./scripts/uninstall-linux-release.sh --yes
+sudo bash ./scripts/uninstall-proxyma-server-linux-release.sh --yes
 ```
 
 The uninstaller stops and disables the service, removes the systemd unit,

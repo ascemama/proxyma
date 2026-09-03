@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type fakeProxyma struct {
@@ -212,6 +214,112 @@ func TestStateJournalRecoveryAndRevision(t *testing.T) {
 	}
 }
 
+func TestStateSaveRoutesStatusAndMovesTask(t *testing.T) {
+	root := t.TempDir()
+	state := NewStateStore(root)
+	now := time.Now().UTC()
+	task := TaskState{SchemaVersion: StateVersion, ClientTaskID: "2bd6c3df-192f-4275-8af4-58bd3cf1b312", Revision: 1, UserGoal: "test", Status: "pending", CreatedAt: now, UpdatedAt: now, RemainingWork: "test", Operations: []Operation{}}
+	if err := state.Save(task); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, activeStateDir, task.ClientTaskID+".json")); err != nil {
+		t.Fatal(err)
+	}
+	task.Revision = 2
+	task.Status = "blocked"
+	task.BlockedReason = "needs a decision"
+	task.RequiredNextAction = "review the result"
+	task.UpdatedAt = now.Add(time.Second)
+	if err := state.Save(task); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, blockedStateDir, task.ClientTaskID+".json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, activeStateDir, task.ClientTaskID+".json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("active copy still exists: %v", err)
+	}
+	task.Revision = 3
+	task.Status = "completed"
+	task.BlockedReason = ""
+	task.RequiredNextAction = ""
+	task.FinalSummary = "done"
+	task.UpdatedAt = now.Add(2 * time.Second)
+	if err := state.Save(task); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, closedStateDir, task.ClientTaskID+".json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := state.Load(task.ClientTaskID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResumeIgnoresClosedAndReportsBlocked(t *testing.T) {
+	root := t.TempDir()
+	state := NewStateStore(root)
+	now := time.Now().UTC()
+	blocked := TaskState{SchemaVersion: StateVersion, ClientTaskID: "0d6dcf98-2be7-4d4b-a95b-8fb55b5d2bea", Revision: 1, UserGoal: "blocked", Status: "blocked", CreatedAt: now, UpdatedAt: now, BlockedReason: "command failed", RequiredNextAction: "choose whether to retry", Operations: []Operation{}}
+	if err := state.Save(blocked); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, closedStateDir), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, closedStateDir, "corrupt.json"), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(testConfig(t, "http://127.0.0.1:1"))
+	service.state = state
+	resumed, err := service.Resume(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resumed.Action != "blocked" || len(resumed.Tasks) != 1 || resumed.Tasks[0].ClientTaskID != blocked.ClientTaskID {
+		t.Fatalf("resume=%#v", resumed)
+	}
+}
+
+func TestStateRejectsLegacyFlatLayout(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, legacyStateDir), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, legacyStateDir, "task.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewStateStore(root).List()
+	typed, ok := err.(*commandError)
+	if !ok || typed.code != "state_layout" {
+		t.Fatalf("error=%#v", err)
+	}
+}
+
+func BenchmarkListActiveIgnoresClosedTasks(b *testing.B) {
+	state := NewStateStore(b.TempDir())
+	now := time.Now().UTC()
+	for i := 0; i < 100; i++ {
+		task := TaskState{SchemaVersion: StateVersion, ClientTaskID: uuid.NewString(), Revision: 1, UserGoal: "active", Status: "pending", CreatedAt: now, UpdatedAt: now, RemainingWork: "active", Operations: []Operation{}}
+		if err := state.Save(task); err != nil {
+			b.Fatal(err)
+		}
+	}
+	for i := 0; i < 5000; i++ {
+		task := TaskState{SchemaVersion: StateVersion, ClientTaskID: uuid.NewString(), Revision: 1, UserGoal: "closed", Status: "completed", CreatedAt: now, UpdatedAt: now, FinalSummary: "done", Operations: []Operation{}}
+		if err := state.Save(task); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		items, err := state.ListActive()
+		if err != nil || len(items) != 100 {
+			b.Fatalf("items=%d err=%v", len(items), err)
+		}
+	}
+}
+
 func TestClientJWTClaimsAndCapabilityRequirement(t *testing.T) {
 	var tokenString string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -277,7 +385,7 @@ func TestStateLockContention(t *testing.T) {
 
 func TestMalformedStateIsReportedWithoutModification(t *testing.T) {
 	root := t.TempDir()
-	tasks := filepath.Join(root, "tasks")
+	tasks := filepath.Join(root, "active")
 	if err := os.MkdirAll(tasks, 0o700); err != nil {
 		t.Fatal(err)
 	}

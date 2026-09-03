@@ -25,12 +25,12 @@ create_release() {
   printf 'server\n' >"$payload_root/proxyma/dist/Proxyma-linux-amd64"
   printf 'ctl\n' >"$payload_root/proxyma/dist/proxymactl-linux-amd64"
   printf 'helper\n' >"$payload_root/proxyma/scripts/deployment-endpoint.sh"
-  printf 'uninstall\n' >"$payload_root/proxyma/scripts/uninstall-linux-release.sh"
-  cat >"$payload_root/proxyma/scripts/install-linux-release.sh" <<'EOF'
+  printf 'uninstall\n' >"$payload_root/proxyma/scripts/uninstall-proxyma-server-linux-release.sh"
+  cat >"$payload_root/proxyma/scripts/install-proxyma-server-linux-release.sh" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$GOARCH" "$@" >"$PROXYMA_TEST_RESULT"
 EOF
-  chmod +x "$payload_root/proxyma/scripts/install-linux-release.sh"
+  chmod +x "$payload_root/proxyma/scripts/install-proxyma-server-linux-release.sh"
   tar -C "$payload_root" -czf "$release_dir/$archive_name" proxyma
 
   if [[ "$checksum_mode" == "valid" ]]; then
@@ -51,7 +51,7 @@ PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
 PROXYMA_MACHINE="x86_64" \
 PROXYMA_ALLOW_NON_LINUX_TEST=1 \
 PROXYMA_TEST_RESULT="$RESULT_FILE" \
-  bash "$ROOT/scripts/install-proxyma.sh" --port 8443 --no-bootstrap-admin
+  bash "$ROOT/scripts/install-proxyma-server-linux.sh" --port 8443 --no-bootstrap-admin
 
 mapfile -t result <"$RESULT_FILE"
 [[ "${result[0]}" == "amd64" ]] || fail "architecture was not forwarded"
@@ -64,16 +64,16 @@ PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
 PROXYMA_MACHINE="amd64" \
 PROXYMA_ALLOW_NON_LINUX_TEST=1 \
 PROXYMA_TEST_RESULT="$RESULT_FILE" \
-  bash "$ROOT/scripts/install-proxyma.sh" --version v1.2.3 -- --help
+  bash "$ROOT/scripts/install-proxyma-server-linux.sh" --version v1.2.3 -- --help
 grep -Fx -- "--help" "$RESULT_FILE" >/dev/null || fail "arguments after -- were not forwarded"
 
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=x86_64 \
-  PROXYMA_ALLOW_NON_LINUX_TEST=1 bash "$ROOT/scripts/install-proxyma.sh" --version v1.2 >/dev/null 2>&1; then
+  PROXYMA_ALLOW_NON_LINUX_TEST=1 bash "$ROOT/scripts/install-proxyma-server-linux.sh" --version v1.2 >/dev/null 2>&1; then
   fail "invalid version was accepted"
 fi
 
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=ppc64le \
-  PROXYMA_ALLOW_NON_LINUX_TEST=1 bash "$ROOT/scripts/install-proxyma.sh" >/dev/null 2>&1; then
+  PROXYMA_ALLOW_NON_LINUX_TEST=1 bash "$ROOT/scripts/install-proxyma-server-linux.sh" >/dev/null 2>&1; then
   fail "unsupported architecture was accepted"
 fi
 
@@ -81,7 +81,7 @@ BAD_DIR="$TEST_ROOT/releases/download/v1.2.4"
 create_release "$BAD_DIR" "proxyma_linux_amd64.tar.gz" invalid
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=x86_64 \
   PROXYMA_ALLOW_NON_LINUX_TEST=1 PROXYMA_TEST_RESULT="$RESULT_FILE" \
-  bash "$ROOT/scripts/install-proxyma.sh" --version v1.2.4 >/dev/null 2>&1; then
+  bash "$ROOT/scripts/install-proxyma-server-linux.sh" --version v1.2.4 >/dev/null 2>&1; then
   fail "checksum mismatch was accepted"
 fi
 
@@ -96,11 +96,11 @@ tar -C "$TEST_ROOT/unsafe-source" -czf "$UNSAFE_DIR/proxyma_linux_amd64.tar.gz" 
 )
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=x86_64 \
   PROXYMA_ALLOW_NON_LINUX_TEST=1 PROXYMA_TEST_RESULT="$RESULT_FILE" \
-  bash "$ROOT/scripts/install-proxyma.sh" --version v1.2.5 >/dev/null 2>&1; then
+  bash "$ROOT/scripts/install-proxyma-server-linux.sh" --version v1.2.5 >/dev/null 2>&1; then
   fail "archive path traversal was accepted"
 fi
 
-if bash "$ROOT/scripts/package-linux-release.sh" \
+if bash "$ROOT/scripts/package-server-release-linux.sh" \
   amd64 v1.2.3-01 deadbeef "$TEST_ROOT/package-output" >/dev/null 2>&1; then
   fail "package script accepted an invalid prerelease version"
 fi

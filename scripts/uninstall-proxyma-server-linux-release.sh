@@ -35,7 +35,7 @@ require_safe_absolute_dir "PROXYMA_DATA_DIR" "$DATA_DIR"
 require_safe_absolute_dir "PROXYMA_LIFECYCLE_DIR" "$LIFECYCLE_DIR"
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  echo "Run as root, for example: sudo bash ./scripts/uninstall-linux-release.sh --yes" >&2
+  echo "Run as root, for example: sudo bash ./scripts/uninstall-proxyma-server-linux-release.sh --yes" >&2
   exit 1
 fi
 
@@ -52,7 +52,7 @@ fi
 
 rm -f "$SYSTEMD_TARGET"
 rm -f "$INSTALL_PREFIX/bin/proxyma" "$INSTALL_PREFIX/bin/proxymactl"
-rm -f "$LIFECYCLE_DIR/uninstall-linux-release.sh"
+rm -f "$LIFECYCLE_DIR/uninstall-proxyma-server-linux-release.sh"
 rmdir "$LIFECYCLE_DIR" >/dev/null 2>&1 || true
 rm -rf "$CONFIG_DIR" "$DATA_DIR"
 

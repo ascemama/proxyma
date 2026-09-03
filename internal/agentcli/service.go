@@ -175,16 +175,17 @@ func (s *Service) submitOperation(ctx context.Context, task *TaskState, index in
 }
 
 func (s *Service) Resume(ctx context.Context) (Envelope, error) {
-	tasks, err := s.state.List()
+	tasks, err := s.state.ListActive()
+	if err != nil {
+		return Envelope{}, err
+	}
+	blocked, err := s.state.ListBlocked()
 	if err != nil {
 		return Envelope{}, err
 	}
 	response := Envelope{ProtocolVersion: ProtocolVersion, OK: true, Command: "resume", Action: "none", Counts: &Counts{}}
 	capabilityChecked := false
 	for i := range tasks {
-		if tasks[i].Status == "completed" || tasks[i].Status == "failed" {
-			continue
-		}
 		before := cloneTaskState(tasks[i])
 		response.Counts.Checked++
 		action, taskErr := s.advanceTask(ctx, &tasks[i], &capabilityChecked)
@@ -199,6 +200,14 @@ func (s *Service) Resume(ctx context.Context) (Envelope, error) {
 			}
 		} else {
 			response.Counts.Unchanged++
+		}
+	}
+	for i := range blocked {
+		response.Counts.Checked++
+		response.Counts.Unchanged++
+		response.Tasks = append(response.Tasks, cloneTaskState(blocked[i]))
+		if response.Action == "none" {
+			response.Action = "blocked"
 		}
 	}
 	response.Warnings = s.state.LegacyWarnings()

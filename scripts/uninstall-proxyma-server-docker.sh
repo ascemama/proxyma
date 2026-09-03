@@ -19,7 +19,7 @@ CAPTURED_IMAGE_ID=""
 
 usage() {
   cat <<EOF
-Usage: sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh --yes [options]
+Usage: sudo bash /opt/proxyma/scripts/uninstall-proxyma-server-docker.sh --yes [options]
 
 Options:
   --yes                Confirm destructive removal of the Docker deployment.
@@ -65,7 +65,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  echo "Run as root, for example: sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh --yes" >&2
+  echo "Run as root, for example: sudo bash /opt/proxyma/scripts/uninstall-proxyma-server-docker.sh --yes" >&2
   exit 1
 fi
 
@@ -185,9 +185,9 @@ fi
 rm -f -- \
   "$ROOT/docker-compose.example.yml" \
   "$ROOT/RELEASE" \
-  "$ROOT/scripts/install-proxyma-docker.sh" \
+  "$ROOT/scripts/install-proxyma-server-docker.sh" \
   "$ROOT/scripts/deployment-endpoint.sh" \
-  "$ROOT/scripts/uninstall-proxyma-docker.sh"
+  "$ROOT/scripts/uninstall-proxyma-server-docker.sh"
 rmdir "$ROOT/scripts" "$ROOT" 2>/dev/null || true
 echo "Uninstalled the Proxyma Docker deployment."
 echo "Docker Engine, Docker Compose, and container images not selected above were retained."

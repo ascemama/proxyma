@@ -50,7 +50,9 @@ trap 'rm -rf "$STAGING_DIR"' EXIT
 PAYLOAD_DIR="$STAGING_DIR/harness"
 mkdir -p \
   "$PAYLOAD_DIR/agent-configuration" \
-  "$PAYLOAD_DIR/task-state/tasks" \
+  "$PAYLOAD_DIR/task-state/active" \
+  "$PAYLOAD_DIR/task-state/blocked" \
+  "$PAYLOAD_DIR/task-state/closed" \
   "$PAYLOAD_DIR/task-state/summaries"
 
 # Keep this list explicit and copy tracked files only. In particular, never copy
@@ -79,7 +81,9 @@ copy_tracked_tree harness/instruction-pack
 copy_tracked_tree harness/tests
 install -m 0644 "$ROOT/harness/examples/proxyma-agent.json" "$PAYLOAD_DIR/proxyma-agent.json"
 : >"$PAYLOAD_DIR/agent-configuration/.gitkeep"
-: >"$PAYLOAD_DIR/task-state/tasks/.gitkeep"
+: >"$PAYLOAD_DIR/task-state/active/.gitkeep"
+: >"$PAYLOAD_DIR/task-state/blocked/.gitkeep"
+: >"$PAYLOAD_DIR/task-state/closed/.gitkeep"
 : >"$PAYLOAD_DIR/task-state/summaries/.gitkeep"
 
 cat >"$PAYLOAD_DIR/RELEASE" <<EOF

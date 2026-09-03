@@ -41,8 +41,8 @@ CTL_BIN="$ROOT/dist/proxymactl-linux-$ARCH"
 for required in \
   "$SERVER_BIN" \
   "$CTL_BIN" \
-  "$ROOT/scripts/install-linux-release.sh" \
-  "$ROOT/scripts/uninstall-linux-release.sh" \
+  "$ROOT/scripts/install-proxyma-server-linux-release.sh" \
+  "$ROOT/scripts/uninstall-proxyma-server-linux-release.sh" \
   "$ROOT/scripts/deployment-endpoint.sh" \
   "$ROOT/LICENSE"; do
   if [[ ! -f "$required" ]]; then
@@ -59,8 +59,8 @@ mkdir -p "$PAYLOAD_DIR/dist" "$PAYLOAD_DIR/scripts"
 
 install -m 0755 "$SERVER_BIN" "$PAYLOAD_DIR/dist/Proxyma-linux-$ARCH"
 install -m 0755 "$CTL_BIN" "$PAYLOAD_DIR/dist/proxymactl-linux-$ARCH"
-install -m 0755 "$ROOT/scripts/install-linux-release.sh" "$PAYLOAD_DIR/scripts/install-linux-release.sh"
-install -m 0755 "$ROOT/scripts/uninstall-linux-release.sh" "$PAYLOAD_DIR/scripts/uninstall-linux-release.sh"
+install -m 0755 "$ROOT/scripts/install-proxyma-server-linux-release.sh" "$PAYLOAD_DIR/scripts/install-proxyma-server-linux-release.sh"
+install -m 0755 "$ROOT/scripts/uninstall-proxyma-server-linux-release.sh" "$PAYLOAD_DIR/scripts/uninstall-proxyma-server-linux-release.sh"
 install -m 0644 "$ROOT/scripts/deployment-endpoint.sh" "$PAYLOAD_DIR/scripts/deployment-endpoint.sh"
 install -m 0644 "$ROOT/LICENSE" "$PAYLOAD_DIR/LICENSE"
 
@@ -70,7 +70,7 @@ version=$VERSION
 commit=$COMMIT
 os=linux
 arch=$ARCH
-install=sudo GOARCH=$ARCH bash ./scripts/install-linux-release.sh
+install=sudo GOARCH=$ARCH bash ./scripts/install-proxyma-server-linux-release.sh
 EOF
 
 ARCHIVE="$OUT_DIR/proxyma_linux_$ARCH.tar.gz"

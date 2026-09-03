@@ -6,8 +6,8 @@ INSTALL_ROOT="${PROXYMA_DOCKER_INSTALL_ROOT:-/opt/proxyma}"
 source "$SOURCE_ROOT/scripts/deployment-endpoint.sh"
 
 SOURCE_COMPOSE_FILE="$SOURCE_ROOT/docker-compose.example.yml"
-SOURCE_INSTALLER="$SOURCE_ROOT/scripts/install-proxyma-docker.sh"
-SOURCE_UNINSTALLER="$SOURCE_ROOT/scripts/uninstall-proxyma-docker.sh"
+SOURCE_INSTALLER="$SOURCE_ROOT/scripts/install-proxyma-server-docker.sh"
+SOURCE_UNINSTALLER="$SOURCE_ROOT/scripts/uninstall-proxyma-server-docker.sh"
 SOURCE_HELPER="$SOURCE_ROOT/scripts/deployment-endpoint.sh"
 COMPOSE_FILE="$INSTALL_ROOT/docker-compose.example.yml"
 CONFIG_DIR="$INSTALL_ROOT/proxyma-config"
@@ -43,7 +43,7 @@ TLS_SERVER_NAME=""
 
 usage() {
   cat <<EOF
-Usage: sudo bash ./scripts/install-proxyma-docker.sh [options]
+Usage: sudo bash ./scripts/install-proxyma-server-docker.sh [options]
 
 Options:
   --bind-address ADDRESS Publish Proxyma on host ADDRESS (default: 0.0.0.0).
@@ -207,7 +207,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  echo "Run as root, for example: sudo bash ./scripts/install-proxyma-docker.sh" >&2
+  echo "Run as root, for example: sudo bash ./scripts/install-proxyma-server-docker.sh" >&2
   exit 1
 fi
 
@@ -284,8 +284,8 @@ install_release_file() {
 }
 
 install_release_file 0644 "$SOURCE_COMPOSE_FILE" "$COMPOSE_FILE"
-install_release_file 0755 "$SOURCE_INSTALLER" "$INSTALL_ROOT/scripts/install-proxyma-docker.sh"
-install_release_file 0755 "$SOURCE_UNINSTALLER" "$INSTALL_ROOT/scripts/uninstall-proxyma-docker.sh"
+install_release_file 0755 "$SOURCE_INSTALLER" "$INSTALL_ROOT/scripts/install-proxyma-server-docker.sh"
+install_release_file 0755 "$SOURCE_UNINSTALLER" "$INSTALL_ROOT/scripts/uninstall-proxyma-server-docker.sh"
 install_release_file 0644 "$SOURCE_HELPER" "$INSTALL_ROOT/scripts/deployment-endpoint.sh"
 if [[ -f "$SOURCE_ROOT/RELEASE" && ! -L "$SOURCE_ROOT/RELEASE" ]]; then
   install_release_file 0644 "$SOURCE_ROOT/RELEASE" "$INSTALL_ROOT/RELEASE"

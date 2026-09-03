@@ -276,7 +276,9 @@ for preserved_path in \
   "$HARNESS_DIR/proxyma-agent.json" \
   "$HARNESS_DIR/agent-configuration" \
   "$HARNESS_DIR/task-state" \
-  "$HARNESS_DIR/task-state/tasks" \
+  "$HARNESS_DIR/task-state/active" \
+  "$HARNESS_DIR/task-state/blocked" \
+  "$HARNESS_DIR/task-state/closed" \
   "$HARNESS_DIR/task-state/summaries"; do
   if [[ -L "$preserved_path" ]]; then
     echo "Refusing symbolic link in preserved harness data: $preserved_path" >&2
@@ -290,7 +292,9 @@ fi
 for preserved_dir in \
   "$HARNESS_DIR/agent-configuration" \
   "$HARNESS_DIR/task-state" \
-  "$HARNESS_DIR/task-state/tasks" \
+  "$HARNESS_DIR/task-state/active" \
+  "$HARNESS_DIR/task-state/blocked" \
+  "$HARNESS_DIR/task-state/closed" \
   "$HARNESS_DIR/task-state/summaries"; do
   if [[ -e "$preserved_dir" && ! -d "$preserved_dir" ]]; then
     echo "Preserved harness path must be a directory: $preserved_dir" >&2
@@ -337,7 +341,9 @@ fi
 install -d -m 0700 \
   "$HARNESS_DIR/agent-configuration" \
   "$HARNESS_DIR/task-state" \
-  "$HARNESS_DIR/task-state/tasks" \
+  "$HARNESS_DIR/task-state/active" \
+  "$HARNESS_DIR/task-state/blocked" \
+  "$HARNESS_DIR/task-state/closed" \
   "$HARNESS_DIR/task-state/summaries"
 
 for owned in instruction-pack examples tests .agents .claude RELEASE; do

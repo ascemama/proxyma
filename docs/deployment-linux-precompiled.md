@@ -29,10 +29,10 @@ root privileges. Do not pipe it directly into `sudo bash`; the first
 administrator setup also requires an interactive terminal.
 
 ```bash
-curl -fL -o install-proxyma.sh \
-  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma.sh
+curl -fL -o install-proxyma-server-linux.sh \
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-server-linux.sh
 
-sudo bash ./install-proxyma.sh
+sudo bash ./install-proxyma-server-linux.sh
 ```
 
 The downloader:
@@ -59,7 +59,7 @@ with `proxymactl`.
 Pin releases in production so installations and rollbacks are reproducible:
 
 ```bash
-sudo bash ./install-proxyma.sh --version v0.2.0
+sudo bash ./install-proxyma-server-linux.sh --version v0.2.0
 ```
 
 `--version` accepts a complete semantic version beginning with `v`, including
@@ -69,7 +69,7 @@ chooses a prerelease.
 All other arguments are passed to the system installer. For example:
 
 ```bash
-sudo bash ./install-proxyma.sh \
+sudo bash ./install-proxyma-server-linux.sh \
   --version v0.2.0 \
   --bind-address 192.0.2.10 \
   --port 8443 \
@@ -79,7 +79,7 @@ sudo bash ./install-proxyma.sh \
 Use `-- --help` to display the bundled system installer's complete option list:
 
 ```bash
-sudo bash ./install-proxyma.sh -- --help
+sudo bash ./install-proxyma-server-linux.sh -- --help
 ```
 
 ## Manual Download and Verification
@@ -96,7 +96,7 @@ curl -fLO "$base/proxyma_linux_$arch.tar.gz"
 curl -fLO "$base/SHA256SUMS"
 grep "  proxyma_linux_$arch.tar.gz$" SHA256SUMS | sha256sum --check
 tar -xzf "proxyma_linux_$arch.tar.gz"
-sudo GOARCH="$arch" bash ./proxyma/scripts/install-linux-release.sh
+sudo GOARCH="$arch" bash ./proxyma/scripts/install-proxyma-server-linux-release.sh
 ```
 
 Use `arch=arm64` on an ARM64 host. Do not install an archive whose checksum
@@ -124,7 +124,7 @@ To install a CA-issued PEM certificate/full chain and matching unencrypted
 private key:
 
 ```bash
-sudo bash ./install-proxyma.sh \
+sudo bash ./install-proxyma-server-linux.sh \
   --version v0.2.0 \
   --tls-cert /secure/proxyma-fullchain.pem \
   --tls-key /secure/proxyma-key.pem
@@ -133,14 +133,14 @@ sudo bash ./install-proxyma.sh \
 For generated self-signed HTTPS, include the name clients use:
 
 ```bash
-sudo bash ./install-proxyma.sh \
+sudo bash ./install-proxyma-server-linux.sh \
   --tls-server-name proxyma.example.com
 ```
 
 Plain HTTP is available only for isolated development or diagnosis:
 
 ```bash
-sudo bash ./install-proxyma.sh --http
+sudo bash ./install-proxyma-server-linux.sh --http
 ```
 
 Do not expose HTTP to untrusted networks because it does not protect
@@ -177,9 +177,9 @@ Download the current installer asset again and run it with the desired exact
 version:
 
 ```bash
-curl -fL -o install-proxyma.sh \
-  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma.sh
-sudo bash ./install-proxyma.sh --version v0.3.0
+curl -fL -o install-proxyma-server-linux.sh \
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-server-linux.sh
+sudo bash ./install-proxyma-server-linux.sh --version v0.3.0
 ```
 
 The installer replaces both binaries and its retained uninstaller, rewrites the
@@ -194,7 +194,7 @@ Verify the service, logs, GUI, and health endpoint after every update.
 Back up current configuration and state, then select the previous exact release:
 
 ```bash
-sudo bash ./install-proxyma.sh --version v0.2.0
+sudo bash ./install-proxyma-server-linux.sh --version v0.2.0
 ```
 
 If the newer release introduced an incompatible data change, restore the
@@ -237,7 +237,7 @@ Back up `/etc/proxyma` and `/var/lib/proxyma` before continuing. The following
 command permanently deletes Proxyma configuration and state:
 
 ```bash
-sudo bash /usr/local/lib/proxyma/uninstall-linux-release.sh --yes
+sudo bash /usr/local/lib/proxyma/uninstall-proxyma-server-linux-release.sh --yes
 ```
 
 The uninstaller stops and disables the service, removes both installed

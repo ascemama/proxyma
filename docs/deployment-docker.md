@@ -34,9 +34,9 @@ Published image tags behave as follows:
 Download the installer from the latest stable GitHub Release and run it:
 
 ```bash
-curl -fL -o install-proxyma-docker.sh \
-  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-docker.sh
-sudo bash ./install-proxyma-docker.sh
+curl -fL -o install-proxyma-server-docker.sh \
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-server-docker.sh
+sudo bash ./install-proxyma-server-docker.sh
 ```
 
 The downloaded script retrieves `proxyma_docker.tar.gz` and `SHA256SUMS`,
@@ -49,9 +49,9 @@ pass the same version:
 
 ```bash
 version=v0.2.0
-curl -fL -o install-proxyma-docker.sh \
-  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-docker.sh"
-sudo bash ./install-proxyma-docker.sh --version "$version"
+curl -fL -o install-proxyma-server-docker.sh \
+  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-server-docker.sh"
+sudo bash ./install-proxyma-server-docker.sh --version "$version"
 ```
 
 `--version` accepts only `vMAJOR.MINOR.PATCH` and exact semantic prerelease
@@ -62,7 +62,7 @@ For maximum image reproducibility, override the matching tag with the manifest
 digest shown by GHCR:
 
 ```bash
-sudo bash ./install-proxyma-docker.sh \
+sudo bash ./install-proxyma-server-docker.sh \
   --version v0.2.0 \
   --image ghcr.io/ascemama/proxyma@sha256:<manifest-digest>
 ```
@@ -87,7 +87,7 @@ Fresh installations use self-signed HTTPS on `0.0.0.0:8080`. Select a different
 host endpoint and include the client-facing name in the generated certificate:
 
 ```bash
-sudo bash ./install-proxyma-docker.sh \
+sudo bash ./install-proxyma-server-docker.sh \
   --bind-address 192.0.2.10 \
   --host-port 8443 \
   --tls-server-name proxyma.example.com
@@ -96,13 +96,13 @@ sudo bash ./install-proxyma-docker.sh \
 For unattended preparation, skip administrator creation:
 
 ```bash
-sudo bash ./install-proxyma-docker.sh --no-bootstrap-admin
+sudo bash ./install-proxyma-server-docker.sh --no-bootstrap-admin
 ```
 
 Install a CA-issued PEM certificate/full chain and matching unencrypted key:
 
 ```bash
-sudo bash ./install-proxyma-docker.sh \
+sudo bash ./install-proxyma-server-docker.sh \
   --tls-cert /secure/proxyma-fullchain.pem \
   --tls-key /secure/proxyma-key.pem
 ```
@@ -111,10 +111,10 @@ Change the transport mode on an existing deployment by rerunning the retained
 installer:
 
 ```bash
-sudo bash /opt/proxyma/scripts/install-proxyma-docker.sh \
+sudo bash /opt/proxyma/scripts/install-proxyma-server-docker.sh \
   --self-signed --tls-server-name proxyma.example.com
-sudo bash /opt/proxyma/scripts/install-proxyma-docker.sh --http
-sudo bash /opt/proxyma/scripts/install-proxyma-docker.sh --https
+sudo bash /opt/proxyma/scripts/install-proxyma-server-docker.sh --http
+sudo bash /opt/proxyma/scripts/install-proxyma-server-docker.sh --https
 ```
 
 Plain HTTP is intended only for isolated development or diagnosis. Existing
@@ -142,7 +142,7 @@ the selected image exists in the Docker daemon used by the installer and
 prevents Docker from contacting a registry for it:
 
 ```bash
-sudo bash ./scripts/install-proxyma-docker.sh \
+sudo bash ./scripts/install-proxyma-server-docker.sh \
   --image proxyma:local \
   --no-pull
 ```
@@ -161,7 +161,7 @@ After additional source changes, rebuild the same image and rerun the command:
 
 ```bash
 docker build -t proxyma:local .
-sudo bash ./scripts/install-proxyma-docker.sh \
+sudo bash ./scripts/install-proxyma-server-docker.sh \
   --image proxyma:local \
   --no-pull \
   --no-bootstrap-admin
@@ -231,9 +231,9 @@ configuration and data:
 
 ```bash
 version=v0.3.0
-curl -fL -o install-proxyma-docker.sh \
-  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-docker.sh"
-sudo bash ./install-proxyma-docker.sh --version "$version" --no-bootstrap-admin
+curl -fL -o install-proxyma-server-docker.sh \
+  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-server-docker.sh"
+sudo bash ./install-proxyma-server-docker.sh --version "$version" --no-bootstrap-admin
 ```
 
 Roll back by repeating the command for the previous exact version. Restore the
@@ -312,20 +312,20 @@ Remove containers, networks, configuration, state, and retained deployment
 files while keeping cached images:
 
 ```bash
-sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh --yes
+sudo bash /opt/proxyma/scripts/uninstall-proxyma-server-docker.sh --yes
 ```
 
 Also remove the image used by the existing container:
 
 ```bash
-sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh \
+sudo bash /opt/proxyma/scripts/uninstall-proxyma-server-docker.sh \
   --yes --remove-image
 ```
 
 If the container has already been removed, identify the image explicitly:
 
 ```bash
-sudo bash /opt/proxyma/scripts/uninstall-proxyma-docker.sh \
+sudo bash /opt/proxyma/scripts/uninstall-proxyma-server-docker.sh \
   --yes --remove-image \
   --image ghcr.io/ascemama/proxyma:0.2.0
 ```

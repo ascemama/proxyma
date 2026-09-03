@@ -12,7 +12,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     $harness = Join-Path $payload "harness"
     foreach ($relative in @(
         "instruction-pack", "examples", "tests", ".agents\skills\proxyma-harness",
-        ".claude\skills\proxyma-harness", "agent-configuration", "task-state\tasks", "task-state\summaries"
+        ".claude\skills\proxyma-harness", "agent-configuration", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries"
     )) {
         New-Item -ItemType Directory -Force -Path (Join-Path $harness $relative) | Out-Null
     }
@@ -51,7 +51,7 @@ $oldOS = $env:PROXYMA_AGENT_OS
 $oldArch = $env:PROXYMA_AGENT_ARCH
 $originalPath = $env:PATH
 try {
-    $env:PROXYMA_RELEASE_BASE_URL = ([Uri]$TestRoot).AbsoluteUri.TrimEnd('/')
+    $env:PROXYMA_RELEASE_BASE_URL = ([Uri]::new($TestRoot)).AbsoluteUri.TrimEnd('/')
     $env:PROXYMA_AGENT_OS = "windows"
     $env:PROXYMA_AGENT_ARCH = "x64"
     $exact = Join-Path $TestRoot "releases\download\v1.2.3"
@@ -68,12 +68,12 @@ try {
 
     Set-Content -LiteralPath (Join-Path $project "harness\proxyma-agent.json") -Value "preserved-config"
     Set-Content -LiteralPath (Join-Path $project "harness\agent-configuration\agent.json") -Value "preserved-secret"
-    Set-Content -LiteralPath (Join-Path $project "harness\task-state\tasks\task.json") -Value "preserved-state"
+    Set-Content -LiteralPath (Join-Path $project "harness\task-state\active\task.json") -Value "preserved-state"
     New-Release $exact "amd64" "second"
     & $Installer -Version v1.2.3 -ProjectDir $project -BinDir $bin
     if ((Get-Content -LiteralPath (Join-Path $project "harness\proxyma-agent.json") -Raw).Trim() -ne "preserved-config") { Fail "configuration was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\agent-configuration\agent.json") -Raw).Trim() -ne "preserved-secret") { Fail "credential was overwritten" }
-    if ((Get-Content -LiteralPath (Join-Path $project "harness\task-state\tasks\task.json") -Raw).Trim() -ne "preserved-state") { Fail "task state was overwritten" }
+    if ((Get-Content -LiteralPath (Join-Path $project "harness\task-state\active\task.json") -Raw).Trim() -ne "preserved-state") { Fail "task state was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\instruction-pack\proxyma-harness.md") -Raw).Trim() -ne "second") { Fail "release-owned content was not refreshed" }
 
     $env:PROXYMA_AGENT_ARCH = "arm64"

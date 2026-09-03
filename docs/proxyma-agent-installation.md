@@ -399,7 +399,9 @@ Add local credentials and state to the containing project's ignore rules:
 
 ```gitignore
 /harness/agent-configuration/*.json
-/harness/task-state/tasks/
+/harness/task-state/active/
+/harness/task-state/blocked/
+/harness/task-state/closed/
 /harness/task-state/summaries/
 /harness/task-state/.journal/
 /harness/task-state/.proxyma-agent.lock
@@ -432,7 +434,7 @@ $proxyma-harness Run proxyma-agent doctor and resume, then inspect the Proxyma
 target server.example. Do not submit a command yet.
 ```
 
-Task JSON under `harness/task-state/tasks/` is authoritative and CLI-owned. Do
+Task JSON under `harness/task-state/active/`, `blocked/`, and `closed/` is authoritative and CLI-owned. Do
 not edit it manually.
 
 ## Configuration discovery and troubleshooting
