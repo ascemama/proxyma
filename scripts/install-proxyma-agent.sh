@@ -8,18 +8,23 @@ BIN_DIR="${HOME:?HOME is required}/.local/bin"
 TARGET_OS="${PROXYMA_AGENT_OS:-}"
 TARGET_ARCH="${PROXYMA_AGENT_ARCH:-}"
 ARCHIVE_NAME="proxyma-agent-harness.tar.gz"
+LOCAL_BINARY=""
+LOCAL_HARNESS=""
 
 usage() {
   cat <<'EOF'
 Usage: bash ./install-proxyma-agent.sh [options]
 
 Downloads and verifies the native proxyma-agent executable and matching harness
-from one GitHub release, then installs both for the current user and project.
+from one GitHub release, or installs local build artifacts, then installs both
+for the current user and project.
 
 Options:
   --version VERSION    Install latest or an exact vMAJOR.MINOR.PATCH[-PRERELEASE].
   --project-dir DIR    Install/refresh the harness in DIR (default: current directory).
   --bin-dir DIR        Install proxyma-agent in DIR (default: $HOME/.local/bin).
+  --binary PATH        Install this locally built executable instead of downloading one.
+  --harness PATH       Install this locally built harness archive instead of downloading one.
   -h, --help           Show this help text.
 
 The installer does not accept credentials and does not modify PATH.
@@ -70,23 +75,45 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --bin-dir=*) BIN_DIR="${1#*=}"; shift ;;
+    --binary)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "--binary requires a path." >&2; exit 2; }
+      LOCAL_BINARY="$2"
+      shift 2
+      ;;
+    --binary=*) LOCAL_BINARY="${1#*=}"; shift ;;
+    --harness)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "--harness requires a path." >&2; exit 2; }
+      LOCAL_HARNESS="$2"
+      shift 2
+      ;;
+    --harness=*) LOCAL_HARNESS="${1#*=}"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
 
-validate_version "$VERSION"
+if [[ -n "$LOCAL_BINARY" || -n "$LOCAL_HARNESS" ]]; then
+  [[ -n "$LOCAL_BINARY" && -n "$LOCAL_HARNESS" ]] || {
+    echo "--binary and --harness must be supplied together." >&2
+    exit 2
+  }
+else
+  validate_version "$VERSION"
+fi
 
-for command_name in curl tar mktemp; do
+for command_name in tar mktemp; do
   command -v "$command_name" >/dev/null 2>&1 || { echo "Required command not found: $command_name" >&2; exit 1; }
 done
-if command -v sha256sum >/dev/null 2>&1; then
-  hash_file() { sha256sum "$1" | awk '{print $1}'; }
-elif command -v shasum >/dev/null 2>&1; then
-  hash_file() { shasum -a 256 "$1" | awk '{print $1}'; }
-else
-  echo "Required command not found: sha256sum or shasum" >&2
-  exit 1
+if [[ -z "$LOCAL_BINARY" ]]; then
+  command -v curl >/dev/null 2>&1 || { echo "Required command not found: curl" >&2; exit 1; }
+  if command -v sha256sum >/dev/null 2>&1; then
+    hash_file() { sha256sum "$1" | awk '{print $1}'; }
+  elif command -v shasum >/dev/null 2>&1; then
+    hash_file() { shasum -a 256 "$1" | awk '{print $1}'; }
+  else
+    echo "Required command not found: sha256sum or shasum" >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "$TARGET_OS" ]]; then
@@ -123,11 +150,6 @@ fi
 mkdir -p "$BIN_DIR"
 BIN_DIR="$(cd "$BIN_DIR" && pwd -P)"
 
-if [[ "$VERSION" == "latest" ]]; then
-  RELEASE_URL="$REPOSITORY_URL/releases/latest/download"
-else
-  RELEASE_URL="$REPOSITORY_URL/releases/download/$VERSION"
-fi
 BINARY_NAME="proxyma-agent-$TARGET_OS-$TARGET_ARCH"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/proxyma-agent.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -135,11 +157,24 @@ BINARY_PATH="$TEMP_DIR/$BINARY_NAME"
 ARCHIVE_PATH="$TEMP_DIR/$ARCHIVE_NAME"
 CHECKSUM_PATH="$TEMP_DIR/SHA256SUMS"
 
-echo "Downloading proxyma-agent $VERSION for $TARGET_OS/$TARGET_ARCH..."
-for asset_name in "$BINARY_NAME" "$ARCHIVE_NAME" "SHA256SUMS"; do
-  curl --fail --location --silent --show-error --retry 3 \
-    --output "$TEMP_DIR/$asset_name" "$RELEASE_URL/$asset_name"
-done
+if [[ -n "$LOCAL_BINARY" ]]; then
+  [[ -f "$LOCAL_BINARY" && ! -L "$LOCAL_BINARY" ]] || { echo "Local binary must be a regular file and not a symbolic link: $LOCAL_BINARY" >&2; exit 1; }
+  [[ -f "$LOCAL_HARNESS" && ! -L "$LOCAL_HARNESS" ]] || { echo "Local harness archive must be a regular file and not a symbolic link: $LOCAL_HARNESS" >&2; exit 1; }
+  cp "$LOCAL_BINARY" "$BINARY_PATH"
+  cp "$LOCAL_HARNESS" "$ARCHIVE_PATH"
+  echo "Installing local proxyma-agent artifacts for $TARGET_OS/$TARGET_ARCH..."
+else
+  if [[ "$VERSION" == "latest" ]]; then
+    RELEASE_URL="$REPOSITORY_URL/releases/latest/download"
+  else
+    RELEASE_URL="$REPOSITORY_URL/releases/download/$VERSION"
+  fi
+  echo "Downloading proxyma-agent $VERSION for $TARGET_OS/$TARGET_ARCH..."
+  for asset_name in "$BINARY_NAME" "$ARCHIVE_NAME" "SHA256SUMS"; do
+    curl --fail --location --silent --show-error --retry 3 \
+      --output "$TEMP_DIR/$asset_name" "$RELEASE_URL/$asset_name"
+  done
+fi
 
 verify_checksum() {
   local asset_name="$1"
@@ -167,8 +202,10 @@ verify_checksum() {
   echo "Verified SHA-256 checksum for $asset_name."
 }
 
-verify_checksum "$BINARY_NAME" "$BINARY_PATH"
-verify_checksum "$ARCHIVE_NAME" "$ARCHIVE_PATH"
+if [[ -z "$LOCAL_BINARY" ]]; then
+  verify_checksum "$BINARY_NAME" "$BINARY_PATH"
+  verify_checksum "$ARCHIVE_NAME" "$ARCHIVE_PATH"
+fi
 
 while IFS= read -r entry; do
   case "$entry" in

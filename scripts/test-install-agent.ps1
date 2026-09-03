@@ -84,6 +84,17 @@ try {
     & $Installer -ProjectDir $latestProject -BinDir (Join-Path $TestRoot "latest-bin")
     if ((Get-Content -LiteralPath (Join-Path $TestRoot "latest-bin\proxyma-agent.exe") -Raw).Trim() -ne "latest") { Fail "ARM64 latest asset was not selected" }
 
+    $localProject = Join-Path $TestRoot "local-project"
+    $localBin = Join-Path $TestRoot "local-bin"
+    New-Item -ItemType Directory -Path $localProject | Out-Null
+    & $Installer `
+        -Binary (Join-Path $exact "proxyma-agent-windows-amd64.exe") `
+        -Harness (Join-Path $exact "proxyma-agent-harness.tar.gz") `
+        -ProjectDir $localProject -BinDir $localBin
+    if ((Get-Content -LiteralPath (Join-Path $localBin "proxyma-agent.exe") -Raw).Trim() -ne "first") { Fail "local binary was not installed" }
+    if (-not (Test-Path -LiteralPath (Join-Path $localProject ".agents\skills\proxyma-harness\SKILL.md"))) { Fail "local harness was not installed" }
+    Invoke-ExpectedFailure { & $Installer -Binary (Join-Path $exact "proxyma-agent-windows-amd64.exe") -ProjectDir $localProject -BinDir $localBin } "local mode accepted only one artifact"
+
     $env:PROXYMA_AGENT_ARCH = "amd64"
     $bad = Join-Path $TestRoot "releases\download\v1.2.4"
     New-Release $bad "amd64" "bad"

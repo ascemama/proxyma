@@ -2,7 +2,9 @@
 param(
     [string]$Version = "latest",
     [string]$ProjectDir = (Get-Location).Path,
-    [string]$BinDir = ""
+    [string]$BinDir = "",
+    [string]$Binary = "",
+    [string]$Harness = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -84,7 +86,19 @@ function Replace-InstalledPath([string]$Source, [string]$Destination) {
     if (Test-Path -LiteralPath $backupPath) { Remove-Item -LiteralPath $backupPath -Recurse -Force }
 }
 
-Test-Version $Version
+$localMode = -not [string]::IsNullOrWhiteSpace($Binary) -or -not [string]::IsNullOrWhiteSpace($Harness)
+if ($localMode) {
+    if ([string]::IsNullOrWhiteSpace($Binary) -or [string]::IsNullOrWhiteSpace($Harness)) {
+        throw "-Binary and -Harness must be supplied together."
+    }
+    if (-not (Test-Path -LiteralPath $Binary -PathType Leaf)) { throw "Local binary must be a regular file: $Binary" }
+    if (-not (Test-Path -LiteralPath $Harness -PathType Leaf)) { throw "Local harness archive must be a regular file: $Harness" }
+    Assert-NotReparsePoint $Binary "Local binary"
+    Assert-NotReparsePoint $Harness "Local harness archive"
+}
+else {
+    Test-Version $Version
+}
 if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA) -and [string]::IsNullOrWhiteSpace($BinDir)) {
     throw "LOCALAPPDATA is required when -BinDir is not supplied."
 }
@@ -114,7 +128,6 @@ if ((Test-Path -LiteralPath $BinDir) -and -not (Test-Path -LiteralPath $BinDir -
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 $BinDir = (Resolve-Path -LiteralPath $BinDir).Path
 
-$releaseUrl = if ($Version -eq "latest") { "$RepositoryUrl/releases/latest/download" } else { "$RepositoryUrl/releases/download/$Version" }
 $binaryName = "proxyma-agent-windows-$targetArch.exe"
 $tempDir = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-agent-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempDir | Out-Null
@@ -122,12 +135,20 @@ try {
     $binaryPath = Join-Path $tempDir $binaryName
     $archivePath = Join-Path $tempDir $ArchiveName
     $checksumPath = Join-Path $tempDir "SHA256SUMS"
-    Write-Host "Downloading proxyma-agent $Version for windows/$targetArch..."
-    foreach ($assetName in @($binaryName, $ArchiveName, "SHA256SUMS")) {
-        Copy-ReleaseAsset "$releaseUrl/$assetName" (Join-Path $tempDir $assetName)
+    if (-not [string]::IsNullOrWhiteSpace($Binary)) {
+        Copy-Item -LiteralPath $Binary -Destination $binaryPath
+        Copy-Item -LiteralPath $Harness -Destination $archivePath
+        Write-Host "Installing local proxyma-agent artifacts for windows/$targetArch..."
     }
-    Confirm-Checksum $checksumPath $binaryPath $binaryName
-    Confirm-Checksum $checksumPath $archivePath $ArchiveName
+    else {
+        $releaseUrl = if ($Version -eq "latest") { "$RepositoryUrl/releases/latest/download" } else { "$RepositoryUrl/releases/download/$Version" }
+        Write-Host "Downloading proxyma-agent $Version for windows/$targetArch..."
+        foreach ($assetName in @($binaryName, $ArchiveName, "SHA256SUMS")) {
+            Copy-ReleaseAsset "$releaseUrl/$assetName" (Join-Path $tempDir $assetName)
+        }
+        Confirm-Checksum $checksumPath $binaryPath $binaryName
+        Confirm-Checksum $checksumPath $archivePath $ArchiveName
+    }
 
     $entries = @(& tar -tzf $archivePath)
     if ($LASTEXITCODE -ne 0) { throw "Unable to inspect the harness archive." }

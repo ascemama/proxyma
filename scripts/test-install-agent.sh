@@ -102,6 +102,25 @@ PROXYMA_AGENT_ARCH=aarch64 \
     --project-dir "$TEST_ROOT/latest-project" --bin-dir "$TEST_ROOT/latest-bin" >/dev/null
 grep -Fx latest "$TEST_ROOT/latest-bin/proxyma-agent" >/dev/null || fail "latest Darwin ARM64 asset was not selected"
 
+LOCAL_PROJECT="$TEST_ROOT/local-project"
+LOCAL_BIN="$TEST_ROOT/local-bin"
+mkdir -p "$LOCAL_PROJECT"
+PROXYMA_AGENT_OS=linux PROXYMA_AGENT_ARCH=amd64 \
+  bash "$ROOT/scripts/install-proxyma-agent.sh" \
+  --binary "$EXACT_DIR/proxyma-agent-linux-amd64" \
+  --harness "$EXACT_DIR/proxyma-agent-harness.tar.gz" \
+  --project-dir "$LOCAL_PROJECT" \
+  --bin-dir "$LOCAL_BIN" >/dev/null
+grep -Fx second "$LOCAL_BIN/proxyma-agent" >/dev/null || fail "local binary was not installed"
+grep -Fx second "$LOCAL_PROJECT/.agents/skills/proxyma-harness/SKILL.md" >/dev/null || fail "local harness was not installed"
+
+if PROXYMA_AGENT_OS=linux PROXYMA_AGENT_ARCH=amd64 \
+  bash "$ROOT/scripts/install-proxyma-agent.sh" \
+  --binary "$EXACT_DIR/proxyma-agent-linux-amd64" \
+  --project-dir "$LOCAL_PROJECT" --bin-dir "$LOCAL_BIN" >/dev/null 2>&1; then
+  fail "local mode accepted only one artifact"
+fi
+
 BAD_DIR="$TEST_ROOT/releases/download/v1.2.4"
 create_release "$BAD_DIR" linux amd64 bad
 printf '%064d  proxyma-agent-linux-amd64\n' 0 >"$BAD_DIR/SHA256SUMS"
