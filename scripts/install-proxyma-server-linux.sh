@@ -1,27 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The release workflow publishes this downloader as install-proxyma-docker.sh.
-
 REPOSITORY_URL="${PROXYMA_RELEASE_BASE_URL:-https://github.com/ascemama/proxyma}"
 VERSION="latest"
+MACHINE="${PROXYMA_MACHINE:-$(uname -m)}"
 INSTALLER_ARGS=()
 
 usage() {
   cat <<'EOF'
-Usage: sudo bash ./install-proxyma-docker.sh [--version VERSION] [installer options]
+Usage: sudo bash ./install-proxyma-server-linux.sh [--version VERSION] [installer options]
 
-Downloads and verifies a Proxyma Docker deployment bundle, then installs the
-matching published container image. VERSION defaults to the latest stable
-GitHub release.
+Downloads and verifies a precompiled Proxyma Linux release, then runs its
+system installer. VERSION defaults to the latest stable GitHub release.
 
 Downloader options:
   --version VERSION      Install an exact vMAJOR.MINOR.PATCH[-PRERELEASE].
   -h, --help             Show this help text.
 
-All other options are passed to the bundled Docker installer. Use -- before
---help to display its complete option list:
-  sudo bash ./install-proxyma-docker.sh -- --help
+All other options are passed to install-proxyma-server-linux-release.sh. Run with --help after
+-- to display the system installer's options:
+  sudo bash ./install-proxyma-server-linux.sh -- --help
 EOF
 }
 
@@ -81,8 +79,18 @@ done
 
 validate_version "$VERSION"
 
+case "$MACHINE" in
+  x86_64|amd64) ARCH="amd64" ;;
+  aarch64|arm64) ARCH="arm64" ;;
+  *)
+    echo "Unsupported Linux architecture: $MACHINE" >&2
+    echo "Proxyma precompiled releases support x86_64/amd64 and aarch64/arm64." >&2
+    exit 1
+    ;;
+esac
+
 if [[ "$(uname -s)" != "Linux" && -z "${PROXYMA_ALLOW_NON_LINUX_TEST:-}" ]]; then
-  echo "The Docker release installer supports Linux hosts only." >&2
+  echo "The precompiled binary installer supports Linux only." >&2
   exit 1
 fi
 
@@ -99,13 +107,13 @@ else
   RELEASE_URL="$REPOSITORY_URL/releases/download/$VERSION"
 fi
 
-ARCHIVE_NAME="proxyma_docker.tar.gz"
+ARCHIVE_NAME="proxyma_linux_$ARCH.tar.gz"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 ARCHIVE_PATH="$TEMP_DIR/$ARCHIVE_NAME"
 CHECKSUM_PATH="$TEMP_DIR/SHA256SUMS"
 
-echo "Downloading Proxyma Docker deployment ${VERSION}..."
+echo "Downloading Proxyma ${VERSION} for linux/$ARCH..."
 curl --fail --location --silent --show-error --retry 3 \
   --output "$ARCHIVE_PATH" "$RELEASE_URL/$ARCHIVE_NAME"
 curl --fail --location --silent --show-error --retry 3 \
@@ -156,29 +164,18 @@ tar --extract --gzip --file "$ARCHIVE_PATH" --directory "$TEMP_DIR" \
   --no-same-owner --no-same-permissions
 
 PAYLOAD_DIR="$TEMP_DIR/proxyma"
-INSTALLER="$PAYLOAD_DIR/scripts/install-proxyma-docker.sh"
+INSTALLER="$PAYLOAD_DIR/scripts/install-proxyma-server-linux-release.sh"
 for required in \
   "$INSTALLER" \
   "$PAYLOAD_DIR/scripts/deployment-endpoint.sh" \
-  "$PAYLOAD_DIR/scripts/uninstall-proxyma-docker.sh" \
-  "$PAYLOAD_DIR/docker-compose.example.yml" \
-  "$PAYLOAD_DIR/RELEASE"; do
+  "$PAYLOAD_DIR/scripts/uninstall-proxyma-server-linux-release.sh" \
+  "$PAYLOAD_DIR/dist/Proxyma-linux-$ARCH" \
+  "$PAYLOAD_DIR/dist/proxymactl-linux-$ARCH"; do
   if [[ ! -f "$required" || -L "$required" ]]; then
     echo "Release archive is missing a required regular file: $required" >&2
     exit 1
   fi
 done
 
-PAYLOAD_VERSION="$(sed -n 's/^version=//p' "$PAYLOAD_DIR/RELEASE")"
-validate_version "$PAYLOAD_VERSION"
-if [[ "$PAYLOAD_VERSION" == "latest" ]]; then
-  echo "Release archive contains an invalid concrete version." >&2
-  exit 1
-fi
-if [[ "$VERSION" != "latest" && "$PAYLOAD_VERSION" != "$VERSION" ]]; then
-  echo "Release archive version $PAYLOAD_VERSION does not match requested version $VERSION." >&2
-  exit 1
-fi
-
-echo "Starting Proxyma Docker installation for $PAYLOAD_VERSION..."
-bash "$INSTALLER" "${INSTALLER_ARGS[@]}"
+echo "Starting Proxyma system installation..."
+GOARCH="$ARCH" bash "$INSTALLER" "${INSTALLER_ARGS[@]}"

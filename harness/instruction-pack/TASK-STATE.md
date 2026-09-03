@@ -1,7 +1,8 @@
 # Client Task State v2
 
 `proxyma-agent` is the only writer of harness task state. Each logical task has one
-authoritative JSON file at `task-state/tasks/<client_task_id>.json` and one derived
+authoritative JSON file under `task-state/active/`, `task-state/blocked/`, or
+`task-state/closed/`, selected from its status, and one derived
 Markdown summary. Agents must use `inspect`, `task-update`, `submit`, and
 `task-complete` rather than reading or editing these files.
 

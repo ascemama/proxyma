@@ -25,7 +25,9 @@ for required in \
   harness/RELEASE \
   harness/proxyma-agent.json \
   harness/agent-configuration/.gitkeep \
-  harness/task-state/tasks/.gitkeep \
+  harness/task-state/active/.gitkeep \
+  harness/task-state/blocked/.gitkeep \
+  harness/task-state/closed/.gitkeep \
   harness/task-state/summaries/.gitkeep \
   harness/instruction-pack/proxyma-harness.md \
   harness/.agents/skills/proxyma-harness/SKILL.md \
@@ -36,7 +38,7 @@ done
 if grep -F 'df9ec8bb-1a22-4181-a7c8-126ad553221d.json' "$LISTING" >/dev/null; then
   fail "package contains the development credential"
 fi
-if grep -E '^harness/task-state/(tasks/[^.][^/]*\.json|summaries/[^.][^/]*\.md)$' "$LISTING" >/dev/null; then
+if grep -E '^harness/task-state/(active|blocked|closed)/[^.][^/]*\.json$' "$LISTING" >/dev/null; then
   fail "package contains runtime task state"
 fi
 if tar -tvzf "$FIRST" | grep -Ev '^[d-]' >/dev/null; then

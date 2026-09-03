@@ -198,7 +198,9 @@ try {
         $configPath,
         (Join-Path $harnessDir "agent-configuration"),
         (Join-Path $harnessDir "task-state"),
-        (Join-Path $harnessDir "task-state\tasks"),
+        (Join-Path $harnessDir "task-state\active"),
+        (Join-Path $harnessDir "task-state\blocked"),
+        (Join-Path $harnessDir "task-state\closed"),
         (Join-Path $harnessDir "task-state\summaries")
     )) {
         Assert-NotReparsePoint $preserved "Preserved harness data"
@@ -206,7 +208,7 @@ try {
     if ((Test-Path -LiteralPath $configPath) -and -not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
         throw "Harness configuration must be a regular file: $configPath"
     }
-    foreach ($preservedDir in @("agent-configuration", "task-state", "task-state\tasks", "task-state\summaries")) {
+    foreach ($preservedDir in @("agent-configuration", "task-state", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries")) {
         $path = Join-Path $harnessDir $preservedDir
         if ((Test-Path -LiteralPath $path) -and -not (Test-Path -LiteralPath $path -PathType Container)) {
             throw "Preserved harness path must be a directory: $path"
@@ -240,7 +242,7 @@ try {
     if (-not (Test-Path -LiteralPath $configPath)) {
         Copy-Item -LiteralPath (Join-Path $payloadDir "proxyma-agent.json") -Destination $configPath
     }
-    foreach ($relativeDir in @("agent-configuration", "task-state", "task-state\tasks", "task-state\summaries")) {
+    foreach ($relativeDir in @("agent-configuration", "task-state", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries")) {
         New-Item -ItemType Directory -Force -Path (Join-Path $harnessDir $relativeDir) | Out-Null
     }
     foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "RELEASE")) {

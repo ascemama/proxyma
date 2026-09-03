@@ -31,7 +31,9 @@ create_harness_archive() {
     "$payload/harness/.agents/skills/proxyma-harness" \
     "$payload/harness/.claude/skills/proxyma-harness" \
     "$payload/harness/agent-configuration" \
-    "$payload/harness/task-state/tasks" \
+    "$payload/harness/task-state/active" \
+    "$payload/harness/task-state/blocked" \
+    "$payload/harness/task-state/closed" \
     "$payload/harness/task-state/summaries"
   printf 'name=proxyma-agent-harness\nversion=v1.2.3\ncommit=deadbeef\n' >"$payload/harness/RELEASE"
   printf '{"schema_version":"2","proxyma_base_url":"https://proxyma.example","agent_config":"agent-configuration/agent.json","state_dir":"task-state"}\n' >"$payload/harness/proxyma-agent.json"
@@ -80,7 +82,7 @@ find "$PROJECT_DIR/harness/agent-configuration" -type f ! -name .gitkeep -print 
 
 printf 'preserved-config\n' >"$PROJECT_DIR/harness/proxyma-agent.json"
 printf 'preserved-secret\n' >"$PROJECT_DIR/harness/agent-configuration/agent.json"
-printf 'preserved-state\n' >"$PROJECT_DIR/harness/task-state/tasks/task.json"
+printf 'preserved-state\n' >"$PROJECT_DIR/harness/task-state/active/task.json"
 create_release "$EXACT_DIR" linux amd64 second
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
 PROXYMA_AGENT_OS=linux \
@@ -89,7 +91,7 @@ PROXYMA_AGENT_ARCH=amd64 \
     --version v1.2.3 --project-dir "$PROJECT_DIR" --bin-dir "$BIN_DIR" >/dev/null
 grep -Fx 'preserved-config' "$PROJECT_DIR/harness/proxyma-agent.json" >/dev/null || fail "configuration was overwritten"
 grep -Fx 'preserved-secret' "$PROJECT_DIR/harness/agent-configuration/agent.json" >/dev/null || fail "credential was overwritten"
-grep -Fx 'preserved-state' "$PROJECT_DIR/harness/task-state/tasks/task.json" >/dev/null || fail "task state was overwritten"
+grep -Fx 'preserved-state' "$PROJECT_DIR/harness/task-state/active/task.json" >/dev/null || fail "task state was overwritten"
 grep -Fx 'second' "$PROJECT_DIR/harness/instruction-pack/proxyma-harness.md" >/dev/null || fail "release-owned harness content was not refreshed"
 
 LATEST_DIR="$TEST_ROOT/releases/latest/download"

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -20,10 +21,19 @@ var requestHashPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 type StateStore struct {
 	root      string
-	tasks     *store.FileStore
+	active    *store.FileStore
+	blocked   *store.FileStore
+	closed    *store.FileStore
 	journal   *store.FileStore
 	summaries string
 }
+
+const (
+	activeStateDir  = "active"
+	blockedStateDir = "blocked"
+	closedStateDir  = "closed"
+	legacyStateDir  = "tasks"
+)
 
 type stateLock struct {
 	file *os.File
@@ -32,7 +42,9 @@ type stateLock struct {
 func NewStateStore(root string) *StateStore {
 	return &StateStore{
 		root:      root,
-		tasks:     store.New(filepath.Join(root, "tasks")),
+		active:    store.New(filepath.Join(root, activeStateDir)),
+		blocked:   store.New(filepath.Join(root, blockedStateDir)),
+		closed:    store.New(filepath.Join(root, closedStateDir)),
 		journal:   store.New(filepath.Join(root, ".journal")),
 		summaries: filepath.Join(root, "summaries"),
 	}
@@ -84,6 +96,9 @@ func (l *stateLock) Close() error {
 }
 
 func (s *StateStore) Recover() error {
+	if err := s.checkLegacyLayout(); err != nil {
+		return err
+	}
 	paths, err := s.journal.ListJSONFiles()
 	if err != nil {
 		return err
@@ -99,17 +114,26 @@ func (s *StateStore) Recover() error {
 		if recordIDFromPath(path) != next.ClientTaskID {
 			return &commandError{code: "state_corrupt", message: fmt.Sprintf("journal filename does not match client_task_id in %s", path), exitCode: 3}
 		}
-		current, loadErr := s.Load(next.ClientTaskID)
-		if loadErr != nil && !errors.Is(loadErr, os.ErrNotExist) {
-			return loadErr
+		candidates, err := s.readCandidates(next.ClientTaskID)
+		if err != nil {
+			return err
 		}
-		if current == nil || current.Revision < next.Revision {
-			if err := s.tasks.WriteJSON(next.ClientTaskID, next); err != nil {
-				return err
-			}
-			current = &next
+		candidates = append(candidates, stateCandidate{path: path, task: next})
+		chosen, err := chooseCandidate(candidates)
+		if err != nil {
+			return err
 		}
-		if err := s.writeSummary(*current); err != nil {
+		target, err := s.storeForStatus(chosen.task.Status)
+		if err != nil {
+			return err
+		}
+		if err := target.WriteJSON(chosen.task.ClientTaskID, chosen.task); err != nil {
+			return err
+		}
+		if err := s.removeTaskCopies(chosen.task.ClientTaskID, target.RecordPath(chosen.task.ClientTaskID)); err != nil {
+			return err
+		}
+		if err := s.writeSummary(chosen.task); err != nil {
 			return err
 		}
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -137,7 +161,14 @@ func (s *StateStore) Save(task TaskState) error {
 	if err := s.journal.WriteJSON(task.ClientTaskID, task); err != nil {
 		return err
 	}
-	if err := s.tasks.WriteJSON(task.ClientTaskID, task); err != nil {
+	target, err := s.storeForStatus(task.Status)
+	if err != nil {
+		return err
+	}
+	if err := target.WriteJSON(task.ClientTaskID, task); err != nil {
+		return err
+	}
+	if err := s.removeTaskCopies(task.ClientTaskID, target.RecordPath(task.ClientTaskID)); err != nil {
 		return err
 	}
 	if err := s.writeSummary(task); err != nil {
@@ -150,18 +181,49 @@ func (s *StateStore) Load(id string) (*TaskState, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, &commandError{code: "invalid_input", message: "client_task_id must be a UUID", exitCode: 2}
 	}
-	var task TaskState
-	if err := decodeStateFile(s.tasks.RecordPath(id), &task); err != nil {
+	candidates, err := s.readCandidates(id)
+	if err != nil {
 		return nil, err
 	}
-	if err := validateTaskState(task); err != nil {
-		return nil, &commandError{code: "state_corrupt", message: fmt.Sprintf("invalid task %s: %v", id, err), exitCode: 3}
+	if len(candidates) == 0 {
+		return nil, os.ErrNotExist
 	}
-	return &task, nil
+	chosen, err := chooseCandidate(candidates)
+	if err != nil {
+		return nil, err
+	}
+	return &chosen.task, nil
+}
+
+func (s *StateStore) ListActive() ([]TaskState, error) {
+	return s.listStore(s.active, activeStateDir)
+}
+
+func (s *StateStore) ListBlocked() ([]TaskState, error) {
+	return s.listStore(s.blocked, blockedStateDir)
 }
 
 func (s *StateStore) List() ([]TaskState, error) {
-	paths, err := s.tasks.ListJSONFiles()
+	if err := s.checkLegacyLayout(); err != nil {
+		return nil, err
+	}
+	items := make([]TaskState, 0)
+	for _, state := range []struct {
+		store *store.FileStore
+		dir   string
+	}{{s.active, activeStateDir}, {s.blocked, blockedStateDir}, {s.closed, closedStateDir}} {
+		part, err := s.listStore(state.store, state.dir)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, part...)
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.Before(items[j].CreatedAt) })
+	return items, nil
+}
+
+func (s *StateStore) listStore(taskStore *store.FileStore, stateDir string) ([]TaskState, error) {
+	paths, err := taskStore.ListJSONFiles()
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +236,7 @@ func (s *StateStore) List() ([]TaskState, error) {
 		if err := validateTaskState(task); err != nil {
 			return nil, &commandError{code: "state_corrupt", message: fmt.Sprintf("invalid task %s: %v", path, err), exitCode: 3}
 		}
-		if recordIDFromPath(path) != task.ClientTaskID {
+		if recordIDFromPath(path) != task.ClientTaskID || stateDirForStatus(task.Status) != stateDir {
 			return nil, &commandError{code: "state_corrupt", message: fmt.Sprintf("task filename does not match client_task_id in %s", path), exitCode: 3}
 		}
 		items = append(items, task)
@@ -183,9 +245,104 @@ func (s *StateStore) List() ([]TaskState, error) {
 	return items, nil
 }
 
+type stateCandidate struct {
+	path string
+	task TaskState
+}
+
+func (s *StateStore) readCandidates(id string) ([]stateCandidate, error) {
+	var candidates []stateCandidate
+	for _, taskStore := range []*store.FileStore{s.active, s.blocked, s.closed} {
+		path := taskStore.RecordPath(id)
+		var task TaskState
+		if err := decodeStateFile(path, &task); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, err
+		}
+		if err := validateTaskState(task); err != nil {
+			return nil, &commandError{code: "state_corrupt", message: fmt.Sprintf("invalid task %s: %v", id, err), exitCode: 3}
+		}
+		if stateDirForStatus(task.Status) != filepath.Base(filepath.Dir(path)) {
+			return nil, &commandError{code: "state_corrupt", message: fmt.Sprintf("task %s is in the wrong state directory", id), exitCode: 3}
+		}
+		candidates = append(candidates, stateCandidate{path: path, task: task})
+	}
+	return candidates, nil
+}
+
+func chooseCandidate(candidates []stateCandidate) (stateCandidate, error) {
+	if len(candidates) == 0 {
+		return stateCandidate{}, os.ErrNotExist
+	}
+	chosen := candidates[0]
+	for _, candidate := range candidates[1:] {
+		if candidate.task.Revision > chosen.task.Revision {
+			chosen = candidate
+		}
+	}
+	for _, candidate := range candidates {
+		if candidate.task.Revision == chosen.task.Revision && !reflect.DeepEqual(candidate.task, chosen.task) {
+			return stateCandidate{}, &commandError{code: "state_corrupt", message: fmt.Sprintf("conflicting copies of task %s", chosen.task.ClientTaskID), exitCode: 3}
+		}
+	}
+	return chosen, nil
+}
+
+func (s *StateStore) removeTaskCopies(id, keepPath string) error {
+	for _, taskStore := range []*store.FileStore{s.active, s.blocked, s.closed} {
+		path := taskStore.RecordPath(id)
+		if path == keepPath {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *StateStore) storeForStatus(status string) (*store.FileStore, error) {
+	switch stateDirForStatus(status) {
+	case activeStateDir:
+		return s.active, nil
+	case blockedStateDir:
+		return s.blocked, nil
+	case closedStateDir:
+		return s.closed, nil
+	default:
+		return nil, fmt.Errorf("invalid task status %q", status)
+	}
+}
+
+func stateDirForStatus(status string) string {
+	switch status {
+	case "pending", "waiting_proxyma":
+		return activeStateDir
+	case "blocked":
+		return blockedStateDir
+	case "completed", "failed":
+		return closedStateDir
+	default:
+		return ""
+	}
+}
+
+func (s *StateStore) checkLegacyLayout() error {
+	paths, err := filepath.Glob(filepath.Join(s.root, legacyStateDir, "*.json"))
+	if err != nil {
+		return err
+	}
+	if len(paths) > 0 {
+		return &commandError{code: "state_layout", message: fmt.Sprintf("unsupported flat task state layout; move or remove JSON files under %s", filepath.Join(s.root, legacyStateDir)), exitCode: 3}
+	}
+	return nil
+}
+
 func (s *StateStore) LegacyWarnings() []string {
 	var warnings []string
-	for _, name := range []string{"pending", "active", "done", "completed", "failed", "blocked"} {
+	for _, name := range []string{"pending", "done", "completed", "failed", legacyStateDir} {
 		matches, _ := filepath.Glob(filepath.Join(s.root, name, "*.json"))
 		if len(matches) > 0 {
 			warnings = append(warnings, fmt.Sprintf("legacy v1 state files found under %s; archive or remove them", filepath.Join(s.root, name)))

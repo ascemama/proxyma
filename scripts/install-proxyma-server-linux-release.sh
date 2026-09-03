@@ -27,7 +27,7 @@ TLS_SERVER_NAME=""
 
 usage() {
   cat <<EOF
-Usage: sudo bash ./scripts/install-linux-release.sh [options]
+Usage: sudo bash ./scripts/install-proxyma-server-linux-release.sh [options]
 
 Options:
   --bind-address ADDRESS Bind Proxyma to ADDRESS (default: 0.0.0.0).
@@ -195,19 +195,19 @@ require_safe_absolute_dir "PROXYMA_DATA_DIR" "$DATA_DIR"
 require_safe_absolute_dir "PROXYMA_LIFECYCLE_DIR" "$LIFECYCLE_DIR"
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  echo "Run as root, for example: sudo GOARCH=$TARGET_ARCH bash ./scripts/install-linux-release.sh" >&2
+  echo "Run as root, for example: sudo GOARCH=$TARGET_ARCH bash ./scripts/install-proxyma-server-linux-release.sh" >&2
   exit 1
 fi
 
 for required in "$SERVER_BIN" "$CTL_BIN"; do
   if [[ ! -f "$required" ]]; then
     echo "Missing required file: $required" >&2
-    echo "Build first, for example: GOOS=linux GOARCH=$TARGET_ARCH bash ./scripts/build-release.sh" >&2
+    echo "Build first, for example: GOOS=linux GOARCH=$TARGET_ARCH bash ./scripts/build-server-release.sh" >&2
     exit 1
   fi
 done
-if [[ ! -f "$ROOT/scripts/uninstall-linux-release.sh" ]]; then
-  echo "Missing required file: $ROOT/scripts/uninstall-linux-release.sh" >&2
+if [[ ! -f "$ROOT/scripts/uninstall-proxyma-server-linux-release.sh" ]]; then
+  echo "Missing required file: $ROOT/scripts/uninstall-proxyma-server-linux-release.sh" >&2
   exit 1
 fi
 
@@ -241,7 +241,7 @@ install -d -m 0755 "$INSTALL_PREFIX/bin"
 install -m 0755 "$SERVER_BIN" "$INSTALLED_SERVER"
 install -m 0755 "$CTL_BIN" "$INSTALLED_CTL"
 install -d -m 0755 "$LIFECYCLE_DIR"
-install -m 0755 "$ROOT/scripts/uninstall-linux-release.sh" "$LIFECYCLE_DIR/uninstall-linux-release.sh"
+install -m 0755 "$ROOT/scripts/uninstall-proxyma-server-linux-release.sh" "$LIFECYCLE_DIR/uninstall-proxyma-server-linux-release.sh"
 
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0700 \
   "$CONFIG_DIR" \

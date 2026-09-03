@@ -29,7 +29,11 @@ $configSchema = Read-Json "harness/instruction-pack/proxyma-agent.schema.json"
 $stateSchema = Read-Json "harness/instruction-pack/task-state.schema.json"
 if ($null -ne $stateSchema -and $stateSchema.properties.schema_version.const -ne "2") { Add-Error "Task schema must require version 2" }
 
-$examples = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot "harness/examples/task-state/tasks") -Filter "*.json" -File -ErrorAction SilentlyContinue)
+$examples = @(
+    foreach ($stateDir in @("active", "blocked", "closed")) {
+        Get-ChildItem -LiteralPath (Join-Path $RepoRoot "harness/examples/task-state/$stateDir") -Filter "*.json" -File -ErrorAction SilentlyContinue
+    }
+)
 if ($examples.Count -lt 2) { Add-Error "Expected at least two v2 task examples" }
 foreach ($file in $examples) {
     $task = Read-Json $file.FullName.Substring($RepoRoot.Length + 1)

@@ -52,14 +52,10 @@ Thumbs.db
 /task-state/
 
 # Harness runtime data
-harness/task-state/pending/*.json
 harness/task-state/active/*.json
-harness/task-state/completed/*.json
-harness/task-state/failed/*.json
 harness/task-state/blocked/*.json
+harness/task-state/closed/*.json
 harness/task-state/summaries/*.md
-harness/task-state/done/*.json
-harness/task-state/tasks/*.json
 harness/task-state/.journal/*.json
 harness/task-state/.proxyma-agent.lock
 harness/agent-configuration/*.json

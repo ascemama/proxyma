@@ -45,7 +45,7 @@ jobs:
         run: bash -n scripts/*.sh
 
       - name: Test deployment endpoint scripts
-        run: bash scripts/test-deployment-endpoint.sh
+        run: bash scripts/test-proxyma-server-deployment-endpoints.sh
 
       - name: Validate PowerShell lifecycle scripts
         shell: pwsh

@@ -33,8 +33,8 @@ fi
 
 for required in \
   "$ROOT/docker-compose.example.yml" \
-  "$ROOT/scripts/install-proxyma-docker.sh" \
-  "$ROOT/scripts/uninstall-proxyma-docker.sh" \
+  "$ROOT/scripts/install-proxyma-server-docker.sh" \
+  "$ROOT/scripts/uninstall-proxyma-server-docker.sh" \
   "$ROOT/scripts/deployment-endpoint.sh" \
   "$ROOT/LICENSE"; do
   if [[ ! -f "$required" ]]; then
@@ -50,8 +50,8 @@ PAYLOAD_DIR="$STAGING_DIR/proxyma"
 mkdir -p "$PAYLOAD_DIR/scripts"
 
 install -m 0644 "$ROOT/docker-compose.example.yml" "$PAYLOAD_DIR/docker-compose.example.yml"
-install -m 0755 "$ROOT/scripts/install-proxyma-docker.sh" "$PAYLOAD_DIR/scripts/install-proxyma-docker.sh"
-install -m 0755 "$ROOT/scripts/uninstall-proxyma-docker.sh" "$PAYLOAD_DIR/scripts/uninstall-proxyma-docker.sh"
+install -m 0755 "$ROOT/scripts/install-proxyma-server-docker.sh" "$PAYLOAD_DIR/scripts/install-proxyma-server-docker.sh"
+install -m 0755 "$ROOT/scripts/uninstall-proxyma-server-docker.sh" "$PAYLOAD_DIR/scripts/uninstall-proxyma-server-docker.sh"
 install -m 0644 "$ROOT/scripts/deployment-endpoint.sh" "$PAYLOAD_DIR/scripts/deployment-endpoint.sh"
 install -m 0644 "$ROOT/LICENSE" "$PAYLOAD_DIR/LICENSE"
 
@@ -61,7 +61,7 @@ version=$VERSION
 commit=$COMMIT
 deployment=docker
 image=ghcr.io/ascemama/proxyma:${VERSION#v}
-install=sudo bash ./scripts/install-proxyma-docker.sh
+install=sudo bash ./scripts/install-proxyma-server-docker.sh
 EOF
 
 ARCHIVE="$OUT_DIR/proxyma_docker.tar.gz"
