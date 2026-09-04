@@ -5,6 +5,10 @@
 <h1 align="center">Proxyma</h1>
 
 <p align="center">
+  <img src="docs/images/dashboard.jpg" alt="Proxyma dashboard showing configured targets and agents" width="960">
+</p>
+
+<p align="center">
   A policy-enforcing proxy for managing AI agent access to remote systems.
 </p>
 
@@ -234,6 +238,7 @@ configuration are intentionally unsupported.
 
 ## Documentation
 
+- [First-time configuration](docs/first-time-configuration.md)
 - [Deployment overview](docs/deployment.md)
 - [`proxyma-agent` harness installation](docs/proxyma-agent-installation.md)
 - [Configuration records and runtime settings](docs/configuration.md)
