@@ -30,6 +30,7 @@ type Manager struct {
 	now          func() time.Time
 	tasks        map[string]*Task
 	operations   map[string]string
+	runs         sync.WaitGroup
 	debug        bool
 	logger       *log.Logger
 }
@@ -352,6 +353,14 @@ func (m *Manager) StartTask(ctx context.Context, id string) (bool, error) {
 	return m.startCreated(context.WithoutCancel(ctx), id)
 }
 
+// Wait waits for all background task executions to finish.
+//
+// It is intended for orderly shutdown and tests; task execution itself is
+// still started asynchronously by StartTask.
+func (m *Manager) Wait() {
+	m.runs.Wait()
+}
+
 // BlockTask marks one non-final task blocked.
 func (m *Manager) BlockTask(id string, message string) (*Task, error) {
 	task, ok := m.getMutable(id)
@@ -434,7 +443,11 @@ func (m *Manager) startCreated(ctx context.Context, id string) (bool, error) {
 		return false, err
 	}
 	m.logf("task state changed task_id=%s from=%s to=%s reason=%q", task.TaskID, from, StatusRunning, "command running")
-	go m.run(ctx, id)
+	m.runs.Add(1)
+	go func() {
+		defer m.runs.Done()
+		m.run(ctx, id)
+	}()
 	return true, nil
 }
 
@@ -571,8 +584,11 @@ func (m *Manager) save(task *Task) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	copied := cloneTask(task)
+	if err := m.store.Save(*copied); err != nil {
+		return err
+	}
 	m.tasks[task.TaskID] = copied
-	return m.store.Save(*copied)
+	return nil
 }
 
 func cloneTask(task *Task) *Task {

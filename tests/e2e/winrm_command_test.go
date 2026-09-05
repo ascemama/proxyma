@@ -36,7 +36,11 @@ func TestSubmitAndPollWinRMCommand(t *testing.T) {
 	manager := tasks.NewManagerWithOptions(jsonfile.NewTaskStore(t.TempDir()), executor.Executor{}, tasks.ManagerOptions{WinRMClient: fake})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := taskflow.NewScheduler(taskflow.New(manager, nil, taskflow.Options{RequireCommandApproval: false}), 10*time.Millisecond).Start(ctx)
-	t.Cleanup(func() { cancel(); <-done })
+	t.Cleanup(func() {
+		cancel()
+		<-done
+		manager.Wait()
+	})
 	server := &api.Server{Agents: agents.NewRegistry([]agents.Agent{testAgent}), Targets: targets.NewRegistry([]targets.Target{target}), Tasks: manager, CommandTimeout: time.Second, OutputLimit: 1024}
 	response, status, _ := submitCommand(t, server, `{"target":{"hostname":"win.example"},"command":"winrm {user}@win.example Get-Service","reasoning":"diagnostic"}`)
 	if status != http.StatusAccepted {
