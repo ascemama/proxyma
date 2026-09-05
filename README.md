@@ -5,10 +5,6 @@
 <h1 align="center">Proxyma</h1>
 
 <p align="center">
-  <img src="docs/images/dashboard.jpg" alt="Proxyma dashboard showing configured targets and agents" width="960">
-</p>
-
-<p align="center">
   A policy-enforcing proxy for managing AI agent access to remote systems.
 </p>
 
@@ -30,13 +26,15 @@ credentials, command policy, audit state, and approval channel.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [How It Works](#how-it-works)
-  - [Policy-approved command](#policy-approved-command)
-  - [Approval-required command](#approval-required-command)
+- [Proxyma Dashboard](#proxyma-dashboard)
 - [Supported Capabilities](#supported-capabilities)
+  - [Feature Capabilities](#feature-capabilities)
+  - [Technical Capabilities](#technical-capabilities)
 - [Installation](#installation)
+  - [Proxyma Server installation options](docs/deployment.md)
+  - [`proxyma-agent` installation](docs/proxyma-agent-installation.md)
 - [Repository Layout](#repository-layout)
-- [`proxymactl` Command Reference](#proxymactl-command-reference)
-- [Runtime Configuration](#runtime-configuration)
+- [Proxyma Server Runtime Configuration](#proxyma-server-runtime-configuration)
 - [Agent Harness](#agent-harness)
 - [Documentation](#documentation)
 - [License](#license)
@@ -45,47 +43,79 @@ credentials, command policy, audit state, and approval channel.
 
 ## How It Works
 
-### Policy-approved command
+<p align="center">
+  <img src="docs/images/proxyma-architecture-flow-machine.png" alt="Proxyma architecture showing the agent harness and proxyma-agent on the same machine" width="960">
+</p>
 
-1. The agent authenticates to Proxyma and resolves a configured target by
-   hostname or IP.
-2. Proxyma returns the canonical SSH or WinRM command shape without exposing
-   credentials.
-3. The agent submits the command with safe placeholders such as `{user}`.
-4. Proxyma verifies that the agent may use the target and evaluates the
-   target's ordered command policies.
-5. An allowed command is executed through Proxyma using the target's stored
-   credentials. The task and result are persisted for the agent to poll.
+The complete command workflow is:
 
-### Approval-required command
-
-1. The command follows the same authentication, target resolution, and policy
-   path.
-2. When policy returns `approval`, Proxyma pauses the task and sends an
-   approval request through the agent's configured local-console or ntfy
-   interaction provider.
-3. Approval starts remote execution; rejection or expiration blocks the task.
-4. The agent continues polling the durable task record and receives the final
+1. The harness decides that it needs to run a specific command on a target.
+2. The harness uses `proxyma-agent` to authenticate, resolve the target, and
+   submit the command to the Proxyma Server. The request contains the target
+   identity, canonical command, and reasoning, but not the target credentials.
+3. The Proxyma Server authenticates the agent and verifies that the agent is
+   authorized to use the target.
+4. The Proxyma Server resolves the target's connection details and evaluates
+   the target's assigned command policies.
+5. If the policy denies the command, the server blocks the task and returns the
+   denial to the agent.
+6. If the policy requires approval, the server creates a pending interaction
+   and asks the configured human-interaction provider for a decision. The
+   current providers are the built-in local console and NTFY.
+7. A user approves or rejects the request. Approval continues the workflow;
+   rejection or expiration blocks the task.
+8. For an allowed or approved command, the Proxyma Server executes it against
+   the target using its stored connection details, without exposing those
+   credentials to the agent.
+9. The server persists the task, command result, status, and audit information.
+   The harness polls through `proxyma-agent` until it receives the final
    status, stdout, stderr, and exit status.
 
 See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) and the
 [agent API reference](harness/instruction-pack/proxyma-api-reference.md) for
 the complete lifecycle.
 
+## Proxyma Dashboard
+
+The browser dashboard is used to manage users, agents, targets, policies, and
+human-interaction instances.
+
+<p align="center">
+  <img src="docs/images/dashboard.jpg" alt="Proxyma dashboard showing configured targets and agents" width="960">
+</p>
+
 ## Supported Capabilities
+
+### Feature Capabilities
 
 | Area | Support |
 | --- | --- |
-| Remote transports | SSH and WinRM |
-| Target environments | Linux shell, Windows shell over SSH, and Windows PowerShell over WinRM |
-| Target authentication | Passwords and unencrypted SSH private keys; WinRM uses password authentication with NTLM |
-| Agent authentication | Short-lived HS256 JWTs signed with an Agent JWT Signing Key |
-| User authentication | Argon2id passwords, persisted cookie sessions, CSRF protection, activation links, and password-reset links |
-| Server transport security | HTTPS with an automatically managed self-signed certificate or an operator-provided certificate and key; explicit HTTP mode for local development |
-| Human interaction | Built-in local-console approval and configurable ntfy instances |
-| Command policy | Ordered `allow`, `approval`, and `deny` rules assigned to targets |
-| Persistence | JSON-backed tasks and interactions, plus a SQLite interaction-history search index |
-| Administration | Browser GUI and the filesystem-oriented `proxymactl` CLI |
+| Agent command execution | Agents submit target commands through `proxyma-agent`; they do not connect directly to targets. |
+| Target management | Configure targets, authorized agents, target owners, transports, and credentials. |
+| Human approval | Built-in local-console approval and remote NTFY approval requests/responses. No other interaction channels are currently supported. |
+| Command policy | Per-target policies can allow, require approval for, or deny commands. |
+| Durable tasks | Persist task state, status history, results, exit status, and safe command metadata for polling and recovery. |
+| Audit and history | Persist human interactions and provide searchable interaction history through the dashboard. |
+| Administration | Manage users, agents, targets, policies, and interaction instances through the browser GUI or `proxymactl`. |
+
+Current policy support is intentionally explicit. Rules have one of three effects:
+`allow`, `approval`, or `deny`. A rule can match every command with `always`,
+match the normalized command with a Go regular expression, or match one of a
+set of command prefixes. Policies are assigned to targets; deny decisions take
+precedence over other matches, followed by policy priority and rule order.
+
+### Technical Capabilities
+
+| Area | Support |
+| --- | --- |
+| Remote transports | SSH and WinRM. |
+| Target environments | Linux shell, Windows shell over SSH, and Windows PowerShell over WinRM. |
+| Target authentication | Passwords and unencrypted SSH private keys; WinRM uses password authentication with NTLM. |
+| Agent authentication | Short-lived HS256 JWTs signed with an Agent JWT Signing Key. |
+| User authentication | Argon2id passwords, persisted cookie sessions, CSRF protection, activation links, and password-reset links. |
+| Server transport security | HTTPS with an automatically managed self-signed certificate or an operator-provided certificate and key; explicit HTTP mode for local development. |
+| Persistence | JSON-backed records and tasks, plus a SQLite interaction-history search index. |
+| Agent platforms | Windows, Linux, and macOS installers for the cross-platform `proxyma-agent` CLI. |
 
 Proxyma does not currently support target-side certificate authentication.
 HTTPS certificates protect the Proxyma service; target authentication uses a
@@ -97,12 +127,13 @@ Choose the deployment model that matches the environment. Each linked guide
 covers prerequisites, installation, verification, updates, rollback, backup,
 troubleshooting, and removal.
 
-| Installation type | Intended use | Documentation |
-| --- | --- | --- |
-| Local development | Change or test the Go service and React frontend | [Local development](docs/deployment-local.md) |
-| Precompiled Linux binary | Recommended host-level Linux installation without a compiler or source checkout | [Precompiled Linux](docs/deployment-linux-precompiled.md) |
-| Source-built Linux binary | Build and install a selected source revision on Linux | [Source-built Linux](docs/deployment-linux-binary.md) |
-| Docker | Run the production service and embedded frontend in a container | [Docker](docs/deployment-docker.md) |
+| Installation type | Component | Intended use | Documentation |
+| --- | --- | --- | --- |
+| Local development | `proxyma-server` | Change or test the Go server and React frontend | [Proxyma Server — local development](docs/deployment-local.md) |
+| Precompiled Linux binary | `proxyma-server` | Recommended host-level Linux server installation without a compiler or source checkout | [Proxyma Server — precompiled Linux](docs/deployment-linux-precompiled.md) |
+| Source-built Linux binary | `proxyma-server` | Build and install a selected server source revision on Linux | [Proxyma Server — source-built Linux](docs/deployment-linux-binary.md) |
+| Docker | `proxyma-server` | Run the server and embedded frontend in a container | [Proxyma Server — Docker](docs/deployment-docker.md) |
+| Release or source installation | `proxyma-agent` | Install the cross-platform agent CLI, matching harness, and model adapter | [`proxyma-agent` installation guide](docs/proxyma-agent-installation.md) |
 
 See the [deployment overview](docs/deployment.md) for a side-by-side comparison.
 
@@ -130,39 +161,7 @@ Targets, agents, users, interaction instances, secrets, TLS material, and
 `var/proxyma/` state are runtime data. They are created by an installation or
 administrator and are not part of the tracked source layout.
 
-## `proxymactl` Command Reference
-
-`proxymactl` manages Proxyma's on-disk records and transport configuration. It
-does not call the running HTTP service. Resource create and update commands
-accept `--file <path>` or `--file -`; create input omits `id` because the CLI
-generates a UUID v4.
-
-Global configuration flags must appear before the resource and action:
-
-```powershell
-.\bin\proxymactl.exe --user-dir .\users users create --file .\new-user.json
-```
-
-| Command | Purpose |
-| --- | --- |
-| `users create --file <path> [--password-stdin]` | Create a user; `--password-stdin` hashes the supplied password with Argon2id and activates the user. |
-| `users update <user-id> --file <path>` | Replace a user record while preserving its ID. |
-| `users reset-password <user-id> --password-stdin` | Replace the password, activate the user, and revoke existing sessions. |
-| `users delete <user-id>` | Delete a user record. |
-| `agents create --file <path>` | Create an agent with a generated UUID. |
-| `agents update <agent-id> --file <path>` | Replace an agent record while preserving its ID. |
-| `agents delete <agent-id>` | Delete an agent record. |
-| `targets create --file <path>` | Create a target with a generated UUID. |
-| `targets update <target-id> --file <path>` | Replace a target record while preserving its ID. |
-| `targets delete <target-id>` | Delete a target record. |
-| `certificates validate --cert-file <path> --key-file <path>` | Validate that a PEM certificate and unencrypted private key match and are currently usable. |
-| `certificates install --cert-file <path> --key-file <path> --dest-cert-file <path> --dest-key-file <path>` | Validate and atomically install a certificate pair at managed destinations. |
-| `config update-transport --file <path> [--scheme <https\|http>] [--tls-mode <self_signed\|provided>] [--tls-cert-file <path> --tls-key-file <path>] [--tls-server-name <name>]` | Update server transport fields in a Proxyma JSON configuration file. |
-
-Record formats, examples, relationships, and schema links are documented in
-[Configuration](docs/configuration.md).
-
-## Runtime Configuration
+## Proxyma Server Runtime Configuration
 
 Proxyma loads settings in increasing order of precedence:
 
@@ -240,6 +239,7 @@ configuration are intentionally unsupported.
 
 - [First-time configuration](docs/first-time-configuration.md)
 - [Deployment overview](docs/deployment.md)
+- [`proxymactl` command reference](docs/proxymactl-command-reference.md)
 - [`proxyma-agent` harness installation](docs/proxyma-agent-installation.md)
 - [Configuration records and runtime settings](docs/configuration.md)
 - [User and agent API usage](docs/api.md)

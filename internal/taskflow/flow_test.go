@@ -55,6 +55,35 @@ func TestFlowRequestsApprovalForCreatedTask(t *testing.T) {
 	}
 }
 
+func TestFlowDoesNotStartApprovalTaskAcrossRepeatedPasses(t *testing.T) {
+	manager, communicator, provider := newFlowHarness(t, true)
+	task := submitTask(t, manager)
+	flow := New(manager, communicator, Options{RequireCommandApproval: true})
+
+	if started, err := flow.StartCreated(context.Background()); err != nil || started != 0 {
+		t.Fatalf("initial started = %d err=%v", started, err)
+	}
+	for range 3 {
+		if started, err := flow.StartCreated(context.Background()); err != nil || started != 0 {
+			t.Fatalf("repeated started = %d err=%v", started, err)
+		}
+		if _, err := flow.ManageState(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	waiting, ok := manager.Get(task.TaskID)
+	if !ok {
+		t.Fatal("missing task")
+	}
+	if waiting.Status != tasks.StatusWaitingUserResponse || waiting.Approval == nil || waiting.Approval.Status != tasks.ApprovalStatusPending {
+		t.Fatalf("waiting = %#v", waiting)
+	}
+	if len(provider.sent) != 1 {
+		t.Fatalf("approval requests = %#v", provider.sent)
+	}
+}
+
 func TestFlowStartsApprovedTaskOnce(t *testing.T) {
 	manager, communicator, _ := newFlowHarness(t, true)
 	task := submitTask(t, manager)
