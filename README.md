@@ -32,7 +32,8 @@ credentials, command policy, audit state, and approval channel.
   - [Technical Capabilities](#technical-capabilities)
 - [Installation](#installation)
   - [Proxyma Server installation options](docs/deployment.md)
-  - [`proxyma-agent` installation](docs/proxyma-agent-installation.md)
+  - [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
+  - [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md)
 - [Repository Layout](#repository-layout)
 - [Proxyma Server Runtime Configuration](#proxyma-server-runtime-configuration)
 - [Agent Harness](#agent-harness)
@@ -50,24 +51,25 @@ credentials, command policy, audit state, and approval channel.
 The complete command workflow is:
 
 1. The harness decides that it needs to run a specific command on a target.
-2. The harness uses `proxyma-agent` to authenticate, resolve the target, and
+2. During proxyma-agent installation, a harness skill is deployed which provide information on when and how to use proxyma-agent CLI to get command run on target server.
+3. The harness uses `proxyma-agent` to authenticate, resolve the target, and
    submit the command to the Proxyma Server. The request contains the target
    identity, canonical command, and reasoning, but not the target credentials.
-3. The Proxyma Server authenticates the agent and verifies that the agent is
+4. The Proxyma Server authenticates the agent and verifies that the agent is
    authorized to use the target.
-4. The Proxyma Server resolves the target's connection details and evaluates
+5. The Proxyma Server resolves the target's connection details and evaluates
    the target's assigned command policies.
-5. If the policy denies the command, the server blocks the task and returns the
+6. If the policy denies the command, the server blocks the task and returns the
    denial to the agent.
-6. If the policy requires approval, the server creates a pending interaction
+7. If the policy requires approval, the server creates a pending interaction
    and asks the configured human-interaction provider for a decision. The
    current providers are the built-in local console and NTFY.
-7. A user approves or rejects the request. Approval continues the workflow;
+8. A user approves or rejects the request. Approval continues the workflow;
    rejection or expiration blocks the task.
-8. For an allowed or approved command, the Proxyma Server executes it against
+9. For an allowed or approved command, the Proxyma Server executes it against
    the target using its stored connection details, without exposing those
    credentials to the agent.
-9. The server persists the task, command result, status, and audit information.
+10. The server persists the task, command result, status, and audit information.
    The harness polls through `proxyma-agent` until it receives the final
    status, stdout, stderr, and exit status.
 
@@ -133,7 +135,8 @@ troubleshooting, and removal.
 | Precompiled Linux binary | `proxyma-server` | Recommended host-level Linux server installation without a compiler or source checkout | [Proxyma Server — precompiled Linux](docs/deployment-linux-precompiled.md) |
 | Source-built Linux binary | `proxyma-server` | Build and install a selected server source revision on Linux | [Proxyma Server — source-built Linux](docs/deployment-linux-binary.md) |
 | Docker | `proxyma-server` | Run the server and embedded frontend in a container | [Proxyma Server — Docker](docs/deployment-docker.md) |
-| Release or source installation | `proxyma-agent` | Install the cross-platform agent CLI, matching harness, and model adapter | [`proxyma-agent` installation guide](docs/proxyma-agent-installation.md) |
+| Release installation | `proxyma-agent` | Install the official cross-platform agent CLI, matching harness, and model adapter | [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md) |
+| Source installation | `proxyma-agent` | Build and install the agent CLI and matching harness from a selected source revision | [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md) |
 
 See the [deployment overview](docs/deployment.md) for a side-by-side comparison.
 
@@ -222,7 +225,7 @@ submission, polling, duplicate prevention, and durable client task state. Agents
 GitHub releases include verified user-local installers for Windows, Linux, and
 macOS. They select the native executable and install the matching sanitized
 harness package and Codex adapter from the same release; see the
-[`proxyma-agent` installation guide](docs/proxyma-agent-installation.md).
+[`proxyma-agent` release installation guide](docs/proxyma-agent-installation-release.md).
 
 Start with the
 [harness instruction pack](harness/instruction-pack/proxyma-harness.md),
@@ -240,7 +243,8 @@ configuration are intentionally unsupported.
 - [First-time configuration](docs/first-time-configuration.md)
 - [Deployment overview](docs/deployment.md)
 - [`proxymactl` command reference](docs/proxymactl-command-reference.md)
-- [`proxyma-agent` harness installation](docs/proxyma-agent-installation.md)
+- [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
+- [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md)
 - [Configuration records and runtime settings](docs/configuration.md)
 - [User and agent API usage](docs/api.md)
 - [Build and version metadata](docs/build-version.md)
