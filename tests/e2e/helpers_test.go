@@ -55,6 +55,7 @@ func newHarness(t *testing.T) (*api.Server, string) {
 		case <-time.After(time.Second):
 			t.Fatal("scheduler did not stop")
 		}
+		manager.Wait()
 	})
 	return &api.Server{Agents: agents.NewRegistry([]agents.Agent{testAgent}), Targets: registry, Tasks: manager, CommandTimeout: time.Second, OutputLimit: 1 << 20, KnownHostsPath: "known_hosts"}, taskDir
 }
