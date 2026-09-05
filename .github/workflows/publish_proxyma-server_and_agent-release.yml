@@ -15,7 +15,8 @@ on:
       - "scripts/*.sh"
       - "scripts/*.ps1"
       - "harness/**"
-      - "docs/proxyma-agent-installation.md"
+      - "docs/proxyma-agent-installation-release.md"
+      - "docs/proxyma-agent-installation-source.md"
   push:
     tags:
       - "v*"
