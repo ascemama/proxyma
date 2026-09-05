@@ -166,6 +166,29 @@ func TestServiceQuestionRequiresTextAnswer(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsMalformedApprovalResponse(t *testing.T) {
+	service := New(newMemoryStore(), Options{})
+	record, err := service.Request(context.Background(), Request{
+		Kind:    KindApprovalRequest,
+		Subject: "Approve command",
+		Message: "Run command?",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := service.Respond(context.Background(), Response{InteractionID: record.InteractionID}); err == nil {
+		t.Fatal("expected approval response without Approved value to be rejected")
+	}
+	got, err := service.Get(context.Background(), record.InteractionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != StatusPending || got.Response != nil {
+		t.Fatalf("malformed response changed interaction = %#v", got)
+	}
+}
+
 func TestServiceExpiresPendingInteractions(t *testing.T) {
 	now := time.Date(2026, 5, 31, 1, 0, 0, 0, time.UTC)
 	service := New(newMemoryStore(), Options{

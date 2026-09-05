@@ -1,10 +1,10 @@
-name: Publish binary package
+name: Publish Proxyma Server and Agent release
 run-name: ${{ github.event_name == 'push' && format('Publish precompiled Linux binary release {0}', github.ref_name) || 'Validate precompiled Linux binary release changes' }}
 
 on:
   pull_request:
     paths:
-      - ".github/workflows/publish_binary_package.yml"
+      - ".github/workflows/publish_proxyma-server_and_agent-release.yml"
       - "README.md"
       - "LICENSE"
       - "cmd/**"
