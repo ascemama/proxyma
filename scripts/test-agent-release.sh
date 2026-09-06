@@ -11,6 +11,7 @@ fi
 
 RELEASE_BASE_URL="${RELEASE_BASE_URL%/}"
 RELEASE_URL="$RELEASE_BASE_URL/releases/download/$VERSION"
+CLI_VERSION="${VERSION#v}"
 TEST_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
@@ -47,7 +48,7 @@ test -x "$INSTALLED_BINARY"
 test -f "$PROJECT_DIR/harness/RELEASE"
 test -f "$PROJECT_DIR/harness/proxyma-agent.json"
 test -f "$PROJECT_DIR/.agents/skills/proxyma-harness/SKILL.md"
-grep -F '"version":"'"$VERSION"'"' <("$INSTALLED_BINARY" version) >/dev/null
+grep -F '"version":"'"$CLI_VERSION"'"' <("$INSTALLED_BINARY" version) >/dev/null
 grep -Fx "version=$VERSION" "$PROJECT_DIR/harness/RELEASE" >/dev/null
 
 printf 'preserved-config\n' >"$PROJECT_DIR/harness/proxyma-agent.json"

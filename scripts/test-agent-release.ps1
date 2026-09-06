@@ -8,6 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ReleaseBaseUrl = $ReleaseBaseUrl.TrimEnd('/')
 $ReleaseUrl = "$ReleaseBaseUrl/releases/download/$Version"
+$CliVersion = $Version.TrimStart('v')
 $TestRoot = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-agent-release-" + [Guid]::NewGuid().ToString("N"))
 $ProjectDir = Join-Path $TestRoot "project"
 $BinDir = Join-Path $TestRoot "bin"
@@ -53,7 +54,7 @@ try {
     if (-not (Test-Path -LiteralPath $skillFile -PathType Leaf)) { throw "Codex adapter is missing." }
 
     $versionOutput = & $installedBinary version | Out-String
-    if ($versionOutput -notmatch [regex]::Escape($Version)) { throw "Installed binary reported the wrong version." }
+    if ($versionOutput -notmatch [regex]::Escape($CliVersion)) { throw "Installed binary reported the wrong version." }
     if ((Get-Content -LiteralPath $releaseFile -Raw).Trim() -notmatch [regex]::Escape("version=$Version")) {
         throw "Harness RELEASE file reported the wrong version."
     }
