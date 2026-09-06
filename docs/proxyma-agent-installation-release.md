@@ -119,6 +119,11 @@ Versions must be `latest` or a complete semantic version beginning with `v`,
 including an exact prerelease such as `v1.2.3-rc.1`. `latest` resolves only the
 latest stable GitHub release.
 
+Maintainers who build or publish releases should follow the
+[release artifact testing guide](release-testing.md). It documents the
+GitHub Actions gates, release candidate workflow, protected stable publication,
+post-publication verification, and private/local staging procedure.
+
 ### Verify the downloaded artifacts manually (optional)
 
 If the installer cannot be used, download the binary for the client platform,
@@ -173,10 +178,11 @@ The `.agents/skills/proxyma-harness` copy at the project root is what Codex
 discovers. The `harness/` directory is the shared runtime root and can also be
 used by the included Claude Code adapter.
 
-## Safe updates and rollback
+## Update and rollback
 
-Run the selected release installer again. Updates replace the executable and
-release-owned harness material transactionally. They preserve these local,
+Update by downloading the installer for the release you want and running it
+again from the same project directory. The installer replaces the executable
+and release-owned harness material transactionally. It preserves these local,
 potentially sensitive paths:
 
 - `harness/proxyma-agent.json`;
@@ -190,6 +196,78 @@ following them.
 
 Back up the three preserved paths before a downgrade. Harness v1 state is not
 compatible with harness v2 and is not migrated.
+
+To update to the latest stable release on Linux or macOS:
+
+```bash
+curl -fL -o install-proxyma-agent.sh \
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-agent.sh
+bash ./install-proxyma-agent.sh
+```
+
+To update to an exact release, use the matching installer and version in the
+same command. Keep any non-default `--project-dir` and `--bin-dir` options you
+used during the original installation:
+
+```bash
+version=v1.2.3
+curl -fL -o install-proxyma-agent.sh \
+  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-agent.sh"
+bash ./install-proxyma-agent.sh --version "$version"
+```
+
+On Windows, download the matching PowerShell installer and run it with
+`-Version` for an exact release:
+
+```powershell
+$version = "v1.2.3"
+Invoke-WebRequest `
+  "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-agent.ps1" `
+  -OutFile .\install-proxyma-agent.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\install-proxyma-agent.ps1 -Version $version
+```
+
+Run `proxyma-agent version` and `proxyma-agent doctor` after an update. To
+roll back, repeat the same procedure with the previous release version after
+backing up the preserved configuration, credentials, and task state.
+
+## Remove the agent installation
+
+The release package does not install a system service or provide a separate
+uninstaller. Remove the binary, the project harness, and the project Codex
+adapter manually. First stop Codex or Claude Code and make sure no other
+project still uses this harness. The following commands remove the local
+credentials and durable task state as well as the installed release files.
+
+On Linux or macOS, run from the project directory used during installation:
+
+```bash
+rm -f "$HOME/.local/bin/proxyma-agent"
+rm -rf ./harness ./.agents/skills/proxyma-harness
+```
+
+If a custom `--bin-dir` was used, remove `proxyma-agent` from that directory
+instead. If `--project-dir` pointed elsewhere, run the project-directory
+command there. Remove the installer download separately when it is no longer
+needed:
+
+```bash
+rm -f ./install-proxyma-agent.sh
+```
+
+On Windows, run from the installed project directory in PowerShell:
+
+```powershell
+Remove-Item -LiteralPath "$env:LOCALAPPDATA\Programs\Proxyma\bin\proxyma-agent.exe" -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".\harness", ".\.agents\skills\proxyma-harness" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".\install-proxyma-agent.ps1" -Force -ErrorAction SilentlyContinue
+```
+
+If a custom `-BinDir` or `-ProjectDir` was used, substitute those locations.
+Do not remove `harness/` or its credential and task-state directories when the
+project is still used by another Proxyma agent installation; update that
+installation instead.
 
 ## Configure the harness
 

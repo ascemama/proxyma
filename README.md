@@ -244,6 +244,7 @@ configuration are intentionally unsupported.
 - [Deployment overview](docs/deployment.md)
 - [`proxymactl` command reference](docs/proxymactl-command-reference.md)
 - [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
+- [Release artifact testing](docs/release-testing.md)
 - [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md)
 - [Configuration records and runtime settings](docs/configuration.md)
 - [User and agent API usage](docs/api.md)

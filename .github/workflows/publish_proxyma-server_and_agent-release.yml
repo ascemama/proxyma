@@ -17,6 +17,7 @@ on:
       - "harness/**"
       - "docs/proxyma-agent-installation-release.md"
       - "docs/proxyma-agent-installation-source.md"
+      - "docs/release-testing.md"
   push:
     tags:
       - "v*"
@@ -198,6 +199,7 @@ jobs:
             './scripts/build-agent-release.ps1',
             './scripts/install-proxyma-agent.ps1',
             './scripts/test-install-agent.ps1',
+            './scripts/test-agent-release.ps1',
             './harness/tests/claude-code-smoke.ps1'
           )) {
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
@@ -331,7 +333,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  publish:
+  release-assets:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs:
       - build
@@ -343,7 +345,7 @@ jobs:
     permissions:
       artifact-metadata: write
       attestations: write
-      contents: write
+      contents: read
       id-token: write
     steps:
       - name: Check out release source
@@ -397,11 +399,111 @@ jobs:
               | sort -k2 >SHA256SUMS
           )
 
+      - name: Verify complete release asset set
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_assets=(
+            proxyma_linux_amd64.tar.gz
+            proxyma_linux_arm64.tar.gz
+            proxyma_docker.tar.gz
+            install-proxyma-server-linux.sh
+            install-proxyma-server-docker.sh
+            install-proxyma-agent.sh
+            install-proxyma-agent.ps1
+            proxyma-agent-harness.tar.gz
+            proxyma-agent-linux-amd64
+            proxyma-agent-linux-arm64
+            proxyma-agent-windows-amd64.exe
+            proxyma-agent-windows-arm64.exe
+            proxyma-agent-darwin-amd64
+            proxyma-agent-darwin-arm64
+          )
+          for asset in "${expected_assets[@]}"; do
+            test -f "release-assets/$asset"
+          done
+          test "$(wc -l <release-assets/SHA256SUMS)" -eq "${#expected_assets[@]}"
+          (cd release-assets && sha256sum --check SHA256SUMS)
+
       - name: Attest release assets
         if: ${{ !github.event.repository.private }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: release-assets/*
+
+      - name: Upload assembled release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets
+          path: release-assets
+          if-no-files-found: error
+          retention-days: 1
+
+  prepublish-agent-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: release-assets
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Download assembled release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Test staged agent release on POSIX
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging_root="$(mktemp -d)"
+          trap 'rm -rf "$staging_root"' EXIT
+          mkdir -p "$staging_root/releases/download/$GITHUB_REF_NAME"
+          cp release-assets/* "$staging_root/releases/download/$GITHUB_REF_NAME/"
+          bash scripts/test-agent-release.sh \
+            "$GITHUB_REF_NAME" \
+            "file://$staging_root"
+
+      - name: Test staged agent release on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $stagingRoot = Join-Path $env:RUNNER_TEMP ("proxyma-agent-release-" + [Guid]::NewGuid().ToString("N"))
+          $releaseDir = Join-Path $stagingRoot ("releases\download\" + $env:GITHUB_REF_NAME)
+          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+          Copy-Item -Path ((Resolve-Path .\release-assets).Path + '\*') -Destination $releaseDir -Recurse
+          $releaseBaseUrl = ([Uri]::new($stagingRoot)).AbsoluteUri.TrimEnd('/')
+          try {
+            & .\scripts\test-agent-release.ps1 `
+              -Version $env:GITHUB_REF_NAME `
+              -ReleaseBaseUrl $releaseBaseUrl
+          }
+          finally {
+            if (Test-Path -LiteralPath $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
+          }
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - release-assets
+      - prepublish-agent-release
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ contains(github.ref_name, '-') && 'release-prerelease' || 'production-release' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Download assembled release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets
+          path: release-assets
 
       - name: Publish immutable GitHub release
         env:
@@ -435,3 +537,31 @@ jobs:
             release-assets/proxyma-agent-windows-* \
             release-assets/proxyma-agent-darwin-* \
             release-assets/SHA256SUMS
+
+  postpublish-agent-release:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !github.event.repository.private }}
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Test published agent release on POSIX
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          bash scripts/test-agent-release.sh \
+            "$GITHUB_REF_NAME" \
+            "https://github.com/$GITHUB_REPOSITORY"
+
+      - name: Test published agent release on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & .\scripts\test-agent-release.ps1 `
+            -Version $env:GITHUB_REF_NAME `
+            -ReleaseBaseUrl "https://github.com/$env:GITHUB_REPOSITORY"
