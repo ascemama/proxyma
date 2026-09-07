@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.agent.schema.json",
+  "title": "Proxyma Agent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "agent_jwt_signing_key", "enabled", "user_ids"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editor validation and autocomplete."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Stable Proxyma agent UUID used as the JWT subject and key ID."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Optional human-readable agent name."
+    },
+    "agent_jwt_signing_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent JWT Signing Key used as symmetric HS256 key material for short-lived Proxyma JWTs. The key itself is never sent in the Authorization header."
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether this agent can authenticate to Proxyma."
+    },
+    "user_ids": {
+      "type": "array",
+      "description": "Proxyma user IDs that own this agent.",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "interaction_instance_id": {
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "local"
+        },
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      ],
+      "default": "local",
+      "description": "Interaction instance id used for this agent's approval requests. Use local or a UUID v4 from interactions/<provider>/*.json. Omit to use the built-in local console interaction."
+    }
+  }
+}

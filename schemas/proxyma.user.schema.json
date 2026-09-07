@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.user.schema.json",
+  "title": "Proxyma User",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "username", "name", "admin", "status"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editor validation and autocomplete."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Stable Proxyma user UUID used for ownership references."
+    },
+    "username": {
+      "type": "string",
+      "pattern": "^[a-z0-9._-]{3,64}$",
+      "description": "Unique Proxyma GUI/API login username."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable user name."
+    },
+    "admin": {
+      "type": "boolean",
+      "description": "Whether the user can administer Proxyma users and see all targets and agents."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "pending_activation", "password_reset_pending"],
+      "description": "Authentication lifecycle state controlled by Proxyma."
+    },
+    "theme": {
+      "type": "string",
+      "enum": ["light", "dark"],
+      "default": "light",
+      "description": "Preferred Proxyma GUI color theme. Omitted records use the light theme."
+    },
+    "passwd_hash": {
+      "type": "string",
+      "pattern": "^\\$argon2id\\$v=19\\$m=19456,t=2,p=1\\$[A-Za-z0-9+/]{22}\\$[A-Za-z0-9+/]{43}$",
+      "description": "Argon2id PHC password hash for Proxyma GUI/API user authentication."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "active"}}},
+      "then": {"required": ["passwd_hash"]},
+      "else": {"not": {"required": ["passwd_hash"]}}
+    }
+  ]
+}

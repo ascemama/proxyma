@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../schemas/proxyma.policy.schema.json",
+  "id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+  "name": "Baseline Readonly Fixture",
+  "description": "Allow fixture diagnostic commands.",
+  "priority": 100,
+  "enabled": true,
+  "rules": [
+    {
+      "id": "allow-fixture-commands",
+      "effect": "allow",
+      "always": true,
+      "reason": "Fixture commands are pre-recorded for GUI tests."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+dist/
+node_modules/
+test-results/
+test-results-production/
+playwright-report/
+.vite/
+*.tsbuildinfo
+e2e/fixtures/user_sessions/*.json

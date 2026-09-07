@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schemas/proxyma.agent.schema.json",
+  "id": "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+  "display_name": "agent-db-01",
+  "agent_jwt_signing_key": "test-signing-key-db",
+  "enabled": true,
+  "user_ids": ["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],
+  "interaction_instance_id": "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"
+}

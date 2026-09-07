@@ -1,0 +1,33 @@
+{
+  "task_id": "task-backup-verify",
+  "agent_id": "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+  "target": {
+    "hostname": "DB-SRV-01",
+    "ip": "10.10.1.20",
+    "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"]
+  },
+  "command": "backup --verify",
+  "reasoning": "Fixture command history item.",
+  "status": "completed",
+  "created_at": "2026-05-20T10:16:12Z",
+  "started_at": "2026-05-20T10:16:16Z",
+  "completed_at": "2026-05-20T10:16:33Z",
+  "result": {
+    "stdout": "ok",
+    "stderr": "",
+    "exit_status": 0,
+    "truncated": false
+  },
+  "history": [
+    {
+      "status": "created",
+      "at": "2026-05-20T10:16:12Z",
+      "message": "task created"
+    },
+    {
+      "status": "completed",
+      "at": "2026-05-20T10:16:33Z",
+      "message": "task completed"
+    }
+  ]
+}

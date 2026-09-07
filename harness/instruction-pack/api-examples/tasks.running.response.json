@@ -1,0 +1,33 @@
+{
+  "task_id": "generated-task-id",
+  "client_operation_id": "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f",
+  "agent_id": "df9ec8bb-1a22-4181-a7c8-126ad553221d",
+  "target": {
+    "hostname": "local-dev",
+    "ip": "127.0.0.1",
+    "os": "linux"
+  },
+  "command": "ssh {user}@127.0.0.1 hostname",
+  "reasoning": "Identify the target host for diagnostics",
+  "requested_by": "agent-demo",
+  "transcription": {
+    "transcribed": true,
+    "command_family": "ssh_remote_command",
+    "strategy": "go_ssh_client"
+  },
+  "status": "running",
+  "created_at": "2026-05-17T00:00:00Z",
+  "started_at": "2026-05-17T00:00:01Z",
+  "history": [
+    {
+      "status": "created",
+      "at": "2026-05-17T00:00:00Z",
+      "message": "task created"
+    },
+    {
+      "status": "running",
+      "at": "2026-05-17T00:00:01Z",
+      "message": "command running"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../../schemas/proxyma.interaction.ntfy.schema.json",
+  "id": "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8",
+  "creator_user_id": "fcd2f3a9-d546-44f4-837b-0c7aa4219752",
+  "display_name": "Example ntfy",
+  "enabled": true,
+  "base_url": "https://ntfy.sh",
+  "request_topic": "proxyma-e2e-requests",
+  "response_topic": "proxyma-e2e-responses",
+  "poll_interval": "5s",
+  "poll_timeout": "30s",
+  "responded_by": "ntfy"
+}

@@ -1,0 +1,23 @@
+{
+  "transport": "ssh",
+  "$schema": "../../../../schemas/proxyma.target.schema.json",
+  "id": "33333333-3333-4333-8333-333333333333",
+  "hostname": "APP-SRV-01",
+  "ip": "10.10.1.30",
+  "username": "fixture-app",
+  "policy_ids": [
+    "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
+  ],
+  "agent_ids": [
+    "8dc60324-b3bb-4d19-9aa6-0e149e4938b8"
+  ],
+  "user_ids": [
+    "fcd2f3a9-d546-44f4-837b-0c7aa4219752"
+  ],
+  "auth": {
+    "type": "password",
+    "password": "fixture-password-app"
+  },
+  "description": "Application server fixture",
+  "os": "linux"
+}

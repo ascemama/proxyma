@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.config.schema.json",
+  "title": "Proxyma Runtime Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["server", "paths", "execution", "security", "logging"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editor validation and autocomplete."
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["listen_address"],
+      "properties": {
+        "listen_address": {
+          "type": "string",
+          "default": "127.0.0.1:8080",
+          "description": "HTTP or HTTPS listen address for the Proxyma service."
+        },
+        "scheme": {
+          "type": "string",
+          "enum": ["https", "http"],
+          "default": "https",
+          "description": "Transport scheme served directly by Proxyma."
+        },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["self_signed", "provided"],
+              "default": "self_signed"
+            },
+            "certificate_file": {
+              "type": "string",
+              "default": "tls/self-signed.crt"
+            },
+            "private_key_file": {
+              "type": "string",
+              "default": "tls/self-signed.key"
+            },
+            "server_name": {
+              "type": "string",
+              "default": "",
+              "description": "Optional DNS name or IP address added to generated certificate SANs."
+            }
+          }
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_dir", "policy_dir", "agent_dir", "user_dir", "task_dir", "interaction_dir", "interaction_history_db", "interaction_config_dir", "user_session_dir", "credential_token_dir", "known_hosts_path"],
+      "properties": {
+        "target_dir": {
+          "type": "string",
+          "default": "targets",
+          "description": "Directory containing target JSON files."
+        },
+        "policy_dir": {
+          "type": "string",
+          "default": "policies",
+          "description": "Directory containing Proxyma command policy JSON files."
+        },
+        "agent_dir": {
+          "type": "string",
+          "default": "agents",
+          "description": "Directory containing Proxyma agent JSON files."
+        },
+        "user_dir": {
+          "type": "string",
+          "default": "users",
+          "description": "Directory containing Proxyma user JSON files."
+        },
+        "task_dir": {
+          "type": "string",
+          "default": "var/proxyma/tasks",
+          "description": "Directory containing persisted task JSON records."
+        },
+        "interaction_dir": {
+          "type": "string",
+          "default": "var/proxyma/interactions",
+          "description": "Directory containing persisted human interaction JSON records."
+        },
+        "interaction_history_db": {
+          "type": "string",
+          "default": "var/proxyma/interaction-history.db",
+          "description": "SQLite database path for the query-optimized interaction history index."
+        },
+        "interaction_config_dir": {
+          "type": "string",
+          "default": "interactions",
+          "description": "Directory containing interaction instance JSON configuration."
+        },
+        "user_session_dir": {
+          "type": "string",
+          "default": "var/proxyma/user_sessions",
+          "description": "Directory containing persisted GUI/API user session JSON records."
+        },
+        "credential_token_dir": {
+          "type": "string",
+          "default": "var/proxyma/credential_tokens",
+          "description": "Directory containing persisted one-time activation and password-reset token records."
+        },
+        "known_hosts_path": {
+          "type": "string",
+          "description": "Proxyma-owned OpenSSH known_hosts file used for SSH host-key verification."
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_timeout", "interaction_timeout", "output_limit", "require_command_approval"],
+      "properties": {
+        "command_timeout": {
+          "type": "string",
+          "default": "5m",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+          "description": "Default command execution timeout using Go duration syntax."
+        },
+        "interaction_timeout": {
+          "type": "string",
+          "default": "24h",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+          "description": "Default timeout for pending human interactions."
+        },
+        "output_limit": {
+          "type": "integer",
+          "default": 1048576,
+          "minimum": 1,
+          "description": "Maximum captured stdout or stderr bytes before truncation."
+        },
+        "require_command_approval": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether command tasks require human approval before execution."
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_session_ttl", "user_activation_token_ttl", "user_activation_token_max_ttl"],
+      "properties": {
+        "user_session_ttl": {
+          "type": "string",
+          "default": "12h",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+          "description": "Lifetime for GUI/API user cookie sessions."
+        },
+        "user_activation_token_ttl": {
+          "type": "string",
+          "default": "12h",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+          "description": "Default lifetime for user activation tokens."
+        },
+        "user_activation_token_max_ttl": {
+          "type": "string",
+          "default": "48h",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)([0-9]+(ns|us|ms|s|m|h))*$",
+          "description": "Maximum lifetime an administrator may choose for a user activation token."
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["debug"],
+      "properties": {
+        "debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enables HTTP request, command preparation, and command execution debug logging."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "error": "command transcriptor cannot ingest helper-wrapped SSH syntax",
+  "code": "unsupported_command_format",
+  "retryable": true,
+  "hint": "submit canonical ssh {user}@host remote-command format"
+}

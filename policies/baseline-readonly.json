@@ -1,0 +1,28 @@
+{
+  "$schema": "../schemas/proxyma.policy.schema.json",
+  "id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+  "name": "Baseline Readonly",
+  "description": "Allow simple diagnostic commands, deny destructive commands, approve everything else.",
+  "priority": 100,
+  "enabled": true,
+  "rules": [
+    {
+      "id": "deny-dangerous",
+      "effect": "deny",
+      "remote_command_regex": "(?i)\\b(rm\\s+-rf|shutdown|reboot|mkfs|dd\\b)",
+      "reason": "Dangerous destructive command."
+    },
+    {
+      "id": "allow-diagnostics",
+      "effect": "allow",
+      "remote_command_prefix_any": ["hostname", "uptime", "df -h", "free -m"],
+      "reason": "Known readonly diagnostic command."
+    },
+    {
+      "id": "approve-default",
+      "effect": "approval",
+      "always": true,
+      "reason": "Command requires human approval."
+    }
+  ]
+}

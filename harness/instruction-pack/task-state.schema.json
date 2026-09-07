@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/client-task-state-v2.schema.json",
+  "title": "ProxymaClientTaskStateV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "client_task_id", "revision", "user_goal", "status", "created_at", "updated_at", "remaining_work", "operations"],
+  "properties": {
+    "schema_version": {"const": "2"},
+    "client_task_id": {"type": "string", "format": "uuid"},
+    "revision": {"type": "integer", "minimum": 1},
+    "user_goal": {"type": "string", "minLength": 1},
+    "status": {"enum": ["pending", "waiting_proxyma", "completed", "blocked", "failed"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "last_checked_at": {"type": "string", "format": "date-time"},
+    "remaining_work": {"type": "string"},
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "request_hash", "phase", "target", "payload", "payload_kind", "canonical_command", "reasoning", "requested_by", "prepared_at"],
+        "properties": {
+          "operation_id": {"type": "string", "format": "uuid"},
+          "request_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "phase": {"enum": ["prepared", "submitting", "submission_unknown", "submitted", "completed", "blocked"]},
+          "target": {"$ref": "#/$defs/target"},
+          "payload": {"type": "string", "minLength": 1},
+          "payload_kind": {"enum": ["posix_shell", "windows_shell", "powershell"]},
+          "canonical_command": {"type": "string", "minLength": 1},
+          "reasoning": {"type": "string", "minLength": 1},
+          "requested_by": {"type": "string", "minLength": 1},
+          "metadata": {"type": "object"},
+          "proxyma_task_id": {"type": "string"},
+          "proxyma_status": {"type": "string"},
+          "prepared_at": {"type": "string", "format": "date-time"},
+          "submitted_at": {"type": "string", "format": "date-time"},
+          "checked_at": {"type": "string", "format": "date-time"},
+          "result": {"type": "object"},
+          "last_error": {"type": "object"}
+        }
+      }
+    },
+    "blocked_reason": {"type": "string"},
+    "required_next_action": {"type": "string"},
+    "failure_reason": {"type": "string"},
+    "final_summary": {"type": "string"}
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"hostname": {"type": "string", "minLength": 1}, "ip": {"type": "string", "minLength": 1}},
+      "oneOf": [{"required": ["hostname"]}, {"required": ["ip"]}]
+    }
+  }
+}

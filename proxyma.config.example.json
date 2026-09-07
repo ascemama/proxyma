@@ -1,0 +1,40 @@
+{
+  "$schema": "./schemas/proxyma.config.schema.json",
+  "server": {
+    "listen_address": "127.0.0.1:8080",
+    "scheme": "https",
+    "tls": {
+      "mode": "self_signed",
+      "certificate_file": "tls/self-signed.crt",
+      "private_key_file": "tls/self-signed.key",
+      "server_name": ""
+    }
+  },
+  "paths": {
+    "target_dir": "targets",
+    "policy_dir": "policies",
+    "agent_dir": "agents",
+    "user_dir": "users",
+    "task_dir": "var/proxyma/tasks",
+    "interaction_dir": "var/proxyma/interactions",
+    "interaction_history_db": "var/proxyma/interaction-history.db",
+    "interaction_config_dir": "interactions",
+    "user_session_dir": "var/proxyma/user_sessions",
+    "credential_token_dir": "var/proxyma/credential_tokens",
+    "known_hosts_path": "var/proxyma/.ssh/known_hosts"
+  },
+  "execution": {
+    "command_timeout": "5m",
+    "interaction_timeout": "24h",
+    "output_limit": 1048576,
+    "require_command_approval": true
+  },
+  "security": {
+    "user_session_ttl": "12h",
+    "user_activation_token_ttl": "12h",
+    "user_activation_token_max_ttl": "48h"
+  },
+  "logging": {
+    "debug": false
+  }
+}

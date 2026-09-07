@@ -1,0 +1,23 @@
+{
+  "transport": "ssh",
+  "$schema": "../../../../schemas/proxyma.target.schema.json",
+  "id": "66666666-6666-4666-8666-666666666666",
+  "hostname": "OP-EDGE-01",
+  "ip": "10.20.1.21",
+  "username": "fixture-operator-edge",
+  "policy_ids": [
+    "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
+  ],
+  "agent_ids": [
+    "44444444-4444-4444-8444-444444444444"
+  ],
+  "user_ids": [
+    "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"
+  ],
+  "auth": {
+    "type": "password",
+    "password": "fixture-operator-edge-password"
+  },
+  "description": "Operator edge fixture",
+  "os": "linux"
+}
