@@ -12,19 +12,19 @@
     "test:e2e:visual": "playwright test e2e/visual.spec.ts"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.0",
-    "lucide-react": "^1.18.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "@tanstack/react-query": "^5.102.8",
+    "lucide-react": "^1.40.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^25.9.3",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
     "doctoc": "^2.5.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.2.2"
   }
 }
