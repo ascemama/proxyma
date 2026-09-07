@@ -23,8 +23,8 @@ func testAgentRegistry() agents.Registry {
 
 var testUser = users.User{
 	ID:         "fcd2f3a9-d546-44f4-837b-0c7aa4219752",
-	Username:   "antoine",
-	Name:       "Antoine",
+	Username:   "demo-admin",
+	Name:       "Demo Admin",
 	Admin:      true,
 	Status:     users.StatusActive,
 	PasswdHash: "$argon2id$v=19$m=19456,t=2,p=1$WGeElL1uhb1hV8gVYptHmg$rvzcxwJQV6VK9gqH/GnHKWGB3t+40DX8XUYLkr8iiGE",

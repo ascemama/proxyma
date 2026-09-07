@@ -179,7 +179,7 @@ async function installProductionAPIMocks(page: Page, state: ProductionAPIState) 
 
 async function login(page: Page) {
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 }
@@ -205,8 +205,8 @@ function sessionResponse() {
   return {
     user: {
       id: userID,
-      username: 'antoine',
-      name: 'Antoine',
+      username: 'demo-admin',
+      name: 'Demo Admin',
       admin: true,
       status: 'active',
       theme: 'light'

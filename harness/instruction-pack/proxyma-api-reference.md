@@ -78,7 +78,7 @@ Success response:
   "target": {
     "transport": "ssh",
     "os": "linux",
-    "hostname": "AntoineUbuntu",
+  "hostname": "demo-linux-target",
     "ip": "20.218.123.238"
   },
   "canonical_command": {

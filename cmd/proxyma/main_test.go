@@ -148,7 +148,7 @@ func TestValidateInteractionCreatorReferencesRejectsUnknownUser(t *testing.T) {
 		t.Fatalf("load diagnostics = %#v", diagnostics)
 	}
 	userRegistry := users.NewRegistry([]users.User{
-		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Username: "antoine", Name: "Antoine"},
+		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Username: "demo-admin", Name: "Demo Admin"},
 	})
 
 	creatorDiagnostics := validateInteractionCreatorReferences(registry, userRegistry)
@@ -168,7 +168,7 @@ func TestValidateUserReferencesRejectsUnknownTargetUser(t *testing.T) {
 		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"fcd2f3a9-d546-44f4-837b-0c7aa4219752"}},
 	})
 	userRegistry := users.NewRegistry([]users.User{
-		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Name: "Antoine"},
+		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Name: "Demo Admin"},
 	})
 
 	diagnostics := validateUserReferences(registry, agentRegistry, userRegistry)
@@ -188,7 +188,7 @@ func TestValidateUserReferencesRejectsUnknownAgentUser(t *testing.T) {
 		{ID: "df9ec8bb-1a22-4181-a7c8-126ad553221d", AgentJWTSigningKey: "signing-key", Enabled: true, UserIDs: []string{"missing-user"}},
 	})
 	userRegistry := users.NewRegistry([]users.User{
-		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Name: "Antoine"},
+		{ID: "fcd2f3a9-d546-44f4-837b-0c7aa4219752", Name: "Demo Admin"},
 	})
 
 	diagnostics := validateUserReferences(registry, agentRegistry, userRegistry)

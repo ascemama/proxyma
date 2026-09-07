@@ -3588,7 +3588,7 @@ function TargetFormModal({
           <div className="dialog-grid">
             <label className="dialog-field">
               <span>Hostname</span>
-              <input value={hostname} onChange={(event) => handleHostnameChange(event.target.value)} placeholder="WEB-SRV-01" />
+              <input value={hostname} onChange={(event) => handleHostnameChange(event.target.value)} placeholder="DEMO-WEB-01" />
             </label>
             <label className="dialog-field">
               <span>IP address</span>

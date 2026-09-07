@@ -27,7 +27,7 @@ import (
 
 func TestLoginCreatesSecureUserSessionCookie(t *testing.T) {
 	server := testLoginServer(t, false)
-	rec := loginRequest(t, server, `{"username":"antoine","password":"correct-password"}`)
+	rec := loginRequest(t, server, `{"username":"demo-admin","password":"correct-password"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -35,7 +35,7 @@ func TestLoginCreatesSecureUserSessionCookie(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.User.ID != testUser.ID || response.User.Username != "antoine" || response.User.Theme != users.ThemeLight || response.CSRFToken == "" {
+	if response.User.ID != testUser.ID || response.User.Username != "demo-admin" || response.User.Theme != users.ThemeLight || response.CSRFToken == "" {
 		t.Fatalf("response = %#v", response)
 	}
 	if response.Build.Version != "1.2.3+4.gabcdef0" || response.Build.Commit != "abcdef0" {
@@ -55,7 +55,7 @@ func TestLoginCreatesSecureUserSessionCookie(t *testing.T) {
 
 func TestLoginUsesDevCookieWhenInsecureCookiesAllowed(t *testing.T) {
 	server := testLoginServer(t, true)
-	rec := loginRequest(t, server, `{"username":"antoine","password":"correct-password"}`)
+	rec := loginRequest(t, server, `{"username":"demo-admin","password":"correct-password"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -73,9 +73,9 @@ func TestLoginRejectsInvalidRequestsAndCredentials(t *testing.T) {
 		status int
 		code   string
 	}{
-		{name: "missing password", body: `{"username":"antoine"}`, status: http.StatusBadRequest},
-		{name: "unknown field", body: `{"username":"antoine","password":"correct-password","extra":true}`, status: http.StatusBadRequest},
-		{name: "wrong password", body: `{"username":"antoine","password":"wrong-password"}`, status: http.StatusUnauthorized, code: "invalid_login"},
+		{name: "missing password", body: `{"username":"demo-admin"}`, status: http.StatusBadRequest},
+		{name: "unknown field", body: `{"username":"demo-admin","password":"correct-password","extra":true}`, status: http.StatusBadRequest},
+		{name: "wrong password", body: `{"username":"demo-admin","password":"wrong-password"}`, status: http.StatusUnauthorized, code: "invalid_login"},
 		{name: "unknown user", body: `{"username":"missing","password":"wrong-password"}`, status: http.StatusUnauthorized, code: "invalid_login"},
 	}
 	for _, tc := range cases {
@@ -102,7 +102,7 @@ func TestLoginRejectsInvalidRequestsAndCredentials(t *testing.T) {
 
 func TestSessionRotatesCSRFAndLogoutRevokesSession(t *testing.T) {
 	server := testLoginServer(t, false)
-	loginRec := loginRequest(t, server, `{"username":"antoine","password":"correct-password"}`)
+	loginRec := loginRequest(t, server, `{"username":"demo-admin","password":"correct-password"}`)
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("login status = %d body=%s", loginRec.Code, loginRec.Body.String())
 	}
@@ -266,16 +266,16 @@ func TestChangePasswordUpdatesPasswordRevokesOtherSessionsAndLogs(t *testing.T) 
 		t.Fatalf("different user's session was revoked: %v", err)
 	}
 
-	oldLogin := loginRequest(t, server, `{"username":"antoine","password":"correct-password"}`)
+	oldLogin := loginRequest(t, server, `{"username":"demo-admin","password":"correct-password"}`)
 	if oldLogin.Code != http.StatusUnauthorized {
 		t.Fatalf("old login status = %d body=%s", oldLogin.Code, oldLogin.Body.String())
 	}
-	newLogin := loginRequest(t, server, `{"username":"antoine","password":"new-password"}`)
+	newLogin := loginRequest(t, server, `{"username":"demo-admin","password":"new-password"}`)
 	if newLogin.Code != http.StatusOK {
 		t.Fatalf("new login status = %d body=%s", newLogin.Code, newLogin.Body.String())
 	}
 	logText := logs.String()
-	for _, expected := range []string{"user password changed", testUser.ID, `username="antoine"`, "revoked_sessions=1"} {
+	for _, expected := range []string{"user password changed", testUser.ID, `username="demo-admin"`, "revoked_sessions=1"} {
 		if !strings.Contains(logText, expected) {
 			t.Fatalf("log missing %q: %s", expected, logText)
 		}
@@ -317,7 +317,7 @@ func TestUserSettingsValidatesAuthenticationCSRFAndTheme(t *testing.T) {
 func TestUserSettingsPersistsThemeInLegacyRecordAndSession(t *testing.T) {
 	server, paths := testTargetMutationServer(t, nil)
 	idPath := filepath.Join(paths.UserDir, testUser.ID+".json")
-	legacyPath := filepath.Join(paths.UserDir, "antoine.json")
+	legacyPath := filepath.Join(paths.UserDir, "demo-admin.json")
 	if err := os.Rename(idPath, legacyPath); err != nil {
 		t.Fatal(err)
 	}
@@ -1666,7 +1666,7 @@ func TestUserMutationsRejectNonAdminAndLockoutRequests(t *testing.T) {
 	}{
 		{http.MethodGet, "/v1/user/users", ``},
 		{http.MethodPost, "/v1/user/users", `{"username":"blocked","name":"Blocked","password":"password"}`},
-		{http.MethodPut, "/v1/user/users/" + testUser.ID, `{"username":"antoine","name":"Antoine","admin":true}`},
+		{http.MethodPut, "/v1/user/users/" + testUser.ID, `{"username":"demo-admin","name":"Demo Admin","admin":true}`},
 		{http.MethodDelete, "/v1/user/users/" + testUser.ID, ``},
 	} {
 		rec := userTargetMutationRequest(t, server, request.method, request.path, nonAdminCookie, nonAdminSession.CSRFToken, request.body)
@@ -1680,7 +1680,7 @@ func TestUserMutationsRejectNonAdminAndLockoutRequests(t *testing.T) {
 	if selfDelete.Code != http.StatusBadRequest {
 		t.Fatalf("self delete status = %d body=%s", selfDelete.Code, selfDelete.Body.String())
 	}
-	selfDemote := userTargetMutationRequest(t, server, http.MethodPut, "/v1/user/users/"+testUser.ID, adminCookie, adminSession.CSRFToken, `{"username":"antoine","name":"Antoine","admin":false}`)
+	selfDemote := userTargetMutationRequest(t, server, http.MethodPut, "/v1/user/users/"+testUser.ID, adminCookie, adminSession.CSRFToken, `{"username":"demo-admin","name":"Demo Admin","admin":false}`)
 	if selfDemote.Code != http.StatusBadRequest {
 		t.Fatalf("self demote status = %d body=%s", selfDemote.Code, selfDemote.Body.String())
 	}
@@ -2183,7 +2183,7 @@ func loginCookie(t *testing.T, server *Server) *http.Cookie {
 
 func loginSession(t *testing.T, server *Server) (*http.Cookie, UserSessionResponse) {
 	t.Helper()
-	loginRec := loginRequest(t, server, `{"username":"antoine","password":"correct-password"}`)
+	loginRec := loginRequest(t, server, `{"username":"demo-admin","password":"correct-password"}`)
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("login status = %d body=%s", loginRec.Code, loginRec.Body.String())
 	}

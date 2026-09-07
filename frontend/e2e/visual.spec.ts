@@ -12,7 +12,7 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   await expect(page.getByRole('heading', { name: 'Proxyma' })).toBeVisible();
   await page.screenshot({ fullPage: true, path: 'test-results/login-desktop.png' });
 
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -22,12 +22,12 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   await expect(page.getByText('Agents')).toBeVisible();
   await page.screenshot({ fullPage: true, path: 'test-results/dashboard-desktop.png' });
 
-  await page.getByRole('button', { name: 'Open settings for Antoine' }).click();
+  await page.getByRole('button', { name: 'Open settings for Demo Admin' }).click();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
   await page.screenshot({ path: 'test-results/settings-desktop.png' });
   await page.getByRole('button', { name: 'Close settings' }).click();
 
-  await page.getByRole('button', { name: 'Open settings for Antoine' }).click();
+  await page.getByRole('button', { name: 'Open settings for Demo Admin' }).click();
   const appearanceSettings = page.getByRole('dialog', { name: 'Settings' });
   await appearanceSettings.getByRole('button', { name: 'Appearance', exact: true }).click();
   await appearanceSettings.getByRole('radio', { name: /Dark/ }).check();
@@ -37,7 +37,7 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   await settingsBackdrop.evaluate((element) => {
     element.style.display = 'none';
   });
-  await expect(page.getByRole('row', { name: /^WEB-SRV-01 SSH password/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /^DEMO-WEB-01 SSH password/ })).toBeVisible();
   await page.screenshot({ path: 'test-results/dashboard-dark-desktop.png' });
   await settingsBackdrop.evaluate((element) => {
     element.style.removeProperty('display');
@@ -105,7 +105,7 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
 
 test('activation page screenshots are visually usable', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await page.getByRole('button', { name: 'Users', exact: true }).click();
@@ -127,7 +127,7 @@ test('activation page screenshots are visually usable', async ({ page }) => {
   await page.getByRole('button', { name: 'Activate account' }).click();
   await page.getByRole('button', { name: 'Return to sign in' }).click();
   await page.locator('html').evaluate((element) => { element.dataset.theme = 'light'; });
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await page.getByRole('button', { name: 'Users', exact: true }).click();

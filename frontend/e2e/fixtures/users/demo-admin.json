@@ -1,8 +1,8 @@
 {
   "$schema": "../../../../schemas/proxyma.user.schema.json",
   "id": "fcd2f3a9-d546-44f4-837b-0c7aa4219752",
-  "username": "antoine",
-  "name": "Antoine",
+  "username": "demo-admin",
+  "name": "Demo Admin",
   "admin": true,
   "status": "active",
   "passwd_hash": "$argon2id$v=19$m=19456,t=2,p=1$oGoXozlwaknJrL5bujJ50A$mlyiunx2v/zPVZvUf4/OOythp14Yeg2IDmDFknoHbu0"

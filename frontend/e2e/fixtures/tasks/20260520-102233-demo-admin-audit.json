@@ -1,19 +1,19 @@
 {
-  "task_id": "task-antoine-private-audit",
+  "task_id": "task-demo-admin-audit",
   "agent_id": "df9ec8bb-1a22-4181-a7c8-126ad553221d",
   "target": {
-    "hostname": "WEB-SRV-01",
-    "ip": "10.10.1.12",
+    "hostname": "DEMO-WEB-01",
+    "ip": "192.0.2.12",
     "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"]
   },
-  "command": "antoine-private-audit",
-  "reasoning": "Antoine-only fixture command history item.",
+  "command": "demo-admin-audit",
+  "reasoning": "Synthetic demo-admin fixture command history item.",
   "status": "completed",
   "created_at": "2026-05-20T10:22:20Z",
   "started_at": "2026-05-20T10:22:24Z",
   "completed_at": "2026-05-20T10:22:33Z",
   "result": {
-    "stdout": "antoine private audit result",
+    "stdout": "demo-admin audit result",
     "stderr": "",
     "exit_status": 0,
     "truncated": false

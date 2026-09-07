@@ -20,7 +20,7 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByText(/AGPL|No warranty|Version/)).toHaveCount(0);
   await expect(page.getByRole('link', { name: /License|Source/ })).toHaveCount(0);
 
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -70,11 +70,11 @@ test('user can log in and load the dashboard', async ({ page }) => {
 
 test('user can change their password from settings', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Open settings for Antoine' }).click();
+  await page.getByRole('button', { name: 'Open settings for Demo Admin' }).click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await expect(settings).toBeVisible();
   await expect(settings.getByRole('button', { name: 'Appearance', exact: true })).toBeEnabled();
@@ -125,7 +125,7 @@ test('user can change their password from settings', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Logout' }).click();
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await expect(page.getByText('invalid username or password')).toBeVisible();
@@ -133,7 +133,7 @@ test('user can change their password from settings', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign In' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Open settings for Antoine' }).click();
+  await page.getByRole('button', { name: 'Open settings for Demo Admin' }).click();
   const restoreSettings = page.getByRole('dialog', { name: 'Settings' });
   await restoreSettings.getByLabel('Current password', { exact: true }).fill('new-password');
   await restoreSettings.getByLabel('New password', { exact: true }).fill('correct-password');
@@ -199,24 +199,24 @@ test('admin user sees all agents targets command history and owners', async ({ p
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
   await page.getByRole('button', { name: 'Target', exact: true }).click();
   await expect(page.getByRole('row', { name: /Target Name Type Owners Endpoint Last Seen Actions/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /WEB-SRV-01.*Antoine \(antoine\)/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /DEMO-WEB-01.*Demo Admin \(demo-admin\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-EDGE-01.*Operator \(operator\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-WORKER-01.*Operator \(operator\)/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Agent', exact: true }).click();
   await expect(page.getByRole('row', { name: /Agent Name Owners Linked Target Latest Command Command Result Last Run Actions/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /agent-web-01.*Antoine \(antoine\)/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /demo-web-agent.*Demo Admin \(demo-admin\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-edge-agent.*Operator \(operator\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-worker-agent.*Operator \(operator\)/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Command History', exact: true }).click();
-  await expect(page.getByRole('row', { name: /agent-web-01 WEB-SRV-01 antoine-private-audit Completed Success/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /demo-web-agent DEMO-WEB-01 demo-admin-audit Completed Success/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-edge-agent OP-EDGE-01 operator-edge-audit Completed Success/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-worker-agent OP-WORKER-01 operator-worker-audit Completed Warning/ })).toBeVisible();
 
@@ -232,7 +232,7 @@ test('user can open the full command history tab', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -240,7 +240,7 @@ test('user can open the full command history tab', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Command History', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Command History', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /Agent Target Command Status Result Timestamp/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /agent-web-01 WEB-SRV-01 antoine-private-audit Completed Success/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /demo-web-agent DEMO-WEB-01 demo-admin-audit Completed Success/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
   await page.getByRole('button', { name: /View all history/ }).click();
@@ -259,7 +259,7 @@ test('user can manage agents from the agent tab', async ({ context, page }) => {
 
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:15183' });
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -342,7 +342,7 @@ test('admin can manage users from the users tab', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -380,7 +380,7 @@ test('admin can manage users from the users tab', async ({ page }) => {
 
 test('admin-created user can activate and sign in', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await page.getByRole('button', { name: 'Users', exact: true }).click();
@@ -412,7 +412,7 @@ test('admin-created user can activate and sign in', async ({ page }) => {
 
 test('admin can reset another user password with a one-time link', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await page.getByRole('button', { name: 'Users', exact: true }).click();
@@ -429,7 +429,7 @@ test('admin can reset another user password with a one-time link', async ({ page
   await page.getByRole('textbox', { name: 'Confirm new password', exact: true }).fill('old-password');
   await page.getByRole('button', { name: 'Activate account' }).click();
   await page.getByRole('button', { name: 'Return to sign in' }).click();
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
   await page.getByRole('button', { name: 'Users', exact: true }).click();
@@ -479,7 +479,7 @@ test('non-admin user sees only their own agents and targets', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Target', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-EDGE-01/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-WORKER-01/ })).toBeVisible();
-  for (const name of ['WEB-SRV-01', 'DB-SRV-01', 'APP-SRV-01']) {
+  for (const name of ['DEMO-WEB-01', 'DB-SRV-01', 'APP-SRV-01']) {
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0);
   }
 
@@ -487,7 +487,7 @@ test('non-admin user sees only their own agents and targets', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Agent', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-edge-agent/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-worker-agent/ })).toBeVisible();
-  for (const name of ['agent-web-01', 'agent-db-01', 'agent-app-01']) {
+  for (const name of ['demo-web-agent', 'agent-db-01', 'agent-app-01']) {
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0);
   }
 
@@ -503,7 +503,7 @@ test('non-admin user sees only their own agents and targets', async ({ page }) =
   await expect(page.getByRole('heading', { level: 1, name: 'Command History', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-edge-agent OP-EDGE-01 operator-edge-audit Completed Success/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-worker-agent OP-WORKER-01 operator-worker-audit Completed Warning/ })).toBeVisible();
-  for (const name of ['check-drift --full', 'backup --verify', 'rotate-credentials', 'antoine-private-audit', 'WEB-SRV-01', 'DB-SRV-01', 'APP-SRV-01']) {
+  for (const name of ['check-drift --full', 'backup --verify', 'rotate-credentials', 'demo-admin-audit', 'DEMO-WEB-01', 'DB-SRV-01', 'APP-SRV-01']) {
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0);
   }
 
@@ -560,7 +560,7 @@ test('development Local interaction keeps Agent creation enabled without configu
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -592,7 +592,7 @@ test('target creation requires both an agent and a policy on every target entry 
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -684,7 +684,7 @@ test('target creation stays disabled while prerequisites load and supports retry
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -757,7 +757,7 @@ test('user can manage targets from the target tab', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByLabel('Username').fill('antoine');
+  await page.getByLabel('Username').fill('demo-admin');
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -776,7 +776,7 @@ test('user can manage targets from the target tab', async ({ page }) => {
   await addTargetDialog.getByLabel('Password', { exact: true }).fill('fixture-ops-password');
   await addTargetDialog.getByLabel('Policy Name').selectOption({ label: 'Baseline Readonly Fixture' });
   await addTargetDialog.getByText('Select agents').click();
-  await addTargetDialog.getByLabel('agent-web-01').check();
+  await addTargetDialog.getByLabel('demo-web-agent').check();
   await expect(addTargetDialog.getByRole('button', { name: 'Save Target' })).toBeDisabled();
   await addTargetDialog.getByRole('button', { name: 'Test credentials' }).click();
   await expect(addTargetDialog.getByText('SSH connection verified')).toBeVisible();

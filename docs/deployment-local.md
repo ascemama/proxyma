@@ -166,7 +166,7 @@ To start the fixture backend manually from the repository root on Windows:
   --require-command-approval=false
 ```
 
-The fixture login is `antoine` with password `correct-password`. These
+The fixture login is `demo-admin` with password `correct-password`. These
 credentials are test data only.
 
 For Go tests on Windows systems that cannot execute binaries from the default

@@ -229,7 +229,7 @@ func TestLoadDirRejectsMissingOrMalformedCreatorUserID(t *testing.T) {
 }`)
 	writeRawNtfyInstance(t, root, "bad-owner.json", `{
   "id": "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-  "creator_user_id": "antoine",
+  "creator_user_id": "demo-admin",
   "enabled": true,
   "base_url": "https://ntfy.example",
   "request_topic": "requests",
