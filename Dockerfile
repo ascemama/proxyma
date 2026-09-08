@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:26-alpine AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci
 COPY frontend ./frontend
 RUN cd frontend && npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.26.3-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG BUILD_VERSION=dev
@@ -21,7 +21,7 @@ COPY --from=frontend /src/frontend/dist ./internal/web/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -tags embedded_frontend -trimpath -ldflags="-s -w -X proxyma/internal/buildinfo.rawVersion=$BUILD_VERSION -X proxyma/internal/buildinfo.rawCommit=$BUILD_COMMIT" -o /out/proxyma ./cmd/proxyma
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/proxymactl ./cmd/proxymactl
 
-FROM alpine:3.22
+FROM alpine:3.24
 LABEL org.opencontainers.image.title="Proxyma" \
   org.opencontainers.image.description="Policy-enforcing proxy for AI agent access to remote systems" \
   org.opencontainers.image.source="https://github.com/ascemama/proxyma" \
