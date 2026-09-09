@@ -26,7 +26,8 @@ LABEL org.opencontainers.image.title="Proxyma" \
   org.opencontainers.image.description="Policy-enforcing proxy for AI agent access to remote systems" \
   org.opencontainers.image.source="https://github.com/ascemama/proxyma" \
   org.opencontainers.image.licenses="AGPL-3.0-only"
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk upgrade --no-cache \
+  && apk add --no-cache ca-certificates tzdata \
   && addgroup -S -g 10001 proxyma \
   && adduser -S -G proxyma -u 10001 proxyma \
   && mkdir -p /etc/proxyma /var/lib/proxyma /usr/share/licenses/proxyma \
