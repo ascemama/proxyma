@@ -1,9 +1,16 @@
-# Proxyma Deployment
+# Proxyma Server Deployment
 
-Proxyma supports four deployment modes. Choose the mode that matches how the
-server will be used, then follow the linked lifecycle guide.
+This page covers deployment of the `proxyma-server` component and its embedded
+browser frontend. It does not describe installation of `proxyma-agent`, which
+runs on the workstation where Codex, Claude Code, or another agent runtime
+operates. For the agent component, see the [`proxyma-agent` release
+installation guide](proxyma-agent-installation-release.md) or the
+[`proxyma-agent` source installation guide](proxyma-agent-installation-source.md).
 
-| Mode | Intended use | Supported host | Runtime shape | Requirements |
+Proxyma Server supports four deployment modes. Choose the mode that matches how
+the server will be used, then follow the linked lifecycle guide.
+
+| Server installation type | Intended use | Supported host | Runtime shape | Requirements |
 | --- | --- | --- | --- | --- |
 | [Local development](deployment-local.md) | Changing or testing Proxyma and its frontend | Windows, Linux, or macOS development checkout | Separate Go API and Vite frontend processes | Go, Node.js, npm, and Git |
 | [Precompiled Linux binary](deployment-linux-precompiled.md) | Recommended host-level production or test installation | Linux AMD64 or ARM64 with systemd | Downloaded server binary with the frontend embedded, plus `proxymactl` | `curl`, `tar`, `sha256sum`, and root access; no source checkout or compiler |

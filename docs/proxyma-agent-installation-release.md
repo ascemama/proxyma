@@ -167,7 +167,7 @@ your-project/
     ├── .claude/                 Claude Code adapter
     ├── agent-configuration/     Local credentials; initially empty
     ├── examples/                Configuration and task examples
-    ├── instruction-pack/        Harness policy, schemas, and API reference
+    ├── instruction-pack/        Harness policy, CLI contract, schemas, and examples
     ├── task-state/              CLI-owned durable task state
     ├── tests/                   Validation material and scenarios
     ├── proxyma-agent.json       Local harness configuration

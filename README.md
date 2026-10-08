@@ -73,9 +73,22 @@ The complete command workflow is:
    The harness polls through `proxyma-agent` until it receives the final
    status, stdout, stderr, and exit status.
 
-See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) and the
-[agent API reference](harness/instruction-pack/proxyma-api-reference.md) for
-the complete lifecycle.
+See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) for the complete lifecycle.  
+
+<table>
+  <tr>
+    <td bgcolor="#e8f4ff"><strong>Note</strong><br>
+    The <code>proxyma-agent</code> CLI was introduced to improve speed and token
+    consumption. Providing the API to the harness (as a skill) imposes a high
+    and unnecessary burden on the harness, which results in poor performance.
+    No MCP server is provided for a similar reason.</td>
+  </tr>
+</table>
+
+> [!WARNING]
+> **Early-stage project** 
+Proxyma is currently at version **0.1** and has limited freature such as limited policy set and communication channels (currently only NTFY) 
+ 
 
 ## Proxyma Dashboard
 
@@ -138,7 +151,8 @@ troubleshooting, and removal.
 | Release installation | `proxyma-agent` | Install the official cross-platform agent CLI, matching harness, and model adapter | [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md) |
 | Source installation | `proxyma-agent` | Build and install the agent CLI and matching harness from a selected source revision | [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md) |
 
-See the [deployment overview](docs/deployment.md) for a side-by-side comparison.
+After installation, follow the [first-time configuration guide](docs/first-time-configuration.md)
+to create the initial policy, interaction, agent, and target resources.
 
 ## Repository Layout
 

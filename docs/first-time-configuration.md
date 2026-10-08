@@ -69,9 +69,33 @@ the form:
 
 ![Add NTFY Interaction form](images/first-time-ntfy.jpg)
 
-Keep the request and response topics distinct. Test the topics and access token
-outside Proxyma first if your ntfy server requires authentication. Proxyma does
-not display the token again after the instance is saved.
+### Why are there two topics?
+
+An ntfy topic is a stream of messages. Proxyma uses two streams because an
+approval interaction has two directions:
+
+- **Request Topic** is where Proxyma publishes a new approval request. Subscribe
+  to this topic on the phone or desktop where an operator will review requests.
+- **Response Topic** is where the operator's **Approve** or **Reject** action is
+  sent. Proxyma listens to this topic and matches the response to the pending
+  interaction.
+
+Keeping these topics separate makes the direction of traffic clear and prevents
+Proxyma's request notifications from being mixed with approval responses. Use
+different, hard-to-guess topic names; do not use a public topic for production
+approvals. The two topic fields are required by the NTFY interaction
+configuration, and they should normally contain different topic names.
+
+The example below is illustrative: the first subscription shows an approval
+request and the second shows the response stream that Proxyma polls.
+
+<p align="center">
+  <img src="images/ntfy-approval-flow.png" alt="Illustrative ntfy view showing separate Proxyma approval request and response topics" width="360">
+</p>
+
+Test the topics and access token outside Proxyma first if your ntfy server
+requires authentication. Proxyma does not display the token again after the
+instance is saved.
 
 ## 4. Create an agent
 

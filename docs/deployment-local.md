@@ -48,15 +48,86 @@ Build and start the Proxyma backend from the repository root:
 
 ```bash
 go build -o ./bin/proxyma ./cmd/proxyma
-./bin/proxyma --scheme http
+go build -o ./bin/proxymactl ./cmd/proxymactl
+mkdir -p \
+  targets policies agents users interactions \
+  var/proxyma/tasks var/proxyma/interactions \
+  var/proxyma/user_sessions var/proxyma/credential_tokens
 ```
 
 On Windows PowerShell, use:
 
 ```powershell
 go build -o .\bin\proxyma.exe .\cmd\proxyma
+go build -o .\bin\proxymactl.exe .\cmd\proxymactl
+New-Item -ItemType Directory -Force -Path `
+  .\targets, .\policies, .\agents, .\users, .\interactions, `
+  .\var\proxyma\tasks, .\var\proxyma\interactions, `
+  .\var\proxyma\user_sessions, .\var\proxyma\credential_tokens | Out-Null
+```
+
+The directories above are the default local runtime paths. They are not all
+checked into the repository because they contain local configuration and
+secrets. The server expects the record directories to exist before startup.
+
+Before opening the GUI for the first time, bootstrap an administrator. The
+following two steps generate a temporary definition, prompt for the password
+without echoing it, create the user, and remove the temporary file. Run both
+steps in the same terminal.
+
+First, paste this block and enter the administrator password when prompted:
+
+```bash
+admin_file="$(mktemp "${TMPDIR:-/tmp}/proxyma-admin.XXXXXX.json")"
+trap 'rm -f "$admin_file"' EXIT
+printf '%s\n' '{
+  "username": "admin",
+  "name": "Administrator",
+  "admin": true,
+  "status": "active"
+}' > "$admin_file"
+read -r -s -p 'Proxyma admin password: ' admin_password < /dev/tty
+```
+
+After the password prompt returns to the shell, paste this second block in the
+same terminal:
+
+```bash
+printf '\n'
+printf '%s' "$admin_password" | ./bin/proxymactl users create \
+  --file "$admin_file" --password-stdin
+unset admin_password
+./bin/proxyma --scheme http
+```
+
+On Windows PowerShell, run the following two blocks in the same terminal.
+First, paste this block and enter the administrator password when prompted:
+
+```powershell
+$adminFile = Join-Path ([System.IO.Path]::GetTempPath()) ("proxyma-admin-{0}.json" -f [guid]::NewGuid())
+@'
+{
+  "username": "admin",
+  "name": "Administrator",
+  "admin": true,
+  "status": "active"
+}
+'@ | Set-Content -NoNewline -Encoding ascii -Path $adminFile
+$securePassword = Read-Host 'Proxyma admin password' -AsSecureString
+$password = [System.Net.NetworkCredential]::new('', $securePassword).Password
+```
+
+After the password prompt returns to the shell, paste this second block in the
+same terminal:
+
+```powershell
+$password | & .\bin\proxymactl.exe users create --file $adminFile --password-stdin
+Remove-Item -Force $adminFile
 .\bin\proxyma.exe --scheme http
 ```
+
+The password is stored as an Argon2id hash by `proxymactl`; do not put it in
+shell history or command-line arguments.
 
 In another terminal, start the frontend:
 

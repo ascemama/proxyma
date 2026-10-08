@@ -93,26 +93,31 @@ task state.
 Linux or macOS:
 
 ```bash
-SOURCE_VERSION="$(git describe --tags --exact-match 2>/dev/null || printf 'v0.0.0-source')"
-SOURCE_COMMIT="$(git rev-parse --short=7 HEAD)"
-bash ./scripts/package-agent-harness.sh \
-  "$SOURCE_VERSION" \
-  "$SOURCE_COMMIT" \
-  ./dist
+bash ./scripts/package-agent-harness.sh
 ```
+
+With no arguments, the packaging script derives the source version from
+`git describe --tags --long --always --dirty` and the source commit from
+`git rev-parse --short=7 HEAD`. Set `PROXYMA_VERSION`, `PROXYMA_COMMIT`, or
+`OUT_DIR` when reproducible or custom metadata or an alternate output directory
+is required. Source mode packages the current working tree, including regular
+untracked files in the supported harness directories, regardless of whether
+changes are staged. Temporary files placed in those directories are packaged
+as well, so remove them before building.
+
+Release and CI packaging continue to use the explicit version and commit
+arguments; that mode copies only tracked files.
 
 Windows PowerShell (run from Git Bash, because the packaging script is a
 POSIX shell script):
 
 ```powershell
-git describe --tags --exact-match 2>$null
-git rev-parse --short=7 HEAD
+& bash ./scripts/package-agent-harness.sh
 ```
 
-Then run the same `package-agent-harness.sh` command from Git Bash. Use the
-semantic-version tag printed by the first command as `SOURCE_VERSION`; if no
-tag is present, use `v0.0.0-source`. Use the commit printed by the second
-command as `SOURCE_COMMIT`.
+The same automatic source metadata behavior applies on Windows. Set the
+corresponding environment variables before invoking the script when custom or
+reproducible metadata is required.
 
 ## Install the built executable and harness
 

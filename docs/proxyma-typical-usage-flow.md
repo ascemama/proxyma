@@ -53,7 +53,7 @@ decisions, and the scheduler supplies the periodic trigger.
 
 ```mermaid
 flowchart TD
-    Start(["User asks harness to run a target command"])
+    Start(["START<br/>User asks harness to run a target command"])
 
     subgraph Harness["Harness / Agent"]
         H1["Build Proxyma command request<br/>Data: target hostname/IP, canonical command, reasoning, requested_by"]
@@ -79,7 +79,8 @@ flowchart TD
 
     subgraph TasksManager["internal/tasks.Manager"]
         T1["Create durable task<br/>State: created"]
-        T0["Persist policy decision<br/>Data: allow / approval / deny"]
+        T0["Persist allow policy decision<br/>Data: decision=allow"]
+        T0A["Persist approval policy decision<br/>Data: decision=approval"]
         T2["Mark task waiting for user response<br/>State: waiting_user_response"]
         T3["Record user approval<br/>State: accepted_by_user<br/>Data: approval status, interaction_id"]
         T4["Start accepted task<br/>State: running"]
@@ -91,8 +92,13 @@ flowchart TD
     end
 
     subgraph Policy["internal/taskflow/policy"]
-        P1["Evaluate target policy IDs<br/>Data: normalized remote command"]
-        P2{"Decision?"}
+        P1["Evaluate hard deny rules<br/>Data: normalized remote command"]
+        P2{"Denied?"}
+        P3["Match deterministic allow rules<br/>Data: typed command templates and validated arguments"]
+        P4{"Allowed?"}
+        P5{"LLM evaluator enabled?"}
+        P6["Classify command against configured policy<br/>Data: sanitized command context"]
+        P7{"LLM decision?"}
     end
 
     subgraph Scheduler["internal/taskflow.Scheduler"]
@@ -133,7 +139,7 @@ flowchart TD
         E2["Return execution result<br/>Data: stdout, stderr, exit_status, timeout/error"]
     end
 
-    Start --> H1
+    Start -->|"1. submit command"| H1
     H1 -->|"HTTP request"| A1
     A1 --> A2
     A2 --> A3
@@ -150,11 +156,21 @@ flowchart TD
     TF1 --> TF2
     TF2 --> P1
     P1 --> P2
-    P2 -->|"allow"| T0
+    P2 -->|"yes"| TF8
+    P2 -->|"no"| P3
+    P3 --> P4
+    P4 -->|"yes"| T0
     T0 -->|"write policy"| TS1
     T0 --> TF7
-    P2 -->|"approval"| T0
-    T0 --> TF3
+    P4 -->|"no"| P5
+    P5 -->|"yes"| P6
+    P5 -->|"no"| T0A
+    P6 --> P7
+    P7 -->|"allow within configured safety boundary"| T0
+    P7 -->|"deny"| TF8
+    P7 -->|"approval / unavailable / low confidence"| T0A
+    T0A -->|"write policy"| TS1
+    T0A --> TF3
     TF3 --> I1
     I1 --> I2
     I2 -->|"write interaction"| IS1
@@ -185,7 +201,6 @@ flowchart TD
     A6 -->|"task status response"| H3
     H3 -->|"final status observed"| H4
 
-    P2 -->|"deny"| TF8
     TF5 -->|"no"| TF4
 ```
 
