@@ -96,9 +96,6 @@ flowchart TD
         P2{"Denied?"}
         P3["Match deterministic allow rules<br/>Data: typed command templates and validated arguments"]
         P4{"Allowed?"}
-        P5{"LLM evaluator enabled?"}
-        P6["Classify command against configured policy<br/>Data: sanitized command context"]
-        P7{"LLM decision?"}
     end
 
     subgraph Scheduler["internal/taskflow.Scheduler"]
@@ -162,13 +159,7 @@ flowchart TD
     P4 -->|"yes"| T0
     T0 -->|"write policy"| TS1
     T0 --> TF7
-    P4 -->|"no"| P5
-    P5 -->|"yes"| P6
-    P5 -->|"no"| T0A
-    P6 --> P7
-    P7 -->|"allow within configured safety boundary"| T0
-    P7 -->|"deny"| TF8
-    P7 -->|"approval / unavailable / low confidence"| T0A
+    P4 -->|"no: approval fallback"| T0A
     T0A -->|"write policy"| TS1
     T0A --> TF3
     TF3 --> I1

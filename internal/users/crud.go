@@ -40,6 +40,13 @@ func CreateUser(paths Paths, user User, generateID IDGenerator) (MutationResult,
 	if strings.TrimSpace(user.ID) != "" {
 		return MutationResult{}, fmt.Errorf("create user input must not include id")
 	}
+	existing, err := loadUsers(paths)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	if _, found := existing.FindByUsername(user.Username); found {
+		return MutationResult{}, fmt.Errorf("username %q already exists; keep the existing user or remove it before creating another one", NormalizeUsername(user.Username))
+	}
 	id, err := newID(generateID)
 	if err != nil {
 		return MutationResult{}, err
@@ -358,7 +365,7 @@ func DeletePolicy(paths Paths, id string) (MutationResult, error) {
 		return MutationResult{}, err
 	}
 	for _, target := range targetRegistry.All() {
-		if contains(target.PolicyIDs, id) {
+		if target.PolicyID == id {
 			return MutationResult{}, fmt.Errorf("policy %q is referenced by target %q", id, target.ID)
 		}
 	}
@@ -462,7 +469,7 @@ func validateTarget(paths Paths, target *targets.Target) error {
 	if err != nil {
 		return err
 	}
-	if diagnostics := policies.ValidateReferences(target.ID, target.PolicyIDs); len(diagnostics) > 0 {
+	if diagnostics := policies.ValidateReference(target.ID, target.PolicyID); len(diagnostics) > 0 {
 		return diagnosticError("target policy", diagnostics)
 	}
 	agentRegistry, err := loadAgents(paths)

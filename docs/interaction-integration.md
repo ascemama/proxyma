@@ -144,14 +144,15 @@ interactionService := interaction.New(jsonfile.NewInteractionStore(cfg.Interacti
 })
 ```
 
-To add a new non-local channel, add a provider subdirectory under `interactions/`,
+To add a new non-local channel, add a provider subdirectory under
+`var/proxyma/interaction_instances/`,
 a loader for that provider's JSON files, and provider construction in the routed
 provider registry. Keep provider-specific settings out of `proxyma.config.json`.
 
 Non-local interaction instances include a UUID v4 `creator_user_id` for the user who
 created the provider configuration. Agents select an interaction instance with
 `interaction_instance_id`; non-local values are UUID v4 ids from
-`interactions/<provider>/*.json`, and omitted values use the built-in singleton `local`
+`var/proxyma/interaction_instances/<provider>/*.json`, and omitted values use the built-in singleton `local`
 console provider. GUI users can view and edit an instance they created or an instance
 referenced by an agent they own. `interaction.Service` remains unaware of
 provider-specific configuration and only stores the chosen instance id on each durable
@@ -161,7 +162,9 @@ Each agent has exactly one effective interaction instance, while an interaction 
 may be referenced by zero or more agents. In the agent GUI, a user may newly select only
 `local` or an enabled instance whose `creator_user_id` matches the authenticated user.
 An unchanged historical assignment owned by another user is preserved until the user
-replaces it. Referenced interaction instances cannot be disabled or deleted.
+replaces it. Referenced interaction instances cannot be disabled or deleted. Provider
+configuration files are separate from durable approval records under
+`var/proxyma/interactions/`.
 
 ## Tests
 

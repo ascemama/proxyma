@@ -16,7 +16,7 @@ $CleanupPaths = @(
     "bin", "dist", "build", "internal/web/dist",
     "frontend",
     ".gocache", ".gotmp", ".tmp", "var", "proxyma.config.json",
-    "asset", "targets", "target", "users", "agents", "secrets", "interactions",
+    "asset", "targets", "target", "policies", "users", "agents", "secrets", "interactions",
     "task-state", "harness/task-state", "harness/agent-configuration",
     "coverage.out", "coverage.html", "*.coverprofile", "*.prof", "*.pprof",
     "*.test", "*.out", "*.log"

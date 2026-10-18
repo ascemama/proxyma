@@ -81,6 +81,12 @@ func main() {
 	if len(userRegistry.All()) == 0 {
 		log.Printf("no users configured; create an administrator with proxymactl")
 	}
+	if referenceDiagnostics := validatePolicyOwners(policies, userRegistry); len(referenceDiagnostics) > 0 {
+		for _, diagnostic := range referenceDiagnostics {
+			log.Printf("policy owner rejected: %s: %s", diagnostic.Path, diagnostic.Message)
+		}
+		log.Fatalf("load policies: %d policy owner reference(s) rejected", len(referenceDiagnostics))
+	}
 	agentRegistry, agentDiagnostics, err := agents.LoadDir(cfg.AgentDir)
 	if err != nil {
 		log.Fatalf("load agents: %v", err)
@@ -194,6 +200,7 @@ func main() {
 	flow := taskflow.New(manager, interactionService, taskflow.Options{
 		RequireCommandApproval: cfg.RequireCommandApproval,
 		Policies:               policyEvaluator,
+		Logger:                 logger,
 	})
 	scheduler := taskflow.NewScheduler(flow, 0)
 	scheduler.Start(context.Background())
@@ -280,7 +287,17 @@ func validatePolicyReferences(registry targets.Registry, policies *policy.Set) [
 		if label == "" {
 			label = target.IP
 		}
-		diagnostics = append(diagnostics, policies.ValidateReferences(label, target.PolicyIDs)...)
+		diagnostics = append(diagnostics, policies.ValidateReference(label, target.PolicyID)...)
+	}
+	return diagnostics
+}
+
+func validatePolicyOwners(policies *policy.Set, userRegistry users.Registry) []policy.Diagnostic {
+	var diagnostics []policy.Diagnostic
+	for _, item := range policies.All() {
+		if _, found := userRegistry.Find(item.OwnerUserID); !found {
+			diagnostics = append(diagnostics, policy.Diagnostic{Path: item.ID, Message: fmt.Sprintf("unknown policy owner id %q", item.OwnerUserID)})
+		}
 	}
 	return diagnostics
 }

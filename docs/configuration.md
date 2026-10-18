@@ -1,9 +1,15 @@
 # Proxyma Configuration
 
 Proxyma keeps operator-managed records in JSON files and validates their
-relationships when the service starts. The default directories are `targets/`,
-`policies/`, `agents/`, `users/`, and `interactions/`; deployments may override
-every path.
+relationships when the service starts. The default entity directories are
+`var/proxyma/targets/`, `var/proxyma/policies/`, `var/proxyma/agents/`,
+`var/proxyma/users/`, and `var/proxyma/interaction_instances/`; deployments may
+override every path. Durable tasks and approval records use
+`var/proxyma/tasks/` and `var/proxyma/interactions/` respectively.
+
+Files under `docs/examples/` are source-controlled examples only. They are not
+loaded as live configuration. The old root-level entity directories are no
+longer read by default.
 
 Use `proxymactl` to create, update, and delete users, agents, and targets. The
 browser GUI can manage the same resources as well as policies and interaction
@@ -12,9 +18,9 @@ fields for display.
 
 ## Targets
 
-Each target names the policies applied to its commands, the agents authorized
-to submit commands, and the users who own it. A target must provide a hostname,
-an IP address, or both.
+Each target names exactly one policy, the agents authorized to submit commands,
+and the users who own it. A target must provide a hostname, an IP address, or
+both.
 
 Password-authenticated SSH target:
 
@@ -27,7 +33,7 @@ Password-authenticated SSH target:
   "hostname": "app.example",
   "ip": "192.0.2.10",
   "username": "automation",
-  "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+  "policy_id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
   "agent_ids": ["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
   "user_ids": ["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],
   "auth": {
@@ -48,7 +54,7 @@ Private-key SSH target:
   "os": "linux",
   "hostname": "db.example",
   "username": "automation",
-  "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+  "policy_id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
   "agent_ids": ["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
   "user_ids": ["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],
   "auth": {
@@ -74,7 +80,7 @@ Windows WinRM target:
   "os": "windows",
   "hostname": "win.example",
   "username": "EXAMPLE\\automation",
-  "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+  "policy_id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
   "agent_ids": ["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
   "user_ids": ["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],
   "auth": {
@@ -100,44 +106,40 @@ The complete contract is
 
 ## Policies
 
-Targets reference one or more command-policy IDs. Policy evaluation can allow a
-command, require human approval, or deny it. Deny wins over other matches;
-otherwise priority and rule order determine the result.
+Each target references exactly one command-policy ID. Policies are owned by the
+user who creates them and contain blacklist (`deny`) and whitelist (`allow`)
+typed command templates. Within the selected policy, deny wins over allow; an
+unmatched command requires human approval. Assigning a different policy
+replaces the target's current policy.
 
 ```json
 {
   "$schema": "../schemas/proxyma.policy.schema.json",
   "id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+  "owner_user_id": "14fb57cf-11a1-45ed-ad51-26d733a0b2db",
   "name": "Baseline Readonly",
-  "description": "Allow diagnostics, deny destructive commands, approve everything else.",
-  "priority": 100,
+  "description": "Allow diagnostics and deny destructive commands.",
   "enabled": true,
   "rules": [
     {
       "id": "deny-dangerous",
       "effect": "deny",
-      "remote_command_regex": "(?i)\\b(rm\\s+-rf|shutdown|reboot|mkfs|dd\\b)",
+      "command_template": "shutdown",
       "reason": "Dangerous destructive command."
     },
     {
       "id": "allow-diagnostics",
       "effect": "allow",
-      "remote_command_prefix_any": ["hostname", "uptime", "df -h", "free -m"],
+      "command_template": "hostname",
       "reason": "Known read-only diagnostic command."
-    },
-    {
-      "id": "approve-default",
-      "effect": "approval",
-      "always": true,
-      "reason": "Command requires human approval."
     }
   ]
 }
 ```
 
 See [`schemas/proxyma.policy.schema.json`](../schemas/proxyma.policy.schema.json)
-and the checked-in
-[`policies/baseline-readonly.json`](../policies/baseline-readonly.json).
+and the checked-in example
+[`docs/examples/policy-baseline-readonly.json`](examples/policy-baseline-readonly.json).
 
 ## Agents
 
@@ -188,12 +190,13 @@ See [`schemas/proxyma.user.schema.json`](../schemas/proxyma.user.schema.json).
 ## Interaction Instances
 
 The local console interaction is built in as the reserved `local` instance. Do
-not create an `interactions/local/` directory. Configure ntfy instances as
-individual files under `interactions/ntfy/`:
+not create a `var/proxyma/interaction_instances/local/` directory. Configure
+ntfy instances as individual files under
+`var/proxyma/interaction_instances/ntfy/`:
 
 ```json
 {
-  "$schema": "../../schemas/proxyma.interaction.ntfy.schema.json",
+  "$schema": "../../../schemas/proxyma.interaction.ntfy.schema.json",
   "id": "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8",
   "creator_user_id": "fcd2f3a9-d546-44f4-837b-0c7aa4219752",
   "display_name": "Operations phone",

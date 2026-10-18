@@ -25,6 +25,14 @@ $config = Read-Json "harness/proxyma-agent.json"
 foreach ($name in @("schema_version", "proxyma_base_url", "agent_config", "state_dir")) { Require-Property $config $name "harness/proxyma-agent.json" }
 if ($null -ne $config -and $config.schema_version -ne "2") { Add-Error "Harness config must use schema version 2" }
 
+$credentialExample = Read-Json "harness/agent-configuration/agent.example.json"
+foreach ($name in @("agent_id", "agent_jwt_signing_key")) { Require-Property $credentialExample $name "harness/agent-configuration/agent.example.json" }
+if ($null -ne $credentialExample) {
+    if ($credentialExample.agent_id -ne "TOBECHANGED" -or $credentialExample.agent_jwt_signing_key -ne "TOBECHANGED") {
+        Add-Error "Credential example must contain placeholders only"
+    }
+}
+
 $configSchema = Read-Json "harness/instruction-pack/proxyma-agent.schema.json"
 $stateSchema = Read-Json "harness/instruction-pack/task-state.schema.json"
 if ($null -ne $stateSchema -and $stateSchema.properties.schema_version.const -ne "2") { Add-Error "Task schema must require version 2" }

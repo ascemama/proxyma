@@ -20,16 +20,16 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.TLSCertificateFile != "tls/self-signed.crt" || cfg.TLSPrivateKeyFile != "tls/self-signed.key" {
 		t.Fatalf("unexpected TLS file defaults: %#v", cfg)
 	}
-	if cfg.TargetDir != "targets" {
+	if cfg.TargetDir != "var/proxyma/targets" {
 		t.Fatalf("TargetDir = %q", cfg.TargetDir)
 	}
-	if cfg.PolicyDir != "policies" {
+	if cfg.PolicyDir != "var/proxyma/policies" {
 		t.Fatalf("PolicyDir = %q", cfg.PolicyDir)
 	}
-	if cfg.AgentDir != "agents" {
+	if cfg.AgentDir != "var/proxyma/agents" {
 		t.Fatalf("AgentDir = %q", cfg.AgentDir)
 	}
-	if cfg.UserDir != "users" {
+	if cfg.UserDir != "var/proxyma/users" {
 		t.Fatalf("UserDir = %q", cfg.UserDir)
 	}
 	if cfg.TaskDir != "var/proxyma/tasks" {
@@ -38,7 +38,7 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.InteractionDir != "var/proxyma/interactions" {
 		t.Fatalf("InteractionDir = %q", cfg.InteractionDir)
 	}
-	if cfg.InteractionConfigDir != "interactions" {
+	if cfg.InteractionConfigDir != "var/proxyma/interaction_instances" {
 		t.Fatalf("InteractionConfigDir = %q", cfg.InteractionConfigDir)
 	}
 	if cfg.UserSessionDir != "var/proxyma/user_sessions" {
@@ -163,7 +163,7 @@ func TestFromArgsDefaultsToTargetsWhenLegacyAssetDirExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.TargetDir != "targets" {
+	if cfg.TargetDir != "var/proxyma/targets" {
 		t.Fatalf("TargetDir = %q", cfg.TargetDir)
 	}
 }
@@ -177,7 +177,7 @@ func TestFromArgsDoesNotAutoSelectSingularTargetDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.TargetDir != "targets" {
+	if cfg.TargetDir != "var/proxyma/targets" {
 		t.Fatalf("TargetDir = %q", cfg.TargetDir)
 	}
 }
@@ -361,7 +361,7 @@ func TestLoadNoConfigIgnoresDefaultConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.TargetDir != "targets" {
+	if cfg.TargetDir != "var/proxyma/targets" {
 		t.Fatalf("TargetDir = %q", cfg.TargetDir)
 	}
 }

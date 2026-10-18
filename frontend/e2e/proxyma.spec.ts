@@ -510,7 +510,7 @@ test('non-admin user sees only their own agents and targets', async ({ page }) =
   expect(consoleErrors).toEqual([]);
 });
 
-test('non-admin user can view add and delete policies without editing', async ({ page }) => {
+test('non-admin user can view shared policies and manage an owned policy', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') {
@@ -526,26 +526,21 @@ test('non-admin user can view add and delete policies without editing', async ({
   await page.getByRole('button', { name: 'Policy', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Policy', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Policies', exact: true })).toBeVisible();
-  await expect(page.getByRole('row', { name: /Baseline Readonly Fixture.*Enabled 100/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Edit .*Policy/ })).toHaveCount(0);
+  const baselineRow = page.locator('.policy-list-row').filter({ hasText: 'Baseline Readonly Fixture' });
+  await expect(baselineRow).toBeVisible();
+  await expect(baselineRow.getByLabel(/Delete/)).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Add Policy' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add Policy' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Name').fill('Temporary E2E Policy');
-  await dialog.getByLabel('Description').fill('Created by the policy tab e2e test');
-  await dialog.getByLabel('Priority').fill('7');
-  await dialog.getByLabel('Rule ID').fill('allow-e2e');
-  await dialog.getByLabel('Effect').selectOption('allow');
-  await dialog.getByLabel('Reason').fill('e2e cleanup target');
-  await dialog.getByRole('button', { name: 'Save Policy' }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole('row', { name: /Temporary E2E Policy.*Enabled 7/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Add policy' }).click();
+  const detail = page.locator('.policy-detail-panel');
+  await expect(detail.getByRole('heading', { name: 'New policy' })).toBeVisible();
+  await detail.getByLabel('Name').fill('Temporary E2E Policy');
+  await detail.getByLabel('Description').fill('Created by the policy tab e2e test');
+  await detail.getByRole('button', { name: 'Save policy' }).click();
+  await expect(page.locator('.policy-list-row').filter({ hasText: 'Temporary E2E Policy' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Delete Temporary E2E Policy' }).click();
-  await expect(page.getByRole('dialog', { name: 'Delete Policy' })).toBeVisible();
-  await page.getByRole('button', { name: 'Delete Policy', exact: true }).click();
-  await expect(page.getByRole('row', { name: /Temporary E2E Policy/ })).toBeHidden();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.locator('.policy-list-row').filter({ hasText: 'Temporary E2E Policy' }).getByLabel('Delete Temporary E2E Policy').click();
+  await expect(page.locator('.policy-list-row').filter({ hasText: 'Temporary E2E Policy' })).toBeHidden();
 
   expect(consoleErrors).toEqual([]);
 });
@@ -607,8 +602,8 @@ test('target creation requires both an agent and a policy on every target entry 
   await expect(page.getByRole('dialog', { name: 'Add Agent' })).toBeVisible();
   await page.getByRole('dialog', { name: 'Add Agent' }).getByRole('button', { name: 'Cancel' }).click();
   await targetsPanel.getByRole('button', { name: 'Add Policy', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Add Policy' })).toBeVisible();
-  await page.getByRole('dialog', { name: 'Add Policy' }).getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('heading', { name: 'New policy', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
   await page.getByRole('button', { name: 'Target', exact: true }).click();
   targetsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Targets', exact: true }) });

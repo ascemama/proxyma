@@ -18,6 +18,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     }
     Set-Content -LiteralPath (Join-Path $harness "RELEASE") -Value @("name=proxyma-agent-harness", "version=v1.2.3", "commit=deadbeef")
     Set-Content -LiteralPath (Join-Path $harness "proxyma-agent.json") -Value '{"schema_version":"2","proxyma_base_url":"https://proxyma.example","agent_config":"agent-configuration/agent.json","state_dir":"task-state"}'
+    Set-Content -LiteralPath (Join-Path $harness "agent-configuration\agent.example.json") -Value '{"agent_id":"TOBECHANGED","agent_jwt_signing_key":"TOBECHANGED"}'
     Set-Content -LiteralPath (Join-Path $harness "instruction-pack\proxyma-harness.md") -Value $Marker
     Set-Content -LiteralPath (Join-Path $harness "examples\example.txt") -Value "example"
     Set-Content -LiteralPath (Join-Path $harness "tests\test.txt") -Value "test"
@@ -64,15 +65,19 @@ try {
     if ((Get-Content -LiteralPath (Join-Path $bin "proxyma-agent.exe") -Raw).Trim() -ne "first") { Fail "wrong binary was installed" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\instruction-pack\proxyma-harness.md") -Raw).Trim() -ne "first") { Fail "harness was not installed" }
     if (-not (Test-Path -LiteralPath (Join-Path $project ".agents\skills\proxyma-harness\SKILL.md"))) { Fail "Codex adapter was not installed" }
-    if (@(Get-ChildItem -LiteralPath (Join-Path $project "harness\agent-configuration") -File).Count -ne 0) { Fail "installer created credentials" }
+    $examplePath = Join-Path $project "harness\agent-configuration\agent.example.json"
+    if (-not (Test-Path -LiteralPath $examplePath -PathType Leaf)) { Fail "installer omitted credential example" }
+    if ((Get-Content -LiteralPath $examplePath -Raw) -notlike '*TOBECHANGED*') { Fail "credential example is incorrect" }
 
     Set-Content -LiteralPath (Join-Path $project "harness\proxyma-agent.json") -Value "preserved-config"
     Set-Content -LiteralPath (Join-Path $project "harness\agent-configuration\agent.json") -Value "preserved-secret"
+    Set-Content -LiteralPath $examplePath -Value "custom-example"
     Set-Content -LiteralPath (Join-Path $project "harness\task-state\active\task.json") -Value "preserved-state"
     New-Release $exact "amd64" "second"
     & $Installer -Version v1.2.3 -ProjectDir $project -BinDir $bin
     if ((Get-Content -LiteralPath (Join-Path $project "harness\proxyma-agent.json") -Raw).Trim() -ne "preserved-config") { Fail "configuration was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\agent-configuration\agent.json") -Raw).Trim() -ne "preserved-secret") { Fail "credential was overwritten" }
+    if ((Get-Content -LiteralPath $examplePath -Raw).Trim() -ne "custom-example") { Fail "credential example was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\task-state\active\task.json") -Raw).Trim() -ne "preserved-state") { Fail "task state was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\instruction-pack\proxyma-harness.md") -Raw).Trim() -ne "second") { Fail "release-owned content was not refreshed" }
 

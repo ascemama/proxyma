@@ -108,16 +108,17 @@ human-interaction instances.
 | Agent command execution | Agents submit target commands through `proxyma-agent`; they do not connect directly to targets. |
 | Target management | Configure targets, authorized agents, target owners, transports, and credentials. |
 | Human approval | Built-in local-console approval and remote NTFY approval requests/responses. No other interaction channels are currently supported. |
-| Command policy | Per-target policies can allow, require approval for, or deny commands. |
+| Command policy | Each target uses one user-owned policy containing typed blacklist/whitelist rules; unmatched commands require approval. JSON rule lists can be imported into existing policies. |
 | Durable tasks | Persist task state, status history, results, exit status, and safe command metadata for polling and recovery. |
 | Audit and history | Persist human interactions and provide searchable interaction history through the dashboard. |
 | Administration | Manage users, agents, targets, policies, and interaction instances through the browser GUI or `proxymactl`. |
 
-Current policy support is intentionally explicit. Rules have one of three effects:
-`allow`, `approval`, or `deny`. A rule can match every command with `always`,
-match the normalized command with a Go regular expression, or match one of a
-set of command prefixes. Policies are assigned to targets; deny decisions take
-precedence over other matches, followed by policy priority and rule order.
+Policy rules use one of two effects: `allow` or `deny`. Rules are typed command
+templates such as `ping {ipv4}` or `systemctl status {service}`. Policies are
+owned by their creating user, reusable by other users, and assigned to targets.
+Each target has one assigned policy. Within that policy, deny takes precedence
+over allow; commands with no match require human approval. The WebGUI can
+append a blacklist/whitelist JSON rule list to an existing policy.
 
 ### Technical Capabilities
 
@@ -166,7 +167,7 @@ docs/                      Deployment, operation, API, and architecture guides
 frontend/                  React/Vite GUI, shared logo, and browser tests
 harness/                   Agent instruction pack, adapters, schemas, and examples
 internal/                  Go implementation packages
-policies/                  Checked-in command policy definitions
+docs/examples/             Checked-in policy and rule-list examples
 schemas/                   JSON Schemas for configuration records
 scripts/                   Build, install, release, test, and uninstall scripts
 tests/                     Service-level fixtures and end-to-end tests
@@ -174,9 +175,10 @@ Dockerfile                 Production container build
 proxyma.config.example.json Exhaustive runtime configuration example
 ```
 
-Targets, agents, users, interaction instances, secrets, TLS material, and
-`var/proxyma/` state are runtime data. They are created by an installation or
-administrator and are not part of the tracked source layout.
+Targets, policies, agents, users, interaction instances, secrets, TLS material,
+and `var/proxyma/` state are runtime data. The default local entity and runtime
+directories are all below `var/proxyma/`; source-controlled examples live under
+`docs/examples/` and are never loaded automatically.
 
 ## Proxyma Server Runtime Configuration
 
@@ -200,14 +202,14 @@ arguments are the highest-precedence runtime overrides:
 | `--tls-cert-file` | `tls/self-signed.crt` | Active certificate or PEM full-chain path. |
 | `--tls-key-file` | `tls/self-signed.key` | Matching unencrypted PEM private-key path. |
 | `--tls-server-name` | empty | Additional DNS name or IP for a generated certificate SAN. |
-| `--target-dir` | `targets` | Target JSON directory. |
-| `--policy-dir` | `policies` | Command policy JSON directory. |
-| `--agent-dir` | `agents` | Agent JSON directory. |
-| `--user-dir` | `users` | User JSON directory. |
+| `--target-dir` | `var/proxyma/targets` | Target JSON directory. |
+| `--policy-dir` | `var/proxyma/policies` | Command policy JSON directory. |
+| `--agent-dir` | `var/proxyma/agents` | Agent JSON directory. |
+| `--user-dir` | `var/proxyma/users` | User JSON directory. |
 | `--task-dir` | `var/proxyma/tasks` | Persisted task JSON directory. |
 | `--interaction-dir` | `var/proxyma/interactions` | Persisted interaction JSON directory. |
 | `--interaction-history-db` | `var/proxyma/interaction-history.db` | SQLite interaction-history search index. |
-| `--interaction-config-dir` | `interactions` | Interaction instance configuration directory. |
+| `--interaction-config-dir` | `var/proxyma/interaction_instances` | Interaction instance configuration directory. |
 | `--user-session-dir` | `var/proxyma/user_sessions` | Persisted user session directory. |
 | `--credential-token-dir` | `var/proxyma/credential_tokens` | Hashed activation and password-reset token directory. |
 | `--known-hosts-path` | `var/proxyma/.ssh/known_hosts` | Proxyma-owned OpenSSH host-key trust file. |

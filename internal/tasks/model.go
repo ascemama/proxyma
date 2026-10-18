@@ -53,11 +53,11 @@ type CommandContext struct {
 
 // Target identifies the matched remote system without exposing credentials.
 type Target struct {
-	Transport string   `json:"transport"`
-	OS        string   `json:"os"`
-	Hostname  string   `json:"hostname,omitempty"`
-	IP        string   `json:"ip,omitempty"`
-	PolicyIDs []string `json:"policy_ids,omitempty"`
+	Transport string `json:"transport"`
+	OS        string `json:"os"`
+	Hostname  string `json:"hostname,omitempty"`
+	IP        string `json:"ip,omitempty"`
+	PolicyID  string `json:"policy_id,omitempty"`
 }
 
 // Task is a durable Proxyma work item.

@@ -5,9 +5,7 @@
   "hostname": "DB-SRV-01",
   "ip": "10.10.1.20",
   "username": "fixture-db",
-  "policy_ids": [
-    "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
-  ],
+  "policy_id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
   "agent_ids": [
     "7937dd2d-0b8a-4880-8afa-0ea60fd65a43"
   ],

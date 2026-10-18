@@ -37,6 +37,7 @@ create_harness_archive() {
     "$payload/harness/task-state/summaries"
   printf 'name=proxyma-agent-harness\nversion=v1.2.3\ncommit=deadbeef\n' >"$payload/harness/RELEASE"
   printf '{"schema_version":"2","proxyma_base_url":"https://proxyma.example","agent_config":"agent-configuration/agent.json","state_dir":"task-state"}\n' >"$payload/harness/proxyma-agent.json"
+  printf '{"agent_id":"TOBECHANGED","agent_jwt_signing_key":"TOBECHANGED"}\n' >"$payload/harness/agent-configuration/agent.example.json"
   printf '%s\n' "$marker" >"$payload/harness/instruction-pack/proxyma-harness.md"
   printf 'example\n' >"$payload/harness/examples/example.txt"
   printf 'test\n' >"$payload/harness/tests/test.txt"
@@ -78,10 +79,13 @@ grep -Fx 'first' "$BIN_DIR/proxyma-agent" >/dev/null || fail "wrong binary was i
 grep -Fx 'first' "$PROJECT_DIR/harness/instruction-pack/proxyma-harness.md" >/dev/null || fail "harness was not installed"
 grep -Fx 'first' "$PROJECT_DIR/.agents/skills/proxyma-harness/SKILL.md" >/dev/null || fail "Codex adapter was not installed"
 grep -F 'is not on PATH' <<<"$OUTPUT" >/dev/null || fail "missing PATH guidance"
-find "$PROJECT_DIR/harness/agent-configuration" -type f ! -name .gitkeep -print -quit | grep -q . && fail "installer created credentials"
+find "$PROJECT_DIR/harness/agent-configuration" -type f ! -name .gitkeep ! -name agent.example.json -print -quit | grep -q . && fail "installer created credentials"
+test -f "$PROJECT_DIR/harness/agent-configuration/agent.example.json" || fail "installer omitted credential example"
+grep -F 'TOBECHANGED' "$PROJECT_DIR/harness/agent-configuration/agent.example.json" >/dev/null || fail "credential example is incorrect"
 
 printf 'preserved-config\n' >"$PROJECT_DIR/harness/proxyma-agent.json"
 printf 'preserved-secret\n' >"$PROJECT_DIR/harness/agent-configuration/agent.json"
+printf 'custom-example\n' >"$PROJECT_DIR/harness/agent-configuration/agent.example.json"
 printf 'preserved-state\n' >"$PROJECT_DIR/harness/task-state/active/task.json"
 create_release "$EXACT_DIR" linux amd64 second
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
@@ -91,6 +95,7 @@ PROXYMA_AGENT_ARCH=amd64 \
     --version v1.2.3 --project-dir "$PROJECT_DIR" --bin-dir "$BIN_DIR" >/dev/null
 grep -Fx 'preserved-config' "$PROJECT_DIR/harness/proxyma-agent.json" >/dev/null || fail "configuration was overwritten"
 grep -Fx 'preserved-secret' "$PROJECT_DIR/harness/agent-configuration/agent.json" >/dev/null || fail "credential was overwritten"
+grep -Fx 'custom-example' "$PROJECT_DIR/harness/agent-configuration/agent.example.json" >/dev/null || fail "credential example was overwritten"
 grep -Fx 'preserved-state' "$PROJECT_DIR/harness/task-state/active/task.json" >/dev/null || fail "task state was overwritten"
 grep -Fx 'second' "$PROJECT_DIR/harness/instruction-pack/proxyma-harness.md" >/dev/null || fail "release-owned harness content was not refreshed"
 

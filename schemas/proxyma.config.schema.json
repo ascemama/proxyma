@@ -59,22 +59,22 @@
       "properties": {
         "target_dir": {
           "type": "string",
-          "default": "targets",
+          "default": "var/proxyma/targets",
           "description": "Directory containing target JSON files."
         },
         "policy_dir": {
           "type": "string",
-          "default": "policies",
+          "default": "var/proxyma/policies",
           "description": "Directory containing Proxyma command policy JSON files."
         },
         "agent_dir": {
           "type": "string",
-          "default": "agents",
+          "default": "var/proxyma/agents",
           "description": "Directory containing Proxyma agent JSON files."
         },
         "user_dir": {
           "type": "string",
-          "default": "users",
+          "default": "var/proxyma/users",
           "description": "Directory containing Proxyma user JSON files."
         },
         "task_dir": {
@@ -94,7 +94,7 @@
         },
         "interaction_config_dir": {
           "type": "string",
-          "default": "interactions",
+          "default": "var/proxyma/interaction_instances",
           "description": "Directory containing interaction instance JSON configuration."
         },
         "user_session_dir": {

@@ -32,6 +32,8 @@ var/
 # Local asset secrets
 asset/*.local.json
 asset/*secret*.json
+# Obsolete root-level runtime paths. New defaults are under var/proxyma/;
+# these remain ignored only so explicit local cleanup can remove stale data.
 targets/*.local.json
 targets/*secret*.json
 targets/*.json
@@ -59,6 +61,7 @@ harness/task-state/summaries/*.md
 harness/task-state/.journal/*.json
 harness/task-state/.proxyma-agent.lock
 harness/agent-configuration/*.json
+!harness/agent-configuration/agent.example.json
 !harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json
 
 target/*.json
@@ -66,7 +69,8 @@ proxyma.config.json
 /proxyma-compose.env
 /tls/
 secrets/
+policies/*.json
 users/*.json
-.codex/
 agents/*.json
 interactions/ntfy/*.json
+.codex/

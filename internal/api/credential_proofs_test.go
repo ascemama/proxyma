@@ -68,7 +68,7 @@ func TestTargetCreateRequiresAndConsumesCredentialProof(t *testing.T) {
 	cookie, session := loginSession(t, server)
 	request := UserTargetMutationRequest{
 		Transport: targets.TransportSSH, OS: targets.OSLinux, Hostname: "new.example", IP: "10.0.0.8", Username: "demo",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"}, AgentIDs: []string{testAgent.ID},
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c", AgentIDs: []string{testAgent.ID},
 		AuthType: targets.AuthTypePassword, Password: "secret",
 	}
 

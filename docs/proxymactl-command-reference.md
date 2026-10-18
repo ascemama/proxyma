@@ -8,7 +8,7 @@ generates a UUID v4.
 Global configuration flags must appear before the resource and action:
 
 ```powershell
-.\bin\proxymactl.exe --user-dir .\users users create --file .\new-user.json
+.\bin\proxymactl.exe --user-dir .\var\proxyma\users users create --file .\new-user.json
 ```
 
 | Command | Purpose |

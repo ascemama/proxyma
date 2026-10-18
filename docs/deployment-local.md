@@ -50,7 +50,8 @@ Build and start the Proxyma backend from the repository root:
 go build -o ./bin/proxyma ./cmd/proxyma
 go build -o ./bin/proxymactl ./cmd/proxymactl
 mkdir -p \
-  targets policies agents users interactions \
+  var/proxyma/targets var/proxyma/policies var/proxyma/agents \
+  var/proxyma/users var/proxyma/interaction_instances \
   var/proxyma/tasks var/proxyma/interactions \
   var/proxyma/user_sessions var/proxyma/credential_tokens
 ```
@@ -61,19 +62,42 @@ On Windows PowerShell, use:
 go build -o .\bin\proxyma.exe .\cmd\proxyma
 go build -o .\bin\proxymactl.exe .\cmd\proxymactl
 New-Item -ItemType Directory -Force -Path `
-  .\targets, .\policies, .\agents, .\users, .\interactions, `
+  .\var\proxyma\targets, .\var\proxyma\policies, `
+  .\var\proxyma\agents, .\var\proxyma\users, `
+  .\var\proxyma\interaction_instances, `
   .\var\proxyma\tasks, .\var\proxyma\interactions, `
   .\var\proxyma\user_sessions, .\var\proxyma\credential_tokens | Out-Null
 ```
 
-The directories above are the default local runtime paths. They are not all
-checked into the repository because they contain local configuration and
-secrets. The server expects the record directories to exist before startup.
+The directories above are the default local runtime paths. They are not checked
+into the repository because they contain local configuration and secrets. The
+server expects the record directories to exist before startup.
 
 Before opening the GUI for the first time, bootstrap an administrator. The
 following two steps generate a temporary definition, prompt for the password
-without echoing it, create the user, and remove the temporary file. Run both
-steps in the same terminal.
+without echoing it, create the user, and remove the temporary file. Bootstrap
+is intended to run only once. `proxymactl users create` rejects a username
+that already exists, so repeated setup cannot create duplicate administrator
+records.
+
+Before bootstrapping, check whether user records already exist:
+
+```bash
+if compgen -G './var/proxyma/users/*.json' >/dev/null; then
+  echo 'Existing user records were found.'
+  read -r -p 'Keep the existing users and stop bootstrap? [Y/n] ' answer
+  if [[ -z "$answer" || "$answer" =~ ^[Yy]$ ]]; then
+    echo 'Keeping the existing users; no administrator was created.'
+  else
+    echo 'No user records were deleted automatically. Review and move stale records out of ./var/proxyma/users, then rerun.'
+  fi
+else
+  echo 'No existing user records found; bootstrap may proceed.'
+fi
+```
+
+Run the following two blocks in the same terminal only when no existing user
+should be reused.
 
 First, paste this block and enter the administrator password when prompted:
 
@@ -101,6 +125,22 @@ unset admin_password
 ```
 
 On Windows PowerShell, run the following two blocks in the same terminal.
+First check for existing records:
+
+```powershell
+$existingUsers = Get-ChildItem -Path .\var\proxyma\users -Filter *.json -File -ErrorAction SilentlyContinue
+if ($existingUsers) {
+  $answer = Read-Host 'Existing user records found. Keep them and stop bootstrap? [Y/n]'
+  if ([string]::IsNullOrWhiteSpace($answer) -or $answer -match '^[Yy]$') {
+    Write-Host 'Keeping the existing users; no administrator was created.'
+  } else {
+    throw 'No user records were deleted automatically. Review and move stale records out of .\var\proxyma\users, then rerun.'
+  }
+} else {
+  Write-Host 'No existing user records found; bootstrap may proceed.'
+}
+```
+
 First, paste this block and enter the administrator password when prompted:
 
 ```powershell
@@ -315,7 +355,9 @@ fixed set of repository-local paths, including:
   records, and `var` runtime state.
 
 Back up any local configuration, secrets, history, or runtime state that you
-want to keep. On Linux or macOS, run:
+want to keep. The default local entity files and durable state are all under
+`var/proxyma`; old root-level entity folders are obsolete. On Linux or macOS,
+run:
 
 ```bash
 bash ./scripts/uninstall-local-development.sh --yes

@@ -15,10 +15,10 @@ import (
 
 func TestValidatePolicyReferencesRejectsUnknownTargetPolicy(t *testing.T) {
 	registry := targets.NewRegistry([]targets.Target{
-		{Hostname: "target.example", PolicyIDs: []string{"missing"}},
+		{Hostname: "target.example", PolicyID: "missing"},
 	})
 	policies := policy.NewSet(map[string]policy.Policy{
-		"baseline": {ID: "baseline", Rules: []policy.Rule{{ID: "default", Effect: policy.DecisionApproval, Always: true}}},
+		"baseline": {ID: "baseline", Enabled: true, Rules: []policy.Rule{{ID: "default", Effect: policy.DecisionAllow, CommandTemplate: "hostname"}}},
 	})
 
 	diagnostics := validatePolicyReferences(registry, policies)

@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"proxyma/internal/ids"
@@ -69,10 +68,12 @@ func Validate(policy *Policy) error {
 		return fmt.Errorf("missing required field id")
 	case !ids.IsUUIDV4(strings.TrimSpace(policy.ID)):
 		return fmt.Errorf("id must be a UUID v4")
+	case strings.TrimSpace(policy.OwnerUserID) == "":
+		return fmt.Errorf("missing required field owner_user_id")
+	case !ids.IsUUIDV4(strings.TrimSpace(policy.OwnerUserID)):
+		return fmt.Errorf("owner_user_id must be a UUID v4")
 	case strings.TrimSpace(policy.Name) == "":
 		return fmt.Errorf("missing required field name")
-	case len(policy.Rules) == 0:
-		return fmt.Errorf("missing required field rules")
 	}
 	for i := range policy.Rules {
 		if err := validateRule(&policy.Rules[i]); err != nil {
@@ -90,21 +91,23 @@ func validateRule(rule *Rule) error {
 		return fmt.Errorf("missing required field id")
 	case !validDecision(rule.Effect):
 		return fmt.Errorf("unsupported effect %q", rule.Effect)
+	case strings.TrimSpace(rule.CommandTemplate) == "":
+		return fmt.Errorf("missing required field command_template")
 	}
-	if rule.RemoteCommandRegex != "" {
-		if _, err := regexp.Compile(rule.RemoteCommandRegex); err != nil {
-			return fmt.Errorf("remote_command_regex: %w", err)
-		}
-	}
-	if !rule.Always && rule.RemoteCommandRegex == "" && len(rule.RemoteCommandPrefixAny) == 0 {
-		return fmt.Errorf("missing match condition")
+	if _, err := CompileTemplate(rule.CommandTemplate); err != nil {
+		return fmt.Errorf("command_template: %w", err)
 	}
 	return nil
 }
 
+// ValidateRuleForImport validates a rule before it is added to a persisted policy.
+func ValidateRuleForImport(rule *Rule) error {
+	return validateRule(rule)
+}
+
 func validDecision(value string) bool {
 	switch value {
-	case DecisionAllow, DecisionApproval, DecisionDeny:
+	case DecisionAllow, DecisionDeny:
 		return true
 	default:
 		return false

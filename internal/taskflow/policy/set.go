@@ -3,30 +3,26 @@ package policy
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sort"
-	"strings"
 )
 
 // Policy is one user-authored command policy file.
 type Policy struct {
 	Schema      string `json:"$schema,omitempty"`
 	ID          string `json:"id"`
+	OwnerUserID string `json:"owner_user_id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	Priority    int    `json:"priority,omitempty"`
-	Enabled     *bool  `json:"enabled,omitempty"`
+	Enabled     bool   `json:"enabled"`
 	Rules       []Rule `json:"rules"`
 }
 
 // Rule maps a command match condition to a policy effect.
 type Rule struct {
-	ID                     string   `json:"id"`
-	Effect                 string   `json:"effect"`
-	RemoteCommandRegex     string   `json:"remote_command_regex,omitempty"`
-	RemoteCommandPrefixAny []string `json:"remote_command_prefix_any,omitempty"`
-	Always                 bool     `json:"always,omitempty"`
-	Reason                 string   `json:"reason,omitempty"`
+	ID              string `json:"id"`
+	Effect          string `json:"effect"`
+	CommandTemplate string `json:"command_template"`
+	Reason          string `json:"reason,omitempty"`
 }
 
 // Set evaluates commands against named policies.
@@ -40,13 +36,12 @@ type compiledPolicy struct {
 }
 
 type compiledRule struct {
-	rule  Rule
-	regex *regexp.Regexp
+	rule    Rule
+	matcher *TemplateMatcher
 }
 
 type match struct {
 	result     Result
-	priority   int
 	effectRank int
 	order      int
 }
@@ -57,10 +52,7 @@ func NewSet(policies map[string]Policy) *Set {
 	for id, policy := range policies {
 		var rules []compiledRule
 		for _, rule := range policy.Rules {
-			compiled := compiledRule{rule: rule}
-			if rule.RemoteCommandRegex != "" {
-				compiled.regex = regexp.MustCompile(rule.RemoteCommandRegex)
-			}
+			compiled := compiledRule{rule: rule, matcher: MustCompileTemplate(rule.CommandTemplate)}
 			rules = append(rules, compiled)
 		}
 		set.policies[id] = compiledPolicy{policy: policy, rules: rules}
@@ -94,15 +86,12 @@ func (s *Set) Has(policyID string) bool {
 	return ok
 }
 
-// ValidateReferences reports target policy ids that are not configured.
-func (s *Set) ValidateReferences(target string, policyIDs []string) []Diagnostic {
-	var diagnostics []Diagnostic
-	for _, id := range policyIDs {
-		if !s.Has(id) {
-			diagnostics = append(diagnostics, Diagnostic{Path: target, Message: fmt.Sprintf("unknown policy id %q", id)})
-		}
+// ValidateReference reports a target policy id that is not configured.
+func (s *Set) ValidateReference(target, policyID string) []Diagnostic {
+	if !s.Has(policyID) {
+		return []Diagnostic{{Path: target, Message: fmt.Sprintf("unknown policy id %q", policyID)}}
 	}
-	return diagnostics
+	return nil
 }
 
 // Evaluate returns the winning policy decision for a prepared command.
@@ -110,41 +99,37 @@ func (s *Set) Evaluate(_ context.Context, request Request) (Result, error) {
 	if s == nil {
 		return Result{Decision: DecisionDeny, Reason: "target policy evaluator is not configured"}, nil
 	}
-	policyIDs := request.PolicyIDs
-	if len(policyIDs) == 0 {
-		policyIDs = request.Target.PolicyIDs
+	policyID := normalizeID(request.PolicyID)
+	if policyID == "" {
+		policyID = normalizeID(request.Target.PolicyID)
 	}
-	if len(policyIDs) == 0 {
-		return Result{Decision: DecisionDeny, Reason: "target is missing policy_ids"}, nil
+	if policyID == "" {
+		return Result{Decision: DecisionDeny, Reason: "target is missing policy_id"}, nil
 	}
 	var matches []match
 	order := 0
-	for _, id := range policyIDs {
-		id = normalizeID(id)
-		policy, ok := s.policies[id]
-		if !ok {
-			return Result{Decision: DecisionDeny, PolicyID: id, Reason: fmt.Sprintf("target references unknown policy id %q", id)}, nil
-		}
-		if !policy.enabled() {
+	policy, ok := s.policies[policyID]
+	if !ok {
+		return Result{Decision: DecisionDeny, PolicyID: policyID, Reason: fmt.Sprintf("target references unknown policy id %q", policyID)}, nil
+	}
+	if !policy.enabled() {
+		return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "policy is disabled"}, nil
+	}
+	for _, rule := range policy.rules {
+		order++
+		if !rule.matches(request.RemoteCommand) {
 			continue
 		}
-		for _, rule := range policy.rules {
-			order++
-			if !rule.matches(request.RemoteCommand) {
-				continue
-			}
-			matches = append(matches, match{
-				result: Result{
-					Decision: rule.rule.Effect,
-					PolicyID: policy.policy.ID,
-					RuleID:   rule.rule.ID,
-					Reason:   rule.rule.Reason,
-				},
-				priority:   policy.policy.Priority,
-				effectRank: rankEffect(rule.rule.Effect),
-				order:      order,
-			})
-		}
+		matches = append(matches, match{
+			result: Result{
+				Decision: rule.rule.Effect,
+				PolicyID: policy.policy.ID,
+				RuleID:   rule.rule.ID,
+				Reason:   rule.rule.Reason,
+			},
+			effectRank: rankEffect(rule.rule.Effect),
+			order:      order,
+		})
 	}
 	if len(matches) == 0 {
 		return Result{Decision: DecisionApproval, Reason: "no policy rule matched command"}, nil
@@ -153,37 +138,24 @@ func (s *Set) Evaluate(_ context.Context, request Request) (Result, error) {
 		if matches[i].effectRank != matches[j].effectRank {
 			return matches[i].effectRank > matches[j].effectRank
 		}
-		if matches[i].priority != matches[j].priority {
-			return matches[i].priority > matches[j].priority
-		}
 		return matches[i].order < matches[j].order
 	})
 	return matches[0].result, nil
 }
 
 func (p compiledPolicy) enabled() bool {
-	return p.policy.Enabled == nil || *p.policy.Enabled
+	return p.policy.Enabled
 }
 
 func (r compiledRule) matches(remoteCommand string) bool {
-	remoteCommand = strings.TrimSpace(remoteCommand)
-	if r.rule.Always {
-		return true
-	}
-	if r.regex != nil && r.regex.MatchString(remoteCommand) {
-		return true
-	}
-	for _, prefix := range r.rule.RemoteCommandPrefixAny {
-		if strings.HasPrefix(remoteCommand, strings.TrimSpace(prefix)) {
-			return true
-		}
-	}
-	return false
+	return r.matcher != nil && r.matcher.Match(remoteCommand)
 }
 
 func rankEffect(effect string) int {
 	switch effect {
 	case DecisionDeny:
+		return 2
+	case DecisionAllow:
 		return 1
 	default:
 		return 0

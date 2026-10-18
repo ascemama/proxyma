@@ -165,7 +165,8 @@ your-project/
 └── harness/
     ├── .agents/                 Release copy of the Codex adapter
     ├── .claude/                 Claude Code adapter
-    ├── agent-configuration/     Local credentials; initially empty
+    ├── agent-configuration/     Local credentials and non-secret template
+    │   └── agent.example.json   Copy this before creating agent.json
     ├── examples/                Configuration and task examples
     ├── instruction-pack/        Harness policy, CLI contract, schemas, and examples
     ├── task-state/              CLI-owned durable task state
@@ -271,6 +272,14 @@ installation instead.
 
 ## Configure the harness
 
+### Set the Proxyma server URL
+
+The server URL is configured in `harness/proxyma-agent.json` on the
+workstation where `proxyma-agent` runs. It must point to the running Proxyma
+server that this workstation can reach; it is not the URL of the agent
+machine. For a local development server, this may be
+`http://127.0.0.1:8080`. For a remote server, use its complete HTTPS URL.
+
 Edit `harness/proxyma-agent.json`:
 
 ```json
@@ -285,12 +294,22 @@ Edit `harness/proxyma-agent.json`:
 }
 ```
 
-Set `proxyma_base_url` to the server URL reachable from the Codex workstation.
-Relative `agent_config` and `state_dir` paths resolve from the directory that
-contains `proxyma-agent.json`.
+Replace the example `proxyma_base_url` value with that server URL. Do this
+before testing the agent or running `proxyma-agent doctor`; the agent cannot
+authenticate or contact Proxyma until this value is correct. Relative
+`agent_config` and `state_dir` paths resolve from the directory that contains
+`proxyma-agent.json`.
 
-Create the referenced credential file locally; it is deliberately absent from
-the release package:
+### Add the agent credentials
+
+Create the referenced credential file locally from the packaged example:
+
+```bash
+cp ./harness/agent-configuration/agent.example.json \
+   ./harness/agent-configuration/agent.json
+```
+
+Edit `harness/agent-configuration/agent.json` and replace both placeholders:
 
 ```json
 {
@@ -298,6 +317,10 @@ the release package:
   "agent_jwt_signing_key": "YOUR-AGENT-JWT-SIGNING-KEY"
 }
 ```
+
+The example file is safe to distribute because it contains placeholders only.
+The real `agent.json` is never included in a package and is preserved during
+installer upgrades.
 
 Restrict it to the user who runs Codex. On Linux or macOS:
 

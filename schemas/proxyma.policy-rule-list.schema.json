@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.policy-rule-list.schema.json",
+  "title": "Proxyma Policy Rule List Import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "blacklist", "whitelist"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "blacklist": { "type": "array", "items": { "$ref": "#/$defs/entry" } },
+    "whitelist": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_template"],
+      "properties": {
+        "command_template": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

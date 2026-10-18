@@ -39,13 +39,11 @@ import {
   changePassword,
   createAgent,
   createInteraction,
-  createPolicy,
   createTarget,
   createUser,
   createPasswordResetLink,
   deleteAgent,
   deleteInteraction,
-  deletePolicy,
   deleteTarget,
   deleteUser,
   getAgents,
@@ -63,8 +61,6 @@ import {
   type ChangePasswordInput,
   type ActivationPolicy,
   type Policy,
-  type PolicyMutationInput,
-  type PolicyRule,
   updateAgent,
   updateInteraction,
   updateTarget,
@@ -88,6 +84,7 @@ import {
 import { applyTheme, type Theme } from '../theme';
 import { showLocalInteraction } from '../environment';
 import { ApplicationFooter } from './ApplicationFooter';
+import { PolicyPage as PolicyManagementPage } from './policy/PolicyPage';
 
 type DashboardProps = {
   session: UserSession;
@@ -151,10 +148,6 @@ type UserDialogState =
       user: UserProfile;
     };
 
-type PolicyDialogState = {
-  mode: 'create';
-};
-
 type TargetCreationPrerequisites = {
   status: 'loading' | 'error' | 'missing' | 'ready';
   message: string;
@@ -186,7 +179,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   const [agentDialog, setAgentDialog] = useState<AgentDialogState | null>(null);
   const [interactionDialog, setInteractionDialog] = useState<InteractionDialogState | null>(null);
   const [userDialog, setUserDialog] = useState<UserDialogState | null>(null);
-  const [policyDialog, setPolicyDialog] = useState<PolicyDialogState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<Target | null>(null);
   const [deleteAgentCandidate, setDeleteAgentCandidate] = useState<Agent | null>(null);
@@ -194,7 +186,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   const [deleteUserCandidate, setDeleteUserCandidate] = useState<UserProfile | null>(null);
   const [regenerateUserCandidate, setRegenerateUserCandidate] = useState<UserProfile | null>(null);
   const [resetUserCandidate, setResetUserCandidate] = useState<UserProfile | null>(null);
-  const [deletePolicyCandidate, setDeletePolicyCandidate] = useState<Policy | null>(null);
   const queryClient = useQueryClient();
 
   const usersQuery = useQuery({ queryKey: ['users'], queryFn: getUsers, enabled: session.user.admin });
@@ -272,14 +263,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   const passwordResetMutation = useMutation({
     mutationFn: ({ id, seconds }: { id: string; seconds?: number }) => createPasswordResetLink(id, seconds, session.csrf_token),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] })
-  });
-  const createPolicyMutation = useMutation({
-    mutationFn: (input: PolicyMutationInput) => createPolicy(input, session.csrf_token),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['policies'] })
-  });
-  const deletePolicyMutation = useMutation({
-    mutationFn: (id: string) => deletePolicy(id, session.csrf_token),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['policies'] })
   });
   const changePasswordMutation = useMutation({
     mutationFn: (input: ChangePasswordInput) => changePassword(input, session.csrf_token)
@@ -368,10 +351,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
     }
   }
 
-  async function handleSavePolicy(input: PolicyMutationInput) {
-    await createPolicyMutation.mutateAsync(input);
-    closePolicyDialog();
-  }
 
   async function handleConfirmDelete() {
     if (!deleteCandidate) {
@@ -405,13 +384,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
     closeDeleteUserDialog();
   }
 
-  async function handleConfirmDeletePolicy() {
-    if (!deletePolicyCandidate) {
-      return;
-    }
-    await deletePolicyMutation.mutateAsync(deletePolicyCandidate.id);
-    closeDeletePolicyDialog();
-  }
 
   const pageTitle =
     activePage === 'target'
@@ -433,7 +405,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   const isSavingAgent = createAgentMutation.isPending || updateAgentMutation.isPending;
   const isSavingInteraction = createInteractionMutation.isPending || updateInteractionMutation.isPending;
   const isSavingUser = createUserMutation.isPending || updateUserMutation.isPending;
-  const isSavingPolicy = createPolicyMutation.isPending;
 
   function closeTargetDialog() {
     createTargetMutation.reset();
@@ -458,11 +429,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
     createUserMutation.reset();
     updateUserMutation.reset();
     setUserDialog(null);
-  }
-
-  function closePolicyDialog() {
-    createPolicyMutation.reset();
-    setPolicyDialog(null);
   }
 
   function closeSettingsDialog() {
@@ -490,11 +456,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   function closeDeleteUserDialog() {
     deleteUserMutation.reset();
     setDeleteUserCandidate(null);
-  }
-
-  function closeDeletePolicyDialog() {
-    deletePolicyMutation.reset();
-    setDeletePolicyCandidate(null);
   }
 
   return (
@@ -557,7 +518,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             onAdd={() => setTargetDialog({ mode: 'create' })}
             onAddAgent={openCreateAgent}
             onAddInteraction={openCreateInteraction}
-            onAddPolicy={() => setPolicyDialog({ mode: 'create' })}
+            onAddPolicy={() => setActivePage('policy')}
             onDelete={setDeleteCandidate}
             onEdit={(target) => setTargetDialog({ mode: 'edit', target })}
             onRefresh={() => void targetsQuery.refetch()}
@@ -625,13 +586,14 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             session={session}
           />
         ) : activePage === 'policy' ? (
-          <PolicyPage
+          <PolicyManagementPage
             error={policiesQuery.error}
             isLoading={policiesQuery.isLoading}
-            onAdd={() => setPolicyDialog({ mode: 'create' })}
-            onDelete={setDeletePolicyCandidate}
             onRefresh={() => void policiesQuery.refetch()}
+            onTargetsRefresh={() => void targetsQuery.refetch()}
             policies={policies}
+            session={session}
+            targets={targets}
           />
         ) : (
           <DashboardPage
@@ -647,7 +609,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             onViewCommandHistory={() => setActivePage('command-history')}
             onAddAgent={openCreateAgent}
             onAddInteraction={openCreateInteraction}
-            onAddPolicy={() => setPolicyDialog({ mode: 'create' })}
+            onAddPolicy={() => setActivePage('policy')}
             onAddTarget={() => setTargetDialog({ mode: 'create' })}
             onDeleteAgent={setDeleteAgentCandidate}
             onDeleteTarget={setDeleteCandidate}
@@ -760,15 +722,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
         user={resetUserCandidate}
       /> : null}
 
-      {policyDialog ? (
-        <PolicyFormModal
-          error={createPolicyMutation.error}
-          isSaving={isSavingPolicy}
-          onClose={closePolicyDialog}
-          onSubmit={handleSavePolicy}
-        />
-      ) : null}
-
       {deleteCandidate ? (
         <DeleteTargetModal
           error={deleteTargetMutation.error}
@@ -809,15 +762,6 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
         />
       ) : null}
 
-      {deletePolicyCandidate ? (
-        <DeletePolicyModal
-          error={deletePolicyMutation.error}
-          isDeleting={deletePolicyMutation.isPending}
-          onClose={closeDeletePolicyDialog}
-          onConfirm={handleConfirmDeletePolicy}
-          policy={deletePolicyCandidate}
-        />
-      ) : null}
     </div>
   );
 }
@@ -1602,98 +1546,6 @@ function interactionStatusTone(status: string) {
     default:
       return 'waiting';
   }
-}
-
-function PolicyPage({
-  error,
-  isLoading,
-  onAdd,
-  onDelete,
-  onRefresh,
-  policies
-}: {
-  error: Error | null;
-  isLoading: boolean;
-  onAdd: () => void;
-  onDelete: (policy: Policy) => void;
-  onRefresh: () => void;
-  policies: Policy[];
-}) {
-  return (
-    <section className="dashboard-stack">
-      <PoliciesSection error={error} isLoading={isLoading} onAdd={onAdd} onDelete={onDelete} onRefresh={onRefresh} policies={policies} />
-    </section>
-  );
-}
-
-function PoliciesSection({
-  error,
-  isLoading,
-  onAdd,
-  onDelete,
-  onRefresh,
-  policies
-}: {
-  error: Error | null;
-  isLoading: boolean;
-  onAdd: () => void;
-  onDelete: (policy: Policy) => void;
-  onRefresh: () => void;
-  policies: Policy[];
-}) {
-  return (
-    <Panel
-      action={<SectionActions label="Add Policy" onAdd={onAdd} onRefresh={onRefresh} />}
-      count={policies.length}
-      error={error}
-      icon={<ShieldCheck size={18} />}
-      isLoading={isLoading}
-      title="Policies"
-    >
-      {policies.length === 0 ? (
-        <EmptyState message="No policies are configured." />
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Policy</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Rules</th>
-              <th>ID</th>
-              <th className="actions-cell">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {policies.map((policy) => (
-              <tr key={policy.id}>
-                <td>
-                  <div className="resource-title">
-                    <strong>{policy.name}</strong>
-                    {policy.description ? <small>{policy.description}</small> : null}
-                  </div>
-                </td>
-                <td>
-                  <span className={policy.enabled ? 'state-dot online' : 'state-dot'} />
-                  {policy.enabled ? 'Enabled' : 'Disabled'}
-                </td>
-                <td>{policy.priority}</td>
-                <td>
-                  <div className="rule-list">{policy.rules.map((rule) => <span key={rule.id}>{ruleSummary(rule)}</span>)}</div>
-                </td>
-                <td>
-                  <code>{policy.id}</code>
-                </td>
-                <td className="actions-cell">
-                  <DeleteOnlyAction onDelete={() => onDelete(policy)} targetName={policy.name} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </Panel>
-  );
 }
 
 function CommandHistorySection({
@@ -3124,208 +2976,6 @@ function InteractionFormModal({
   );
 }
 
-type PolicyRuleDraft = {
-  key: string;
-  id: string;
-  effect: PolicyRule['effect'];
-  matchType: 'always' | 'regex' | 'prefix';
-  matchValue: string;
-  reason: string;
-};
-
-function PolicyFormModal({
-  error,
-  isSaving,
-  onClose,
-  onSubmit
-}: {
-  error: Error | null;
-  isSaving: boolean;
-  onClose: () => void;
-  onSubmit: (input: PolicyMutationInput) => Promise<void>;
-}) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('0');
-  const [enabled, setEnabled] = useState(true);
-  const [rules, setRules] = useState<PolicyRuleDraft[]>([newPolicyRuleDraft(1)]);
-  const [localError, setLocalError] = useState('');
-
-  function updateRule(key: string, patch: Partial<PolicyRuleDraft>) {
-    setRules((items) => items.map((rule) => (rule.key === key ? { ...rule, ...patch } : rule)));
-  }
-
-  function addRule() {
-    setRules((items) => [...items, newPolicyRuleDraft(items.length + 1)]);
-  }
-
-  function removeRule(key: string) {
-    setRules((items) => (items.length > 1 ? items.filter((rule) => rule.key !== key) : items));
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLocalError('');
-    if (!name.trim()) {
-      setLocalError('Policy name is required.');
-      return;
-    }
-    const parsedPriority = Number.parseInt(priority, 10);
-    if (!Number.isFinite(parsedPriority)) {
-      setLocalError('Priority must be a number.');
-      return;
-    }
-    const builtRules: PolicyRule[] = [];
-    for (const rule of rules) {
-      const id = rule.id.trim();
-      if (!id) {
-        setLocalError('Every rule needs an ID.');
-        return;
-      }
-      const built: PolicyRule = {
-        id,
-        effect: rule.effect
-      };
-      if (rule.reason.trim()) {
-        built.reason = rule.reason.trim();
-      }
-      if (rule.matchType === 'always') {
-        built.always = true;
-      } else if (rule.matchType === 'regex') {
-        if (!rule.matchValue.trim()) {
-          setLocalError('Regex rules need a command regex.');
-          return;
-        }
-        built.remote_command_regex = rule.matchValue.trim();
-      } else {
-        const prefixes = parseList(rule.matchValue);
-        if (prefixes.length === 0) {
-          setLocalError('Prefix rules need at least one command prefix.');
-          return;
-        }
-        built.remote_command_prefix_any = prefixes;
-      }
-      builtRules.push(built);
-    }
-    try {
-      await onSubmit({
-        name,
-        description,
-        priority: parsedPriority,
-        enabled,
-        rules: builtRules
-      });
-    } catch {
-      // Mutation errors are rendered from React Query state above the action row.
-    }
-  }
-
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <section aria-modal="true" className="dialog" role="dialog" aria-labelledby="policy-dialog-title">
-        <div className="dialog-header">
-          <div>
-            <h2 id="policy-dialog-title">Add Policy</h2>
-            <p>Policies are immutable after creation. Delete and recreate a policy when rules need to change.</p>
-          </div>
-          <button className="icon-button" type="button" aria-label="Close policy dialog" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="dialog-grid">
-            <label className="dialog-field">
-              <span>Name</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Read-only baseline" />
-            </label>
-            <label className="dialog-field">
-              <span>Priority</span>
-              <input value={priority} onChange={(event) => setPriority(event.target.value)} inputMode="numeric" placeholder="0" />
-            </label>
-            <label className="dialog-field wide">
-              <span>Description</span>
-              <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Commands allowed without approval" />
-            </label>
-            <label className="toggle-field wide">
-              <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-              <span>Enabled</span>
-            </label>
-          </div>
-
-          <div className="rule-editor">
-            <div className="rule-editor-header">
-              <strong>Rules</strong>
-              <button className="ghost-button" type="button" onClick={addRule}>
-                <Plus size={16} />
-                Add Rule
-              </button>
-            </div>
-            {rules.map((rule, index) => (
-              <div className="rule-editor-row" key={rule.key}>
-                <label className="dialog-field">
-                  <span>Rule ID</span>
-                  <input value={rule.id} onChange={(event) => updateRule(rule.key, { id: event.target.value })} placeholder={`rule-${index + 1}`} />
-                </label>
-                <label className="dialog-field">
-                  <span>Effect</span>
-                  <select value={rule.effect} onChange={(event) => updateRule(rule.key, { effect: event.target.value as PolicyRule['effect'] })}>
-                    <option value="allow">Allow</option>
-                    <option value="approval">Approval</option>
-                    <option value="deny">Deny</option>
-                  </select>
-                </label>
-                <label className="dialog-field">
-                  <span>Match</span>
-                  <select value={rule.matchType} onChange={(event) => updateRule(rule.key, { matchType: event.target.value as PolicyRuleDraft['matchType'], matchValue: '' })}>
-                    <option value="always">Always</option>
-                    <option value="regex">Regex</option>
-                    <option value="prefix">Prefix list</option>
-                  </select>
-                </label>
-                {rule.matchType !== 'always' ? (
-                  <label className="dialog-field wide">
-                    <span>{rule.matchType === 'regex' ? 'Command regex' : 'Command prefixes'}</span>
-                    <input
-                      value={rule.matchValue}
-                      onChange={(event) => updateRule(rule.key, { matchValue: event.target.value })}
-                      placeholder={rule.matchType === 'regex' ? '(?i)^systemctl status' : 'hostname, uptime'}
-                    />
-                  </label>
-                ) : null}
-                <label className="dialog-field wide">
-                  <span>Reason</span>
-                  <input value={rule.reason} onChange={(event) => updateRule(rule.key, { reason: event.target.value })} placeholder="Audit explanation" />
-                </label>
-                <button
-                  className="icon-button bordered danger"
-                  type="button"
-                  aria-label={`Remove rule ${index + 1}`}
-                  onClick={() => removeRule(rule.key)}
-                  disabled={rules.length === 1}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {localError || error ? <div className="form-error compact">{localError || error?.message}</div> : null}
-
-          <div className="dialog-actions">
-            <button className="ghost-button" type="button" onClick={onClose}>
-              Cancel
-            </button>
-            <button className="primary-action" type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Policy'}
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
 function TargetFormModal({
   agents,
   error,
@@ -3361,9 +3011,7 @@ function TargetFormModal({
 	const [winrmTLSInsecure, setWinrmTLSInsecure] = useState(target?.winrm?.tls_insecure ?? false);
   const [password, setPassword] = useState('');
   const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
-  const initialPolicyIDs = target?.policy_ids ?? [];
-  const [selectedPolicyID, setSelectedPolicyID] = useState(initialPolicyIDs[0] ?? '');
-  const [policyChanged, setPolicyChanged] = useState(false);
+  const [selectedPolicyID, setSelectedPolicyID] = useState(target?.policy_id ?? '');
   const [selectedAgentIDs, setSelectedAgentIDs] = useState<string[]>(target?.agent_ids ?? []);
   const [localError, setLocalError] = useState('');
   const [credentialTestStatus, setCredentialTestStatus] = useState<CredentialTestStatus>('idle');
@@ -3409,8 +3057,6 @@ function TargetFormModal({
 			setLocalError('WinRM port must be between 1 and 65535.');
 			return;
 		}
-    const policyIDs =
-      mode === 'edit' && !policyChanged && initialPolicyIDs.length > 1 ? initialPolicyIDs : [selectedPolicyID.trim()];
     const input: TargetMutationInput = {
 		transport,
 		os: transport === 'winrm' ? 'windows' : targetOS,
@@ -3418,7 +3064,7 @@ function TargetFormModal({
       ip,
       description,
       username,
-      policy_ids: policyIDs,
+      policy_id: selectedPolicyID.trim(),
       agent_ids: selectedAgentIDs,
       auth_type: authType
     };
@@ -4001,53 +3647,6 @@ function LoadingRows() {
   );
 }
 
-function DeletePolicyModal({
-  error,
-  isDeleting,
-  onClose,
-  onConfirm,
-  policy
-}: {
-  error: Error | null;
-  isDeleting: boolean;
-  onClose: () => void;
-  onConfirm: () => Promise<void>;
-  policy: Policy;
-}) {
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <section aria-modal="true" className="dialog narrow" role="dialog" aria-labelledby="delete-policy-title">
-        <div className="dialog-header">
-          <div className="warning-title">
-            <AlertTriangle size={20} />
-            <h2 id="delete-policy-title">Delete Policy</h2>
-          </div>
-          <button className="icon-button" type="button" aria-label="Close delete dialog" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-        <p className="dialog-copy">Delete {policy.name} from the Proxyma policy inventory.</p>
-        {error ? <div className="form-error compact">{error.message}</div> : null}
-        <div className="dialog-actions">
-          <button className="ghost-button" type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="danger-action"
-            type="button"
-            onClick={() => {
-              void onConfirm().catch(() => undefined);
-            }}
-            disabled={isDeleting}
-          >
-            {isDeleting ? 'Deleting...' : 'Delete Policy'}
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 function initials(value: string) {
   return value
     .split(/\s+/)
@@ -4264,33 +3863,4 @@ function statusLabel(status: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-}
-
-function parseList(value: string) {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function newPolicyRuleDraft(index: number): PolicyRuleDraft {
-  return {
-    key: `rule-${Date.now()}-${index}`,
-    id: `rule-${index}`,
-    effect: 'approval',
-    matchType: 'always',
-    matchValue: '',
-    reason: ''
-  };
-}
-
-function ruleSummary(rule: PolicyRule) {
-  const match = rule.always
-    ? 'always'
-    : rule.remote_command_regex
-      ? `regex ${rule.remote_command_regex}`
-      : rule.remote_command_prefix_any?.length
-        ? `prefix ${rule.remote_command_prefix_any.join(', ')}`
-        : 'no match';
-  return `${rule.id}: ${rule.effect} when ${match}`;
 }

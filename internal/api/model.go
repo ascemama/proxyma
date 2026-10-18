@@ -57,11 +57,11 @@ type TaskStatusResponse struct {
 
 // TaskTargetResponse identifies the matched remote target without credentials.
 type TaskTargetResponse struct {
-	Transport string   `json:"transport"`
-	OS        string   `json:"os"`
-	Hostname  string   `json:"hostname,omitempty"`
-	IP        string   `json:"ip,omitempty"`
-	PolicyIDs []string `json:"policy_ids,omitempty"`
+	Transport string `json:"transport"`
+	OS        string `json:"os"`
+	Hostname  string `json:"hostname,omitempty"`
+	IP        string `json:"ip,omitempty"`
+	PolicyID  string `json:"policy_id,omitempty"`
 }
 
 // ResolveTargetResponse returns safe target-routing metadata for harnesses.
@@ -270,7 +270,7 @@ type UserTargetMutationRequest struct {
 	IP                         string           `json:"ip,omitempty"`
 	Description                string           `json:"description,omitempty"`
 	Username                   string           `json:"username,omitempty"`
-	PolicyIDs                  []string         `json:"policy_ids,omitempty"`
+	PolicyID                   string           `json:"policy_id,omitempty"`
 	AgentIDs                   []string         `json:"agent_ids,omitempty"`
 	AuthType                   string           `json:"auth_type,omitempty"`
 	Password                   string           `json:"password,omitempty"`
@@ -341,31 +341,64 @@ type UserPoliciesResponse struct {
 
 // UserPolicyResponse is safe Proxyma policy metadata and rule content for GUI callers.
 type UserPolicyResponse struct {
-	ID          string                   `json:"id"`
-	Name        string                   `json:"name"`
-	Description string                   `json:"description,omitempty"`
-	Priority    int                      `json:"priority"`
-	Enabled     bool                     `json:"enabled"`
-	Rules       []UserPolicyRuleResponse `json:"rules"`
+	ID                 string                     `json:"id"`
+	OwnerUserID        string                     `json:"owner_user_id"`
+	Name               string                     `json:"name"`
+	Description        string                     `json:"description,omitempty"`
+	Enabled            bool                       `json:"enabled"`
+	Rules              []UserPolicyRuleResponse   `json:"rules"`
+	BlacklistRuleCount int                        `json:"blacklist_rule_count"`
+	WhitelistRuleCount int                        `json:"whitelist_rule_count"`
+	AssignedTargetIDs  []string                   `json:"assigned_target_ids"`
+	AssignedTargets    []UserPolicyTargetResponse `json:"assigned_targets"`
 }
 
 // UserPolicyRuleResponse is one policy rule returned to GUI callers.
 type UserPolicyRuleResponse struct {
-	ID                     string   `json:"id"`
-	Effect                 string   `json:"effect"`
-	RemoteCommandRegex     string   `json:"remote_command_regex,omitempty"`
-	RemoteCommandPrefixAny []string `json:"remote_command_prefix_any,omitempty"`
-	Always                 bool     `json:"always,omitempty"`
-	Reason                 string   `json:"reason,omitempty"`
+	ID              string `json:"id"`
+	Effect          string `json:"effect"`
+	CommandTemplate string `json:"command_template"`
+	Reason          string `json:"reason,omitempty"`
+}
+
+// UserPolicyTargetResponse is safe target metadata shown in policy management.
+type UserPolicyTargetResponse struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
 }
 
 // UserPolicyMutationRequest is submitted by GUI users to create policies.
 type UserPolicyMutationRequest struct {
 	Name        string        `json:"name,omitempty"`
 	Description string        `json:"description,omitempty"`
-	Priority    int           `json:"priority,omitempty"`
 	Enabled     *bool         `json:"enabled,omitempty"`
 	Rules       []policy.Rule `json:"rules,omitempty"`
+}
+
+// UserPolicyTargetAssignmentRequest replaces target assignments visible to the actor.
+type UserPolicyTargetAssignmentRequest struct {
+	TargetIDs []string `json:"target_ids"`
+}
+
+// UserPolicyRuleListImportResponse describes an append-only rule-list import.
+type UserPolicyRuleListImportResponse struct {
+	Policy    UserPolicyResponse                `json:"policy"`
+	Added     []UserPolicyRuleResponse          `json:"added"`
+	Skipped   []UserPolicyRuleListEntryResponse `json:"skipped"`
+	Conflicts []UserPolicyRuleListEntryResponse `json:"conflicts"`
+}
+
+type UserPolicyRuleListEntryResponse struct {
+	CommandTemplate string `json:"command_template"`
+	Reason          string `json:"reason,omitempty"`
+}
+
+// UserPolicyRuleConflictResponse reports an atomic import conflict.
+type UserPolicyRuleConflictResponse struct {
+	Error     string                            `json:"error"`
+	Code      string                            `json:"code"`
+	Conflicts []UserPolicyRuleListEntryResponse `json:"conflicts"`
 }
 
 // UserCommandHistoryResponse lists recent command tasks visible to a GUI user.
@@ -428,7 +461,7 @@ type UserTargetResponse struct {
 	OS          string           `json:"os"`
 	Hostname    string           `json:"hostname,omitempty"`
 	IP          string           `json:"ip,omitempty"`
-	PolicyIDs   []string         `json:"policy_ids"`
+	PolicyID    string           `json:"policy_id"`
 	AgentIDs    []string         `json:"agent_ids"`
 	UserIDs     []string         `json:"user_ids"`
 	Description string           `json:"description,omitempty"`
@@ -526,7 +559,7 @@ func targetResponseFromTaskTarget(target *tasks.Target) *TaskTargetResponse {
 	if target == nil {
 		return nil
 	}
-	return &TaskTargetResponse{Transport: target.Transport, OS: target.OS, Hostname: target.Hostname, IP: target.IP, PolicyIDs: append([]string(nil), target.PolicyIDs...)}
+	return &TaskTargetResponse{Transport: target.Transport, OS: target.OS, Hostname: target.Hostname, IP: target.IP, PolicyID: target.PolicyID}
 }
 
 func transcriptionResponseFromMetadata(metadata *transcriptor.Metadata) *TranscriptionResponse {

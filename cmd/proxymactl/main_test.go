@@ -39,6 +39,13 @@ func TestRunUsersCreateUpdateDelete(t *testing.T) {
 
 	stdout.Reset()
 	stderr.Reset()
+	code = run(append(testGlobalArgs(root), "users", "create", "--file", inputPath, "--password-stdin"), &stdout, &stderr, strings.NewReader("another-password\n"), emptyEnv)
+	if code == 0 || !strings.Contains(stderr.String(), "already exists") {
+		t.Fatalf("duplicate create code = %d stderr = %s", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
 	code = run(append(testGlobalArgs(root), "users", "update", created.ID, "--file", "-"), &stdout, &stderr, strings.NewReader(`{"username":"alice","name":"Alice Updated","admin":false}`), emptyEnv)
 	if code != 0 {
 		t.Fatalf("code = %d stderr = %s", code, stderr.String())

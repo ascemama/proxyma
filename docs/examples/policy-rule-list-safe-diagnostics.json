@@ -1,0 +1,28 @@
+{
+  "$schema": "../../schemas/proxyma.policy-rule-list.schema.json",
+  "version": 1,
+  "blacklist": [
+    {
+      "command_template": "rm -rf {path}",
+      "reason": "Destructive filesystem operation"
+    },
+    {
+      "command_template": "shutdown",
+      "reason": "Stops the target system"
+    }
+  ],
+  "whitelist": [
+    {
+      "command_template": "ping {ipv4}",
+      "reason": "Network reachability check"
+    },
+    {
+      "command_template": "systemctl status {service}",
+      "reason": "Read-only service status check"
+    },
+    {
+      "command_template": "df -h",
+      "reason": "Read-only filesystem usage check"
+    }
+  ]
+}

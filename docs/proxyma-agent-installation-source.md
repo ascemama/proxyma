@@ -156,6 +156,18 @@ The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
 Linux or macOS, or `%LOCALAPPDATA%\Programs\Proxyma\bin` on Windows, to
 `PATH`, then open a new terminal and restart Codex.
 
+After installation, first edit `harness/proxyma-agent.json` and replace the
+example `proxyma_base_url` value with the URL of the running Proxyma server.
+The URL must be reachable from the workstation running `proxyma-agent`; for a
+local development server it may be `http://127.0.0.1:8080`. The exact JSON
+layout and the remaining harness configuration steps are documented in
+[Configure the harness](proxyma-agent-installation-release.md#configure-the-harness).
+
+Then copy `harness/agent-configuration/agent.example.json` to `agent.json`
+and fill in the agent UUID and signing key created in the Proxyma GUI. The
+example is included with the harness package; the real credential file is
+local-only.
+
 ## After installation
 
 The project layout, harness configuration, credential handling, validation

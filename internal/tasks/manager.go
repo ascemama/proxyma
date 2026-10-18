@@ -646,7 +646,6 @@ func cloneTarget(target *Target) *Target {
 		return nil
 	}
 	copied := *target
-	copied.PolicyIDs = append([]string(nil), target.PolicyIDs...)
 	return &copied
 }
 

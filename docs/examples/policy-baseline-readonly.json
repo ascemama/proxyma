@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/proxyma.policy.schema.json",
+  "id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+  "owner_user_id": "fcd2f3a9-d546-44f4-837b-0c7aa4219752",
+  "name": "Baseline Readonly",
+  "description": "Allow simple diagnostic commands and deny destructive commands.",
+  "enabled": true,
+  "rules": [
+    {
+      "id": "deny-dangerous",
+      "effect": "deny",
+      "command_template": "shutdown",
+      "reason": "Dangerous destructive command."
+    },
+    {
+      "id": "allow-diagnostics",
+      "effect": "allow",
+      "command_template": "hostname",
+      "reason": "Known readonly diagnostic command."
+    }
+  ]
+}

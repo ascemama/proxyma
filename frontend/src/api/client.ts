@@ -61,7 +61,7 @@ export type Target = {
 	os: 'linux' | 'windows';
   hostname?: string;
   ip?: string;
-  policy_ids: string[];
+	policy_id: string;
   agent_ids: string[];
   user_ids: string[];
   description?: string;
@@ -82,7 +82,7 @@ export type TargetMutationInput = {
   ip?: string;
   description?: string;
   username?: string;
-  policy_ids?: string[];
+	policy_id?: string;
   agent_ids?: string[];
   auth_type?: string;
   password?: string;
@@ -133,28 +133,54 @@ export type InteractionMutationInput = {
 
 export type PolicyRule = {
   id: string;
-  effect: 'allow' | 'approval' | 'deny';
-  remote_command_regex?: string;
-  remote_command_prefix_any?: string[];
-  always?: boolean;
+  effect: 'allow' | 'deny';
+  command_template: string;
   reason?: string;
+};
+
+export type PolicyTarget = {
+  id: string;
+  label: string;
+  description?: string;
 };
 
 export type Policy = {
   id: string;
+  owner_user_id: string;
   name: string;
   description?: string;
-  priority: number;
   enabled: boolean;
   rules: PolicyRule[];
+  blacklist_rule_count: number;
+  whitelist_rule_count: number;
+  assigned_target_ids: string[];
+  assigned_targets: PolicyTarget[];
 };
 
 export type PolicyMutationInput = {
   name?: string;
   description?: string;
-  priority?: number;
   enabled?: boolean;
   rules?: PolicyRule[];
+};
+
+export type PolicyRuleListEntry = {
+  command_template: string;
+  reason?: string;
+};
+
+export type PolicyRuleListDocument = {
+  $schema?: string;
+  version: 1;
+  blacklist: PolicyRuleListEntry[];
+  whitelist: PolicyRuleListEntry[];
+};
+
+export type PolicyRuleImportResponse = {
+  policy: Policy;
+  added: PolicyRule[];
+  skipped: PolicyRuleListEntry[];
+  conflicts: PolicyRuleListEntry[];
 };
 
 export type CommandHistoryItem = {
@@ -221,19 +247,22 @@ export type InteractionHistoryPage = {
 type ErrorResponse = {
   error?: string;
   code?: string;
+  conflicts?: PolicyRuleListEntry[];
 };
 
 export class APIError extends Error {
   status: number;
   code?: string;
   hostKey?: SSHHostKeyInfo;
+  conflicts?: PolicyRuleListEntry[];
 
-  constructor(message: string, status: number, code?: string, hostKey?: SSHHostKeyInfo) {
+  constructor(message: string, status: number, code?: string, hostKey?: SSHHostKeyInfo, conflicts?: PolicyRuleListEntry[]) {
     super(message);
     this.name = 'APIError';
     this.status = status;
     this.code = code;
     this.hostKey = hostKey;
+    this.conflicts = conflicts;
   }
 }
 
@@ -255,6 +284,7 @@ async function requestJSON<T>(path: string, options: RequestInit = {}): Promise<
     let message = `Request failed with ${response.status}`;
     let code: string | undefined;
     let hostKey: SSHHostKeyInfo | undefined;
+    let conflicts: PolicyRuleListEntry[] | undefined;
     try {
       const payload = (await response.json()) as ErrorResponse & { host_key?: SSHHostKeyInfo };
       if (payload.error) {
@@ -262,10 +292,11 @@ async function requestJSON<T>(path: string, options: RequestInit = {}): Promise<
       }
 	  code = payload.code;
 	  hostKey = payload.host_key;
+	  conflicts = payload.conflicts;
     } catch {
       // Keep the generic HTTP status message.
     }
-    throw new APIError(message, response.status, code, hostKey);
+    throw new APIError(message, response.status, code, hostKey, conflicts);
   }
 
   return (await response.json()) as T;
@@ -505,9 +536,9 @@ function targetMutationRequest(input: TargetMutationInput, csrfToken: string): {
 	appendFormValue(form, 'target_id', input.target_id);
 	appendFormValue(form, 'approved_host_key_fingerprint', input.approved_host_key_fingerprint);
 	appendFormValue(form, 'credential_test_token', input.credential_test_token);
-  for (const policyID of input.policy_ids ?? []) {
-    form.append('policy_ids', policyID);
-  }
+	if (input.policy_id) {
+		form.append('policy_id', input.policy_id);
+	}
   for (const agentID of input.agent_ids ?? []) {
     form.append('agent_ids', agentID);
   }
@@ -547,6 +578,30 @@ export function createPolicy(input: PolicyMutationInput, csrfToken: string): Pro
       'X-CSRF-Token': csrfToken
     },
     body: JSON.stringify(input)
+  });
+}
+
+export function updatePolicy(id: string, input: PolicyMutationInput, csrfToken: string): Promise<Policy> {
+  return requestJSON<Policy>(`/v1/user/policies/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify(input)
+  });
+}
+
+export function importPolicyRuleList(id: string, input: PolicyRuleListDocument, csrfToken: string): Promise<PolicyRuleImportResponse> {
+  return requestJSON<PolicyRuleImportResponse>(`/v1/user/policies/${encodeURIComponent(id)}/rule-lists/import`, {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify(input)
+  });
+}
+
+export function assignPolicyTargets(id: string, targetIDs: string[], csrfToken: string): Promise<Policy> {
+  return requestJSON<Policy>(`/v1/user/policies/${encodeURIComponent(id)}/targets`, {
+    method: 'PUT',
+    headers: { 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify({ target_ids: targetIDs })
   });
 }
 

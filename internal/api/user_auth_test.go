@@ -467,29 +467,29 @@ func TestUserTargetsEndpointAdminSeesAllTargetsAndRedactsCredentials(t *testing.
 		Hostname:    "owned.example",
 		IP:          "10.0.0.1",
 		Username:    "owned-user",
-		PolicyIDs:   []string{"baseline"},
+		PolicyID:    "baseline",
 		AgentIDs:    []string{testAgent.ID},
 		UserIDs:     []string{testUser.ID},
 		Auth:        targets.PasswordAuth("owned-target-password"),
 		Description: "owned target",
 	}
 	other := targets.Target{
-		ID:        "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-		Hostname:  "other.example",
-		Username:  "other-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{testAgent.ID},
-		UserIDs:   []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
-		Auth:      targets.PasswordAuth("other-target-password"),
+		ID:       "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+		Hostname: "other.example",
+		Username: "other-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{testAgent.ID},
+		UserIDs:  []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		Auth:     targets.PasswordAuth("other-target-password"),
 	}
 	shared := targets.Target{
-		ID:        "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
-		Hostname:  "shared.example",
-		Username:  "shared-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{testAgent.ID},
-		UserIDs:   []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43", testUser.ID},
-		Auth:      targets.PrivateKeyAuth("secrets/private_keys/shared-key"),
+		ID:       "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
+		Hostname: "shared.example",
+		Username: "shared-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{testAgent.ID},
+		UserIDs:  []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43", testUser.ID},
+		Auth:     targets.PrivateKeyAuth("secrets/private_keys/shared-key"),
 	}
 	server.Targets = targets.NewRegistry([]targets.Target{owned, other, shared})
 	cookie := loginCookie(t, server)
@@ -532,29 +532,29 @@ func TestUserTargetsEndpointNonAdminFiltersOwnedTargets(t *testing.T) {
 		Hostname:    "owned.example",
 		IP:          "10.0.0.1",
 		Username:    "owned-user",
-		PolicyIDs:   []string{"baseline"},
+		PolicyID:    "baseline",
 		AgentIDs:    []string{testAgent.ID},
 		UserIDs:     []string{testUser.ID},
 		Auth:        targets.PasswordAuth("owned-target-password"),
 		Description: "owned target",
 	}
 	other := targets.Target{
-		ID:        "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
-		Hostname:  "other.example",
-		Username:  "other-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{testAgent.ID},
-		UserIDs:   []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
-		Auth:      targets.PasswordAuth("other-target-password"),
+		ID:       "7937dd2d-0b8a-4880-8afa-0ea60fd65a43",
+		Hostname: "other.example",
+		Username: "other-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{testAgent.ID},
+		UserIDs:  []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+		Auth:     targets.PasswordAuth("other-target-password"),
 	}
 	shared := targets.Target{
-		ID:        "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
-		Hostname:  "shared.example",
-		Username:  "shared-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{testAgent.ID},
-		UserIDs:   []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43", testUser.ID},
-		Auth:      targets.PrivateKeyAuth("secrets/private_keys/shared-key"),
+		ID:       "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
+		Hostname: "shared.example",
+		Username: "shared-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{testAgent.ID},
+		UserIDs:  []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43", testUser.ID},
+		Auth:     targets.PrivateKeyAuth("secrets/private_keys/shared-key"),
 	}
 	server.Targets = targets.NewRegistry([]targets.Target{owned, other, shared})
 	cookie := loginCookie(t, server)
@@ -584,7 +584,7 @@ func TestUserTargetMutationsCreateUpdateDeleteOwnedTarget(t *testing.T) {
 		"ip":"10.10.1.80",
 		"description":"New managed target",
 		"username":"fixture-new",
-		"policy_ids":["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+		"policy_id":"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
 		"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
 		"auth_type":"password",
 		"password":"new-target-secret"
@@ -615,7 +615,7 @@ func TestUserTargetMutationsCreateUpdateDeleteOwnedTarget(t *testing.T) {
 		"hostname":"NEW-SRV-02",
 		"ip":"10.10.1.81",
 		"description":"Updated managed target",
-		"policy_ids":["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+		"policy_id":"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
 		"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
 		"auth_type":"password"
 	}`
@@ -654,7 +654,7 @@ func TestUserTargetMutationsCreateWinRMTarget(t *testing.T) {
 	cookie, session := loginSession(t, server)
 	body := `{
 		"transport":"winrm", "hostname":"win.example", "username":"Administrator",
-		"policy_ids":["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+		"policy_id":"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
 		"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
 		"auth_type":"password", "password":"secret",
 		"winrm":{"scheme":"https","tls_insecure":true}
@@ -685,7 +685,7 @@ func TestUserTargetMutationsUploadPrivateKeyWithGUIDStorage(t *testing.T) {
 		"ip":          {"10.10.1.90"},
 		"description": {"Private key target"},
 		"username":    {"fixture-key"},
-		"policy_ids":  {"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
+		"policy_id":   {"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
 		"agent_ids":   {testAgent.ID},
 		"auth_type":   {targets.AuthTypePrivateKey},
 	}, []byte("PRIVATE KEY ONE"))
@@ -742,11 +742,11 @@ func TestUserTargetMutationsUploadPrivateKeyWithGUIDStorage(t *testing.T) {
 	assertPrivateKeyFile(t, paths, stored.Auth.PrivateKeyPath, "PRIVATE KEY TWO")
 
 	emptyRec := userTargetMultipartMutationRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, map[string][]string{
-		"hostname":   {"KEY-SRV-EMPTY"},
-		"username":   {"fixture-key"},
-		"policy_ids": {"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		"agent_ids":  {testAgent.ID},
-		"auth_type":  {targets.AuthTypePrivateKey},
+		"hostname":  {"KEY-SRV-EMPTY"},
+		"username":  {"fixture-key"},
+		"policy_id": {"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
+		"agent_ids": {testAgent.ID},
+		"auth_type": {targets.AuthTypePrivateKey},
 	}, []byte{})
 	if emptyRec.Code != http.StatusBadRequest {
 		t.Fatalf("empty upload status = %d body=%s", emptyRec.Code, emptyRec.Body.String())
@@ -1070,14 +1070,14 @@ func TestUserTargetCredentialTestRejectsMissingFieldsAndCSRF(t *testing.T) {
 func TestUserTargetMutationsAllowDuplicateHostnameForDifferentCredentials(t *testing.T) {
 	server, paths := testTargetMutationServer(t, []targets.Target{
 		{
-			ID:        "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
-			Hostname:  "shared.example",
-			IP:        "10.10.1.95",
-			Username:  "first-user",
-			PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-			AgentIDs:  []string{testAgent.ID},
-			UserIDs:   []string{testUser.ID},
-			Auth:      targets.PasswordAuth("first-secret"),
+			ID:       "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+			Hostname: "shared.example",
+			IP:       "10.10.1.95",
+			Username: "first-user",
+			PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+			AgentIDs: []string{testAgent.ID},
+			UserIDs:  []string{testUser.ID},
+			Auth:     targets.PasswordAuth("first-secret"),
 		},
 	})
 	cookie, session := loginSession(t, server)
@@ -1086,7 +1086,7 @@ func TestUserTargetMutationsAllowDuplicateHostnameForDifferentCredentials(t *tes
 		"ip":"10.10.1.95",
 		"description":"Same VM with a different credential",
 		"username":"second-user",
-		"policy_ids":["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"],
+		"policy_id":"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
 		"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],
 		"auth_type":"password",
 		"password":"second-secret"
@@ -1115,13 +1115,13 @@ func TestUserTargetMutationsRejectUnauthenticatedInvalidAndForeignRequests(t *te
 	foreignID := "7937dd2d-0b8a-4880-8afa-0ea60fd65a43"
 	server, _ := testTargetMutationServer(t, []targets.Target{
 		{
-			ID:        foreignID,
-			Hostname:  "foreign.example",
-			Username:  "foreign-user",
-			PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-			AgentIDs:  []string{testAgent.ID},
-			UserIDs:   []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
-			Auth:      targets.PasswordAuth("foreign-secret"),
+			ID:       foreignID,
+			Hostname: "foreign.example",
+			Username: "foreign-user",
+			PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+			AgentIDs: []string{testAgent.ID},
+			UserIDs:  []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+			Auth:     targets.PasswordAuth("foreign-secret"),
 		},
 	})
 	currentUser, found := server.userRegistry().Find(testUser.ID)
@@ -1162,13 +1162,13 @@ func TestUserTargetMutationsAdminCanUpdateAndDeleteForeignTarget(t *testing.T) {
 	foreignID := "7937dd2d-0b8a-4880-8afa-0ea60fd65a43"
 	server, paths := testTargetMutationServer(t, []targets.Target{
 		{
-			ID:        foreignID,
-			Hostname:  "foreign.example",
-			Username:  "foreign-user",
-			PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-			AgentIDs:  []string{testAgent.ID},
-			UserIDs:   []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
-			Auth:      targets.PasswordAuth("foreign-secret"),
+			ID:       foreignID,
+			Hostname: "foreign.example",
+			Username: "foreign-user",
+			PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+			AgentIDs: []string{testAgent.ID},
+			UserIDs:  []string{"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5"},
+			Auth:     targets.PasswordAuth("foreign-secret"),
 		},
 	})
 	adminUser, found := server.userRegistry().Find(testUser.ID)
@@ -1238,9 +1238,8 @@ func TestUserPolicyMutationsCreateRejectInvalidAndDisallowEdit(t *testing.T) {
 	createBody := `{
 		"name":"Runtime allow policy",
 		"description":"Created by API test",
-		"priority":42,
 		"enabled":true,
-		"rules":[{"id":"allow-hostname","effect":"allow","remote_command_prefix_any":["hostname"],"reason":"test"}]
+		"rules":[{"id":"allow-hostname","effect":"allow","command_template":"hostname","reason":"test"}]
 	}`
 	createRec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies", cookie, session.CSRFToken, createBody)
 	if createRec.Code != http.StatusCreated {
@@ -1253,7 +1252,7 @@ func TestUserPolicyMutationsCreateRejectInvalidAndDisallowEdit(t *testing.T) {
 	if created.ID == "" || created.Name != "Runtime allow policy" || len(created.Rules) != 1 {
 		t.Fatalf("created = %#v", created)
 	}
-	result, err := server.Policies.Evaluate(context.Background(), policy.Request{PolicyIDs: []string{created.ID}, RemoteCommand: "hostname"})
+	result, err := server.Policies.Evaluate(context.Background(), policy.Request{PolicyID: created.ID, RemoteCommand: "hostname"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1261,26 +1260,78 @@ func TestUserPolicyMutationsCreateRejectInvalidAndDisallowEdit(t *testing.T) {
 		t.Fatalf("policy decision = %#v", result)
 	}
 
-	invalid := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies", cookie, session.CSRFToken, `{"name":"Broken"}`)
+	invalid := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies", cookie, session.CSRFToken, `{"name":"Broken","rules":[{"effect":"allow","command_template":"echo {bad}"}]}`)
 	if invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid status = %d body=%s", invalid.Code, invalid.Body.String())
 	}
 
 	edit := userTargetMutationRequest(t, server, http.MethodPut, "/v1/user/policies/"+created.ID, cookie, session.CSRFToken, `{"name":"Edit"}`)
-	if edit.Code != http.StatusMethodNotAllowed {
+	if edit.Code != http.StatusOK {
 		t.Fatalf("edit status = %d body=%s", edit.Code, edit.Body.String())
+	}
+}
+
+func TestUserPolicyImportAndTargetAssignmentAPI(t *testing.T) {
+	target := targets.Target{
+		ID:       "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+		Hostname: "policy-api.example",
+		Username: "fixture",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{testAgent.ID},
+		UserIDs:  []string{testUser.ID},
+		Auth:     targets.PasswordAuth("secret"),
+	}
+	server, _ := testTargetMutationServer(t, []targets.Target{target})
+	cookie, session := loginSession(t, server)
+
+	create := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies", cookie, session.CSRFToken, `{"name":"Imported diagnostics","rules":[]}`)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", create.Code, create.Body.String())
+	}
+	var created UserPolicyResponse
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	importRec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies/"+created.ID+"/rule-lists/import", cookie, session.CSRFToken, `{"version":1,"blacklist":[{"command_template":"rm -rf {path}","reason":"destructive"}],"whitelist":[{"command_template":"ping {ipv4}","reason":"reachability"}]}`)
+	if importRec.Code != http.StatusOK {
+		t.Fatalf("import status = %d body=%s", importRec.Code, importRec.Body.String())
+	}
+	var imported UserPolicyRuleListImportResponse
+	if err := json.Unmarshal(importRec.Body.Bytes(), &imported); err != nil {
+		t.Fatal(err)
+	}
+	if len(imported.Added) != 2 || imported.Policy.BlacklistRuleCount != 1 || imported.Policy.WhitelistRuleCount != 1 {
+		t.Fatalf("imported = %#v", imported)
+	}
+
+	assignment := userTargetMutationRequest(t, server, http.MethodPut, "/v1/user/policies/"+created.ID+"/targets", cookie, session.CSRFToken, `{"target_ids":["8dc60324-b3bb-4d19-9aa6-0e149e4938b8"]}`)
+	if assignment.Code != http.StatusOK {
+		t.Fatalf("assignment status = %d body=%s", assignment.Code, assignment.Body.String())
+	}
+	var assigned UserPolicyResponse
+	if err := json.Unmarshal(assignment.Body.Bytes(), &assigned); err != nil {
+		t.Fatal(err)
+	}
+	if len(assigned.AssignedTargetIDs) != 1 || assigned.AssignedTargetIDs[0] != target.ID {
+		t.Fatalf("assigned = %#v", assigned.AssignedTargetIDs)
+	}
+
+	conflict := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies/"+created.ID+"/rule-lists/import", cookie, session.CSRFToken, `{"version":1,"blacklist":[{"command_template":"ping {ipv4}"}]}`)
+	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), "ping {ipv4}") {
+		t.Fatalf("conflict status = %d body=%s", conflict.Code, conflict.Body.String())
 	}
 }
 
 func TestUserPolicyDeleteRejectsReferencedPolicyAndRefreshesEvaluator(t *testing.T) {
 	referencedTarget := targets.Target{
-		ID:        "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
-		Hostname:  "referenced.example",
-		Username:  "fixture",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{testAgent.ID},
-		UserIDs:   []string{testUser.ID},
-		Auth:      targets.PasswordAuth("secret"),
+		ID:       "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+		Hostname: "referenced.example",
+		Username: "fixture",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{testAgent.ID},
+		UserIDs:  []string{testUser.ID},
+		Auth:     targets.PasswordAuth("secret"),
 	}
 	server, _ := testTargetMutationServer(t, []targets.Target{referencedTarget})
 	cookie, session := loginSession(t, server)
@@ -1290,7 +1341,7 @@ func TestUserPolicyDeleteRejectsReferencedPolicyAndRefreshesEvaluator(t *testing
 		t.Fatalf("referenced delete status = %d body=%s", referencedDelete.Code, referencedDelete.Body.String())
 	}
 
-	createBody := `{"name":"Temporary policy","rules":[{"id":"allow-all","effect":"allow","always":true}]}`
+	createBody := `{"name":"Temporary policy","rules":[{"id":"allow-all","effect":"allow","command_template":"hostname"}]}`
 	createRec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/policies", cookie, session.CSRFToken, createBody)
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d body=%s", createRec.Code, createRec.Body.String())
@@ -1303,7 +1354,7 @@ func TestUserPolicyDeleteRejectsReferencedPolicyAndRefreshesEvaluator(t *testing
 	if deleteRec.Code != http.StatusOK {
 		t.Fatalf("delete status = %d body=%s", deleteRec.Code, deleteRec.Body.String())
 	}
-	result, err := server.Policies.Evaluate(context.Background(), policy.Request{PolicyIDs: []string{created.ID}, RemoteCommand: "hostname"})
+	result, err := server.Policies.Evaluate(context.Background(), policy.Request{PolicyID: created.ID, RemoteCommand: "hostname"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1547,7 +1598,7 @@ func TestUserAgentMutationsRejectForeignAndReferencedAgent(t *testing.T) {
 		OS:        targets.OSLinux,
 		Hostname:  "referenced-agent.example",
 		Username:  "fixture-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
+		PolicyID:  "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
 		AgentIDs:  []string{created.ID},
 		UserIDs:   []string{testUser.ID},
 		Auth:      targets.PasswordAuth("target-secret"),
@@ -1929,24 +1980,24 @@ func TestUserCommandHistoryEndpointFiltersVisibleTasksAndRedactsSecrets(t *testi
 	}
 	server.Agents = agents.NewRegistry([]agents.Agent{ownedAgent, otherAgent})
 	ownedTarget := targets.Target{
-		ID:        "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
-		Hostname:  "owned.example",
-		IP:        "10.0.0.1",
-		Username:  "owned-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{ownedAgent.ID, otherAgent.ID},
-		UserIDs:   []string{testUser.ID},
-		Auth:      targets.PasswordAuth("owned-target-password"),
+		ID:       "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+		Hostname: "owned.example",
+		IP:       "10.0.0.1",
+		Username: "owned-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{ownedAgent.ID, otherAgent.ID},
+		UserIDs:  []string{testUser.ID},
+		Auth:     targets.PasswordAuth("owned-target-password"),
 	}
 	otherTarget := targets.Target{
-		ID:        "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
-		Hostname:  "other.example",
-		IP:        "10.0.0.2",
-		Username:  "other-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{otherAgent.ID},
-		UserIDs:   []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43"},
-		Auth:      targets.PasswordAuth("other-target-password"),
+		ID:       "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
+		Hostname: "other.example",
+		IP:       "10.0.0.2",
+		Username: "other-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{otherAgent.ID},
+		UserIDs:  []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43"},
+		Auth:     targets.PasswordAuth("other-target-password"),
 	}
 	server.Targets = targets.NewRegistry([]targets.Target{ownedTarget, otherTarget})
 
@@ -2025,24 +2076,24 @@ func TestUserCommandHistoryEndpointAdminSeesAllTasksAndRedactsSecrets(t *testing
 	}
 	server.Agents = agents.NewRegistry([]agents.Agent{ownedAgent, otherAgent})
 	ownedTarget := targets.Target{
-		ID:        "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
-		Hostname:  "owned.example",
-		IP:        "10.0.0.1",
-		Username:  "owned-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{ownedAgent.ID, otherAgent.ID},
-		UserIDs:   []string{testUser.ID},
-		Auth:      targets.PasswordAuth("owned-target-password"),
+		ID:       "8dc60324-b3bb-4d19-9aa6-0e149e4938b8",
+		Hostname: "owned.example",
+		IP:       "10.0.0.1",
+		Username: "owned-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{ownedAgent.ID, otherAgent.ID},
+		UserIDs:  []string{testUser.ID},
+		Auth:     targets.PasswordAuth("owned-target-password"),
 	}
 	otherTarget := targets.Target{
-		ID:        "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
-		Hostname:  "other.example",
-		IP:        "10.0.0.2",
-		Username:  "other-user",
-		PolicyIDs: []string{"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
-		AgentIDs:  []string{otherAgent.ID},
-		UserIDs:   []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43"},
-		Auth:      targets.PasswordAuth("other-target-password"),
+		ID:       "a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5",
+		Hostname: "other.example",
+		IP:       "10.0.0.2",
+		Username: "other-user",
+		PolicyID: "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		AgentIDs: []string{otherAgent.ID},
+		UserIDs:  []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43"},
+		Auth:     targets.PasswordAuth("other-target-password"),
 	}
 	server.Targets = targets.NewRegistry([]targets.Target{ownedTarget, otherTarget})
 
@@ -2427,17 +2478,17 @@ func testTargetMutationServer(t *testing.T, initialTargets []targets.Target) (*S
 	writeJSONRecord(t, paths.AgentDir, agent.ID, agent)
 
 	baselinePolicy := map[string]any{
-		"id":          "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
-		"name":        "Test baseline policy",
-		"description": "Test baseline policy",
-		"priority":    100,
-		"enabled":     true,
+		"id":            "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		"owner_user_id": testUser.ID,
+		"name":          "Test baseline policy",
+		"description":   "Test baseline policy",
+		"enabled":       true,
 		"rules": []map[string]any{
 			{
-				"id":     "allow-all",
-				"effect": "allow",
-				"always": true,
-				"reason": "test policy",
+				"id":               "allow-all",
+				"effect":           "allow",
+				"command_template": "hostname",
+				"reason":           "test policy",
 			},
 		},
 	}

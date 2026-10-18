@@ -30,15 +30,15 @@ type Request struct {
 	Target        Target
 	Command       string
 	RemoteCommand string
-	PolicyIDs     []string
+	PolicyID      string
 	Metadata      map[string]any
 }
 
 // Target identifies the matched Proxyma target for policy evaluation.
 type Target struct {
-	Hostname  string
-	IP        string
-	PolicyIDs []string
+	Hostname string
+	IP       string
+	PolicyID string
 }
 
 // Result is the durable policy decision attached to a task.

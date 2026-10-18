@@ -41,6 +41,50 @@ token, and `build.version` and `build.commit` metadata.
 
 State-changing authenticated user requests require the current CSRF token.
 
+## Policy Management
+
+Authenticated users can list and inspect shared policies:
+
+```http
+GET /v1/user/policies
+GET /v1/user/policies/{policy_id}
+```
+
+Create and update policies with JSON containing `name`, `description`,
+`enabled`, and typed `rules`. New policies are owned by the authenticated user.
+Only the owner or an administrator may update or delete a policy:
+
+```http
+POST   /v1/user/policies
+PUT    /v1/user/policies/{policy_id}
+DELETE /v1/user/policies/{policy_id}
+```
+
+Append an import-only rule list to an existing policy with:
+
+```http
+POST /v1/user/policies/{policy_id}/rule-lists/import
+```
+
+The body follows [`schemas/proxyma.policy-rule-list.schema.json`](../schemas/proxyma.policy-rule-list.schema.json).
+Exact duplicates are reported and skipped; opposite-effect conflicts reject the
+whole import.
+
+Assign selected targets to a policy with:
+
+```http
+PUT /v1/user/policies/{policy_id}/targets
+Content-Type: application/json
+
+{"target_ids":["target-uuid"]}
+```
+
+Users may assign policies only to targets they own. Policy changes never pass
+through interaction providers or NTFY.
+
+Each target has exactly one `policy_id`. Assigning a target through this
+endpoint replaces its previous policy; targets cannot be left without a policy.
+
 ## Activation and Password Reset
 
 Pending users and users with an administrator-generated password-reset link use

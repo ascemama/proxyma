@@ -1,7 +1,10 @@
 package taskflow
 
 import (
+	"bytes"
 	"context"
+	"log"
+	"strings"
 	"testing"
 	"time"
 
@@ -251,8 +254,70 @@ func TestFlowApprovalPolicyIncludesMetadata(t *testing.T) {
 	if len(provider.sent) != 1 {
 		t.Fatalf("sent = %#v", provider.sent)
 	}
-	if provider.sent[0].Metadata["policy_id"] != "baseline" || provider.sent[0].Metadata["policy_rule_id"] != "approval-default" || provider.sent[0].Metadata["policy_reason"] != "needs approval" {
+	if provider.sent[0].Metadata["policy_id"] != "" || provider.sent[0].Metadata["policy_rule_id"] != "" || provider.sent[0].Metadata["policy_reason"] != "no policy rule matched command" {
 		t.Fatalf("metadata = %#v", provider.sent[0].Metadata)
+	}
+}
+
+func TestFlowLogsPolicyDecisionsWithoutCommandContent(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		decision string
+		policyID string
+		ruleID   string
+	}{
+		{name: "allow", command: "hostname", decision: policy.DecisionAllow, policyID: "baseline", ruleID: "allow-hostname"},
+		{name: "deny", command: "rm -rf /tmp/demo", decision: policy.DecisionDeny, policyID: "baseline", ruleID: "deny-dangerous"},
+		{name: "approval", command: "systemctl status ssh", decision: policy.DecisionApproval},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			manager, communicator, _ := newFlowHarness(t, true)
+			task := submitPolicyTask(t, manager, tt.command)
+			flow := New(manager, communicator, Options{Policies: testPolicySet(), Logger: log.New(&logs, "", 0)})
+
+			if _, err := flow.StartCreated(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			output := logs.String()
+			for _, field := range []string{"policy decision=" + tt.decision, "task_id=" + task.TaskID} {
+				if !strings.Contains(output, field) {
+					t.Fatalf("log output %q does not contain %q", output, field)
+				}
+			}
+			if tt.policyID != "" && (!strings.Contains(output, "policy_id="+tt.policyID) || !strings.Contains(output, "rule_id="+tt.ruleID)) {
+				t.Fatalf("log output %q does not identify matching policy rule", output)
+			}
+			if tt.name != "allow" && strings.Contains(output, tt.command) {
+				t.Fatalf("log output contains command: %q", output)
+			}
+		})
+	}
+}
+
+func TestFlowDoesNotLogPersistedPolicyDecisionTwice(t *testing.T) {
+	var logs bytes.Buffer
+	manager, communicator, _ := newFlowHarness(t, true)
+	task := submitPolicyTask(t, manager, "hostname")
+	flow := New(manager, communicator, Options{Policies: testPolicySet(), Logger: log.New(&logs, "", 0)})
+
+	if _, err := flow.StartCreated(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	firstLog := logs.String()
+	if count := strings.Count(firstLog, "policy decision=allow"); count != 1 {
+		t.Fatalf("allow log count after first pass = %d, output=%q", count, firstLog)
+	}
+	if _, err := flow.StartCreated(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(logs.String(), "policy decision=allow"); count != 1 {
+		t.Fatalf("allow log count after repeated pass = %d, output=%q", count, logs.String())
+	}
+	if task == nil {
+		t.Fatal("missing submitted task")
 	}
 }
 
@@ -283,7 +348,7 @@ func submitPolicyTask(t *testing.T, manager *tasks.Manager, command string) *tas
 		Command:     command,
 		Reasoning:   "test",
 		RequestedBy: "agent-demo",
-		Target:      &tasks.Target{Hostname: "target.example", PolicyIDs: []string{"baseline"}},
+		Target:      &tasks.Target{Hostname: "target.example", PolicyID: "baseline"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -294,12 +359,11 @@ func submitPolicyTask(t *testing.T, manager *tasks.Manager, command string) *tas
 func testPolicySet() *policy.Set {
 	return policy.NewSet(map[string]policy.Policy{
 		"baseline": {
-			ID:       "baseline",
-			Priority: 10,
+			ID:      "baseline",
+			Enabled: true,
 			Rules: []policy.Rule{
-				{ID: "deny-dangerous", Effect: policy.DecisionDeny, RemoteCommandRegex: `rm\s+-rf`, Reason: "dangerous"},
-				{ID: "allow-hostname", Effect: policy.DecisionAllow, RemoteCommandPrefixAny: []string{"hostname"}, Reason: "readonly"},
-				{ID: "approval-default", Effect: policy.DecisionApproval, Always: true, Reason: "needs approval"},
+				{ID: "deny-dangerous", Effect: policy.DecisionDeny, CommandTemplate: "rm -rf {path}", Reason: "dangerous"},
+				{ID: "allow-hostname", Effect: policy.DecisionAllow, CommandTemplate: "hostname", Reason: "readonly"},
 			},
 		},
 	})

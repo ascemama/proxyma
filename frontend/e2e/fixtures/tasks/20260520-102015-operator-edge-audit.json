@@ -4,7 +4,7 @@
   "target": {
     "hostname": "OP-EDGE-01",
     "ip": "10.20.1.21",
-    "policy_ids": ["6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"]
+    "policy_id": "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
   },
   "command": "operator-edge-audit",
   "reasoning": "Operator fixture command history item.",

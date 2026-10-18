@@ -275,6 +275,7 @@ fi
 for preserved_path in \
   "$HARNESS_DIR/proxyma-agent.json" \
   "$HARNESS_DIR/agent-configuration" \
+  "$HARNESS_DIR/agent-configuration/agent.example.json" \
   "$HARNESS_DIR/task-state" \
   "$HARNESS_DIR/task-state/active" \
   "$HARNESS_DIR/task-state/blocked" \
@@ -287,6 +288,10 @@ for preserved_path in \
 done
 if [[ -e "$HARNESS_DIR/proxyma-agent.json" && ! -f "$HARNESS_DIR/proxyma-agent.json" ]]; then
   echo "Harness configuration must be a regular file: $HARNESS_DIR/proxyma-agent.json" >&2
+  exit 1
+fi
+if [[ -e "$HARNESS_DIR/agent-configuration/agent.example.json" && ! -f "$HARNESS_DIR/agent-configuration/agent.example.json" ]]; then
+  echo "Agent credential example must be a regular file: $HARNESS_DIR/agent-configuration/agent.example.json" >&2
   exit 1
 fi
 for preserved_dir in \
@@ -345,6 +350,10 @@ install -d -m 0700 \
   "$HARNESS_DIR/task-state/blocked" \
   "$HARNESS_DIR/task-state/closed" \
   "$HARNESS_DIR/task-state/summaries"
+
+if [[ ! -e "$HARNESS_DIR/agent-configuration/agent.example.json" ]]; then
+  install -m 0644 "$PAYLOAD_DIR/agent-configuration/agent.example.json" "$HARNESS_DIR/agent-configuration/agent.example.json"
+fi
 
 for owned in instruction-pack examples tests .agents .claude RELEASE; do
   replace_path "$PAYLOAD_DIR/$owned" "$HARNESS_DIR/$owned"

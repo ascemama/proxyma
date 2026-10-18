@@ -20,11 +20,16 @@ Start Proxyma and open its browser GUI. For local development, follow the
 the HTTPS URL shown by the service and make sure the administrator user has
 been created.
 
+In a local source checkout, users, agents, targets, policies, and interaction
+instance configuration are stored under `var/proxyma/`. Files under
+`docs/examples/` are source-controlled examples only and are not loaded
+automatically.
+
 You will need:
 
 - an administrator account;
 - an SSH or WinRM target and credentials;
-- a policy describing which commands are allowed, require approval, or denied;
+- a policy describing which commands are allowed or denied; unmatched commands require approval;
 - an ntfy server and request/response topics if you want remote approval
   notifications.
 
@@ -41,18 +46,21 @@ and Policy pages.
 ## 2. Create a policy
 
 Open **Policy** in the left navigation and select **Add Policy**. Give the
-policy a descriptive name and priority, enable it, and add rules for the
-commands that agents may submit.
+policy a descriptive name, enable it, and add typed command templates to its
+**Blacklist** and **Whitelist** sections. For example, `ping {ipv4}` allows a
+ping to any IPv4 address while preserving the command structure.
 
-Each rule has an effect of **Allow**, **Approval**, or **Deny**. The form also
-supports **Always**, **Regex**, and **Prefix list** matches. A practical first
-policy normally denies destructive commands, allows safe diagnostics, and
-requires approval for everything else.
+Commands matching a blacklist rule are denied. Commands matching a whitelist
+rule run without approval. Everything else creates the normal approval
+interaction. Use **Import JSON** to append a prepared rule-list file to an
+existing policy; the import never creates a separate policy.
 
 ![Add Policy form](images/first-time-policy.jpg)
 
-Policies are immutable after creation. To change a policy, delete it only after
-removing references to it from targets, then create a replacement policy.
+Policies can be edited in place. Changes affect every target currently assigned
+to the policy. Each target has exactly one policy; assigning a target to a
+different policy replaces its current assignment. Target assignments are
+managed from the policy detail page or the target editor.
 
 ## 3. Create an ntfy communication
 
@@ -129,9 +137,10 @@ unknown SSH host key, verify the displayed algorithm and SHA-256 fingerprint
 through a trusted channel, then choose **Trust and retry**. Proxyma stores the
 host key only after the authentication and test command succeed.
 
-After saving, repeat this step for any additional servers. A target can refer
-to multiple policies and agents, but every referenced resource must exist and
-be visible to the owning user.
+After saving, repeat this step for any additional servers. A target refers to
+one policy and one or more agents; every referenced resource must exist and be
+visible to the owning user. Assigning a different policy replaces the target's
+current policy.
 
 ## Resulting dashboard
 

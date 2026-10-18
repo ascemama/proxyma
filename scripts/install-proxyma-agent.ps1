@@ -197,6 +197,7 @@ try {
     foreach ($preserved in @(
         $configPath,
         (Join-Path $harnessDir "agent-configuration"),
+        (Join-Path (Join-Path $harnessDir "agent-configuration") "agent.example.json"),
         (Join-Path $harnessDir "task-state"),
         (Join-Path $harnessDir "task-state\active"),
         (Join-Path $harnessDir "task-state\blocked"),
@@ -207,6 +208,10 @@ try {
     }
     if ((Test-Path -LiteralPath $configPath) -and -not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
         throw "Harness configuration must be a regular file: $configPath"
+    }
+    $exampleConfigPath = Join-Path $harnessDir "agent-configuration\agent.example.json"
+    if ((Test-Path -LiteralPath $exampleConfigPath) -and -not (Test-Path -LiteralPath $exampleConfigPath -PathType Leaf)) {
+        throw "Agent credential example must be a regular file: $exampleConfigPath"
     }
     foreach ($preservedDir in @("agent-configuration", "task-state", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries")) {
         $path = Join-Path $harnessDir $preservedDir
@@ -244,6 +249,9 @@ try {
     }
     foreach ($relativeDir in @("agent-configuration", "task-state", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries")) {
         New-Item -ItemType Directory -Force -Path (Join-Path $harnessDir $relativeDir) | Out-Null
+    }
+    if (-not (Test-Path -LiteralPath $exampleConfigPath)) {
+        Copy-Item -LiteralPath (Join-Path $payloadDir "agent-configuration\agent.example.json") -Destination $exampleConfigPath
     }
     foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "RELEASE")) {
         Replace-InstalledPath (Join-Path $payloadDir $owned) (Join-Path $harnessDir $owned)

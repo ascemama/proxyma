@@ -10,7 +10,7 @@ import (
 
 func TestLoadDirValidTarget(t *testing.T) {
 	dir := t.TempDir()
-	writeTarget(t, dir, "target.json", `{"$schema":"../schemas/proxyma.target.schema.json","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","ip":"127.0.0.1","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`)
+	writeTarget(t, dir, "target.json", `{"$schema":"../schemas/proxyma.target.schema.json","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","ip":"127.0.0.1","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`)
 
 	registry, diagnostics, err := LoadDir(dir)
 	if err != nil {
@@ -23,8 +23,8 @@ func TestLoadDirValidTarget(t *testing.T) {
 	if !found || duplicate || target.Username != "u" {
 		t.Fatalf("match = %#v found=%t duplicate=%t", target, found, duplicate)
 	}
-	if len(target.PolicyIDs) != 1 || target.PolicyIDs[0] != "baseline" {
-		t.Fatalf("policy ids = %#v", target.PolicyIDs)
+	if target.PolicyID != "baseline" {
+		t.Fatalf("policy id = %q", target.PolicyID)
 	}
 	if len(target.AgentIDs) != 1 || target.AgentIDs[0] != "df9ec8bb-1a22-4181-a7c8-126ad553221d" {
 		t.Fatalf("agent ids = %#v", target.AgentIDs)
@@ -36,7 +36,7 @@ func TestLoadDirValidTarget(t *testing.T) {
 
 func TestLoadDirRejectsMissingTransport(t *testing.T) {
 	dir := t.TempDir()
-	content := `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`
+	content := `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`
 	if err := os.WriteFile(filepath.Join(dir, "target.json"), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestLoadDirRejectsMissingTransport(t *testing.T) {
 
 func TestLoadDirRejectsMissingOS(t *testing.T) {
 	dir := t.TempDir()
-	content := `{"transport":"ssh","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`
+	content := `{"transport":"ssh","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`
 	if err := os.WriteFile(filepath.Join(dir, "target.json"), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestLoadDirRejectsMissingOS(t *testing.T) {
 
 func TestLoadDirValidWinRMTarget(t *testing.T) {
 	dir := t.TempDir()
-	writeTarget(t, dir, "target.json", `{"transport":"winrm","os":"windows","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"win.example","username":"Administrator","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"winrm":{"scheme":"https"},"auth":{"type":"password","password":"p"}}`)
+	writeTarget(t, dir, "target.json", `{"transport":"winrm","os":"windows","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"win.example","username":"Administrator","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"winrm":{"scheme":"https"},"auth":{"type":"password","password":"p"}}`)
 	registry, diagnostics, err := LoadDir(dir)
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%#v", err, diagnostics)
@@ -85,12 +85,12 @@ func TestLoadDirRejectsInvalidOSAndTransportOSPair(t *testing.T) {
 	}{
 		{
 			name:    "unsupported-os.json",
-			content: `{"transport":"ssh","os":"solaris","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"transport":"ssh","os":"solaris","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
 			want:    `unsupported os "solaris"`,
 		},
 		{
 			name:    "winrm-linux.json",
-			content: `{"transport":"winrm","os":"linux","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"win.example","username":"Administrator","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"winrm":{"scheme":"https"},"auth":{"type":"password","password":"p"}}`,
+			content: `{"transport":"winrm","os":"linux","id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"win.example","username":"Administrator","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"winrm":{"scheme":"https"},"auth":{"type":"password","password":"p"}}`,
 			want:    "WinRM targets require os windows",
 		},
 	}
@@ -117,7 +117,7 @@ func TestLoadDirValidPrivateKeyTarget(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	writeTarget(t, dir, "target.json", `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"secrets/private_keys/demo-key"}}`)
+	writeTarget(t, dir, "target.json", `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"secrets/private_keys/demo-key"}}`)
 
 	registry, diagnostics, err := LoadDir(dir)
 	if err != nil {
@@ -142,10 +142,10 @@ func TestLoadDirValidPrivateKeyTarget(t *testing.T) {
 
 func TestLoadDirRejectsInvalidTargets(t *testing.T) {
 	dir := t.TempDir()
-	writeTarget(t, dir, "valid.json", `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"valid-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`)
+	writeTarget(t, dir, "valid.json", `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"valid-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`)
 	writeTarget(t, dir, "missing.json", `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"missing-target","username":"u"}`)
 	writeTarget(t, dir, "malformed.json", `{`)
-	writeTarget(t, dir, "duplicate.json", `{"id":"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5","ip":"valid-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`)
+	writeTarget(t, dir, "duplicate.json", `{"id":"a49e7f6c-aa6f-40cd-ac95-e2c876db5bf5","ip":"valid-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`)
 
 	registry, diagnostics, err := LoadDir(dir)
 	if err != nil {
@@ -167,52 +167,52 @@ func TestLoadDirRejectsInvalidAuth(t *testing.T) {
 	}{
 		{
 			name:    "missing-auth.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"]}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"]}`,
 			want:    "missing required field auth",
 		},
 		{
 			name:    "missing-auth-type.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"password":"p"}}`,
 			want:    "missing required field auth.type",
 		},
 		{
 			name:    "missing-auth-password.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password"}}`,
 			want:    "missing required field auth.password",
 		},
 		{
 			name:    "legacy-top-level-password.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"password":"p"}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"password":"p"}`,
 			want:    "missing required field auth",
 		},
 		{
 			name:    "unsupported-auth-type.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"certificate","certificate_path":"target.pem"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"certificate","certificate_path":"target.pem"}}`,
 			want:    `unsupported auth type "certificate"`,
 		},
 		{
 			name:    "missing-private-key-path.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key"}}`,
 			want:    "missing required field auth.private_key_path",
 		},
 		{
 			name:    "empty-private-key-path.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":" "}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":" "}}`,
 			want:    "missing required field auth.private_key_path",
 		},
 		{
 			name:    "absolute-private-key-path.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"/secrets/private_keys/demo-key"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"/secrets/private_keys/demo-key"}}`,
 			want:    "auth.private_key_path must be relative",
 		},
 		{
 			name:    "traversal-private-key-path.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"secrets/private_keys/../demo-key"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"secrets/private_keys/../demo-key"}}`,
 			want:    "auth.private_key_path must be under secrets/private_keys",
 		},
 		{
 			name:    "outside-private-key-path.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"secrets/other/demo-key"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"private_key","private_key_path":"secrets/other/demo-key"}}`,
 			want:    "auth.private_key_path must be under secrets/private_keys",
 		},
 	} {
@@ -234,7 +234,7 @@ func TestLoadDirRejectsInvalidAuth(t *testing.T) {
 	}
 }
 
-func TestLoadDirRejectsMissingOrEmptyPolicyIDs(t *testing.T) {
+func TestLoadDirRejectsMissingOrEmptyPolicyID(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		content string
@@ -243,17 +243,17 @@ func TestLoadDirRejectsMissingOrEmptyPolicyIDs(t *testing.T) {
 		{
 			name:    "missing-policy-ids.json",
 			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","auth":{"type":"password","password":"p"}}`,
-			want:    "missing required field policy_ids",
+			want:    "missing required field policy_id",
 		},
 		{
 			name:    "empty-policy-ids.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":[],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
-			want:    "missing required field policy_ids",
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			want:    "missing required field policy_id",
 		},
 		{
 			name:    "blank-policy-id.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":[" "],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
-			want:    "policy_ids must not contain empty values",
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":" ","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			want:    "missing required field policy_id",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -282,22 +282,22 @@ func TestLoadDirRejectsMissingOrEmptyAgentIDs(t *testing.T) {
 	}{
 		{
 			name:    "missing-agent-ids.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
 			want:    "missing required field agent_ids",
 		},
 		{
 			name:    "empty-agent-ids.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":[],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":[],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
 			want:    "missing required field agent_ids",
 		},
 		{
 			name:    "blank-agent-id.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":[" "],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":[" "],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
 			want:    "agent_ids must not contain empty values",
 		},
 		{
 			name:    "duplicate-agent-id.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d","df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d","df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
 			want:    "agent_ids must not contain duplicate values",
 		},
 	} {
@@ -327,22 +327,22 @@ func TestLoadDirRejectsMissingOrEmptyUserIDs(t *testing.T) {
 	}{
 		{
 			name:    "missing-user-ids.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"auth":{"type":"password","password":"p"}}`,
 			want:    "missing required field user_ids",
 		},
 		{
 			name:    "empty-user-ids.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":[],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":[],"auth":{"type":"password","password":"p"}}`,
 			want:    "missing required field user_ids",
 		},
 		{
 			name:    "blank-user-id.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":[" "],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":[" "],"auth":{"type":"password","password":"p"}}`,
 			want:    "user_ids must not contain empty values",
 		},
 		{
 			name:    "duplicate-user-id.json",
-			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_ids":["baseline"],"agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752","fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
+			content: `{"id":"8dc60324-b3bb-4d19-9aa6-0e149e4938b8","hostname":"demo-target","username":"u","policy_id":"baseline","agent_ids":["df9ec8bb-1a22-4181-a7c8-126ad553221d"],"user_ids":["fcd2f3a9-d546-44f4-837b-0c7aa4219752","fcd2f3a9-d546-44f4-837b-0c7aa4219752"],"auth":{"type":"password","password":"p"}}`,
 			want:    "user_ids must not contain duplicate values",
 		},
 	} {
@@ -380,7 +380,7 @@ func TestRootTargetSchemaCoversRuntimeFields(t *testing.T) {
 		"hostname",
 		"ip",
 		"username",
-		"policy_ids",
+		"policy_id",
 		"agent_ids",
 		"user_ids",
 		"auth",

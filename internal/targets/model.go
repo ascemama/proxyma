@@ -12,7 +12,7 @@ type Target struct {
 	Hostname    string      `json:"hostname,omitempty"`
 	IP          string      `json:"ip,omitempty"`
 	Username    string      `json:"username"`
-	PolicyIDs   []string    `json:"policy_ids"`
+	PolicyID    string      `json:"policy_id"`
 	AgentIDs    []string    `json:"agent_ids"`
 	UserIDs     []string    `json:"user_ids"`
 	Auth        *TargetAuth `json:"auth"`
@@ -148,7 +148,6 @@ func (t Target) hasAgent(agentID string) bool {
 }
 
 func cloneTarget(target Target) Target {
-	target.PolicyIDs = append([]string(nil), target.PolicyIDs...)
 	target.AgentIDs = append([]string(nil), target.AgentIDs...)
 	target.UserIDs = append([]string(nil), target.UserIDs...)
 	if target.Auth != nil {

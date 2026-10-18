@@ -1096,101 +1096,6 @@ func (s *Server) handleDeleteUserInteraction(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-func (s *Server) handleUserPolicies(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		s.handleCreateUserPolicy(w, r)
-		return
-	}
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	if _, _, ok := userSessionFromContext(r.Context()); !ok {
-		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "missing user session", Code: "auth_required"})
-		return
-	}
-	paths, ok := s.managementPaths()
-	if !ok {
-		writeError(w, http.StatusInternalServerError, "management paths are not configured")
-		return
-	}
-	items, err := users.ReadPolicies(paths)
-	if err != nil {
-		writePolicyMutationError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, userPoliciesResponse(items))
-}
-
-func (s *Server) handleUserPolicy(w http.ResponseWriter, r *http.Request) {
-	id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/v1/user/policies/"), "/")
-	if id == "" || strings.Contains(id, "/") {
-		writeError(w, http.StatusNotFound, "policy not found")
-		return
-	}
-	switch r.Method {
-	case http.MethodDelete:
-		s.handleDeleteUserPolicy(w, r, id)
-	default:
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-	}
-}
-
-func (s *Server) handleCreateUserPolicy(w http.ResponseWriter, r *http.Request) {
-	_, _, ok := userSessionFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "missing user session", Code: "auth_required"})
-		return
-	}
-	paths, ok := s.managementPaths()
-	if !ok {
-		writeError(w, http.StatusInternalServerError, "management paths are not configured")
-		return
-	}
-	request, ok := decodePolicyMutationRequest(w, r)
-	if !ok {
-		return
-	}
-	item := policyFromMutationRequest(request)
-	result, err := users.CreatePolicy(paths, item, nil)
-	if err != nil {
-		writePolicyMutationError(w, err)
-		return
-	}
-	if err := s.refreshPolicyEvaluator(paths); err != nil {
-		writePolicyMutationError(w, err)
-		return
-	}
-	created, err := readStoredPolicy(paths, result.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "created policy could not be read")
-		return
-	}
-	writeJSON(w, http.StatusCreated, safeUserPolicyResponse(created))
-}
-
-func (s *Server) handleDeleteUserPolicy(w http.ResponseWriter, r *http.Request, id string) {
-	_, _, ok := userSessionFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "missing user session", Code: "auth_required"})
-		return
-	}
-	paths, ok := s.managementPaths()
-	if !ok {
-		writeError(w, http.StatusInternalServerError, "management paths are not configured")
-		return
-	}
-	if _, err := users.DeletePolicy(paths, id); err != nil {
-		writePolicyMutationError(w, err)
-		return
-	}
-	if err := s.refreshPolicyEvaluator(paths); err != nil {
-		writePolicyMutationError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
-}
-
 func (s *Server) handleUserCommandHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -1318,7 +1223,7 @@ func safeUserTargetResponse(target targets.Target) UserTargetResponse {
 		OS:          target.OS,
 		Hostname:    target.Hostname,
 		IP:          target.IP,
-		PolicyIDs:   append([]string(nil), target.PolicyIDs...),
+		PolicyID:    target.PolicyID,
 		AgentIDs:    append([]string(nil), target.AgentIDs...),
 		UserIDs:     append([]string(nil), target.UserIDs...),
 		Description: target.Description,
@@ -1440,43 +1345,6 @@ func agentLabelForReference(agent agents.Agent) string {
 	return agent.ID
 }
 
-func userPoliciesResponse(items []policy.Policy) UserPoliciesResponse {
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].ID < items[j].ID
-	})
-	response := UserPoliciesResponse{Policies: make([]UserPolicyResponse, 0, len(items))}
-	for _, item := range items {
-		response.Policies = append(response.Policies, safeUserPolicyResponse(item))
-	}
-	return response
-}
-
-func safeUserPolicyResponse(item policy.Policy) UserPolicyResponse {
-	enabled := true
-	if item.Enabled != nil {
-		enabled = *item.Enabled
-	}
-	response := UserPolicyResponse{
-		ID:          item.ID,
-		Name:        item.Name,
-		Description: item.Description,
-		Priority:    item.Priority,
-		Enabled:     enabled,
-		Rules:       make([]UserPolicyRuleResponse, 0, len(item.Rules)),
-	}
-	for _, rule := range item.Rules {
-		response.Rules = append(response.Rules, UserPolicyRuleResponse{
-			ID:                     rule.ID,
-			Effect:                 rule.Effect,
-			RemoteCommandRegex:     rule.RemoteCommandRegex,
-			RemoteCommandPrefixAny: append([]string(nil), rule.RemoteCommandPrefixAny...),
-			Always:                 rule.Always,
-			Reason:                 rule.Reason,
-		})
-	}
-	return response
-}
-
 func decodeUserMutationRequest(w http.ResponseWriter, r *http.Request) (UserMutationRequest, bool) {
 	defer r.Body.Close()
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxUserBodyBytes))
@@ -1491,44 +1359,6 @@ func decodeUserMutationRequest(w http.ResponseWriter, r *http.Request) (UserMuta
 		return UserMutationRequest{}, false
 	}
 	return request, true
-}
-
-func decodePolicyMutationRequest(w http.ResponseWriter, r *http.Request) (UserPolicyMutationRequest, bool) {
-	defer r.Body.Close()
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxPolicyBodyBytes))
-	decoder.DisallowUnknownFields()
-	var request UserPolicyMutationRequest
-	if err := decoder.Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON policy request", Code: "invalid_policy"})
-		return UserPolicyMutationRequest{}, false
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON policy request", Code: "invalid_policy"})
-		return UserPolicyMutationRequest{}, false
-	}
-	return request, true
-}
-
-func policyFromMutationRequest(request UserPolicyMutationRequest) policy.Policy {
-	item := policy.Policy{
-		Name:        strings.TrimSpace(request.Name),
-		Description: strings.TrimSpace(request.Description),
-		Priority:    request.Priority,
-		Enabled:     request.Enabled,
-		Rules:       make([]policy.Rule, 0, len(request.Rules)),
-	}
-	for _, rule := range request.Rules {
-		cleaned := policy.Rule{
-			ID:                     strings.TrimSpace(rule.ID),
-			Effect:                 strings.TrimSpace(rule.Effect),
-			RemoteCommandRegex:     strings.TrimSpace(rule.RemoteCommandRegex),
-			RemoteCommandPrefixAny: cleanStringList(rule.RemoteCommandPrefixAny),
-			Always:                 rule.Always,
-			Reason:                 strings.TrimSpace(rule.Reason),
-		}
-		item.Rules = append(item.Rules, cleaned)
-	}
-	return item
 }
 
 func userFromMutationRequest(request UserMutationRequest, existing *users.User) (users.User, error) {
@@ -2012,7 +1842,7 @@ func decodeMultipartTargetMutationRequest(w http.ResponseWriter, r *http.Request
 		IP:                         firstFormValue(form.Value, "ip"),
 		Description:                firstFormValue(form.Value, "description"),
 		Username:                   firstFormValue(form.Value, "username"),
-		PolicyIDs:                  formValues(form.Value, "policy_ids"),
+		PolicyID:                   firstFormValue(form.Value, "policy_id"),
 		AgentIDs:                   formValues(form.Value, "agent_ids"),
 		AuthType:                   firstFormValue(form.Value, "auth_type"),
 		Password:                   firstFormValue(form.Value, "password"),
@@ -2243,7 +2073,7 @@ func targetFromMutationRequest(paths users.Paths, request UserTargetMutationRequ
 		Hostname:    strings.TrimSpace(request.Hostname),
 		IP:          strings.TrimSpace(request.IP),
 		Username:    strings.TrimSpace(request.Username),
-		PolicyIDs:   cleanStringList(request.PolicyIDs),
+		PolicyID:    strings.TrimSpace(request.PolicyID),
 		AgentIDs:    cleanStringList(request.AgentIDs),
 		Description: strings.TrimSpace(request.Description),
 	}
@@ -2260,8 +2090,8 @@ func targetFromMutationRequest(paths users.Paths, request UserTargetMutationRequ
 		if target.OS == "" {
 			target.OS = existing.OS
 		}
-		if request.PolicyIDs == nil {
-			target.PolicyIDs = append([]string(nil), existing.PolicyIDs...)
+		if request.PolicyID == "" {
+			target.PolicyID = existing.PolicyID
 		}
 		if request.AgentIDs == nil {
 			target.AgentIDs = append([]string(nil), existing.AgentIDs...)
@@ -2409,20 +2239,6 @@ func readStoredTarget(paths users.Paths, id string) (targets.Target, error) {
 		return targets.Target{}, err
 	}
 	return target, nil
-}
-
-func readStoredPolicy(paths users.Paths, id string) (policy.Policy, error) {
-	items, err := users.ReadPolicies(paths)
-	if err != nil {
-		return policy.Policy{}, err
-	}
-	id = strings.TrimSpace(id)
-	for _, item := range items {
-		if item.ID == id {
-			return item, nil
-		}
-	}
-	return policy.Policy{}, os.ErrNotExist
 }
 
 func (s *Server) managementPaths() (users.Paths, bool) {

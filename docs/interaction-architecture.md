@@ -5,15 +5,17 @@ Proxyma separates interaction configuration, delivery, and durable approval stat
 ```mermaid
 flowchart LR
     subgraph Configuration["Configuration and startup"]
-        NtfyFiles["interactions/ntfy/*.json"] --> LoadInstances["instances.LoadDir"]
+        NtfyFiles["var/proxyma/interaction_instances/ntfy/*.json"] --> LoadInstances["instances.LoadDir"]
         LoadInstances --> Registry["instances.Registry<br/>All / Enabled / HasEnabled"]
         Registry --> Definitions["InstanceDefinition<br/>InstanceMetadata"]
 
-        AgentFiles["agents/*.json"] --> AgentRegistry["agents.Registry"]
-        UserFiles["users/*.json"] --> UserRegistry["users.Registry"]
+        AgentFiles["var/proxyma/agents/*.json"] --> AgentRegistry["agents.Registry"]
+        UserFiles["var/proxyma/users/*.json"] --> UserRegistry["users.Registry"]
+        PolicyFiles["var/proxyma/policies/*.json"] --> PolicyRegistry["policy.Set"]
         Registry --> StartupValidation["Startup reference validation"]
         AgentRegistry --> StartupValidation
         UserRegistry --> StartupValidation
+        PolicyRegistry --> StartupValidation
 
         Registry --> BuildProviders["instances.BuildProviders"]
         RuntimeOptions["ProviderRuntimeOptions<br/>debug + logger"] --> BuildProviders
@@ -28,7 +30,8 @@ flowchart LR
         AgentRegistry --> AgentAPI
         AgentAPI -- "copies interaction_instance_id" --> TaskManager["tasks.Manager"]
         TaskManager --> Task["Durable Task"]
-        Task --> Policy["Policy evaluation"]
+        Task --> Policy["Policy evaluation<br/>deny / allow / approval fallback"]
+        PolicyRegistry --> Policy
         Policy -- "approval required" --> Flow["taskflow.Flow"]
         Flow -- "Request with instance ID" --> Service["interaction.Service<br/>Communicator + Responder"]
         Service -- "save pending record" --> InteractionStore["Interaction Store<br/>var/proxyma/interactions"]
@@ -79,7 +82,7 @@ flowchart LR
 | `local.Provider` | Prompts on the Proxyma console and returns the operator response directly to `interaction.Service`. |
 | `ntfy.Provider` | Publishes an approval message and polls the configured response topic only while it has pending interactions. Recovered pending interactions restart polling automatically. |
 | `taskflow.Flow` | Requests approval when required, waits on the durable interaction status, then executes or blocks the task. |
-| User management API | Enforces creator and referencing-agent access, protects referenced instances from deletion, writes NTFY configuration, and rebuilds the provider map after changes. |
+| User management API | Manages user-owned policies, target assignments, and interaction configuration. Policy changes refresh the evaluator; interaction changes rebuild the provider map. |
 
 Agent-authenticated HTTP clients can read interaction status but cannot answer an
 interaction. Providers run inside Proxyma and return authenticated human responses through
@@ -96,6 +99,12 @@ the internal `Responder` interface, keeping command requesters separate from app
 
 GUI users may newly assign `local` or an enabled interaction instance whose `creator_user_id` matches their user ID. Existing assignments owned by another user may be preserved while editing other agent fields, but cannot be newly selected after replacement.
 7. Taskflow observes the persisted interaction status and decides whether to execute or block the task.
+
+Policy decisions are deterministic in V1. A matching blacklist rule denies the
+command; otherwise a matching whitelist rule allows it; otherwise taskflow asks
+the configured interaction provider for approval. The WebGUI/API is the only
+policy mutation path. Interaction providers, including NTFY, only answer
+pending approval requests and never modify policies.
 
 Configuration reloads use build-then-swap behavior. If any provider cannot be constructed, `SetProviders` is not called and the active router configuration remains unchanged. After a successful swap, new interactions use the new providers while replaced providers continue serving their already-pending interactions and close after those interactions drain.
 

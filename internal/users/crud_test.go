@@ -48,6 +48,19 @@ func TestCreateUserRejectsProvidedID(t *testing.T) {
 	}
 }
 
+func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
+	paths := testPaths(t)
+	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
+
+	_, err := CreateUser(paths, testUser("alice"), fixedID(testOtherID))
+	if err == nil || !strings.Contains(err.Error(), `username "alice" already exists`) {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(paths.UserDir, testOtherID+".json")); !os.IsNotExist(err) {
+		t.Fatalf("duplicate user was written: %v", err)
+	}
+}
+
 func TestUpdateUserRejectsProvidedID(t *testing.T) {
 	paths := testPaths(t)
 	writeUserRecord(t, paths, storedTestUser(testUserID, "Alice"))
@@ -225,7 +238,7 @@ func TestDeleteAgentRejectsReferencedTarget(t *testing.T) {
 		ID:        testTargetID,
 		Hostname:  "target.example",
 		Username:  "demo",
-		PolicyIDs: []string{"baseline"},
+		PolicyID:  "baseline",
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testUserID},
 		Auth:      targets.PasswordAuth("password"),
@@ -248,7 +261,7 @@ func TestCreateTargetValidatesReferencesAndWrites(t *testing.T) {
 		OS:        targets.OSLinux,
 		Hostname:  "target.example",
 		Username:  "demo",
-		PolicyIDs: []string{testPolicyID},
+		PolicyID:  testPolicyID,
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testUserID},
 		Auth:      targets.PasswordAuth("password"),
@@ -273,7 +286,7 @@ func TestCreateTargetAllowsDuplicateHost(t *testing.T) {
 		ID:        testTargetID,
 		Hostname:  "target.example",
 		Username:  "demo",
-		PolicyIDs: []string{testPolicyID},
+		PolicyID:  testPolicyID,
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testUserID},
 		Auth:      targets.PasswordAuth("password"),
@@ -284,7 +297,7 @@ func TestCreateTargetAllowsDuplicateHost(t *testing.T) {
 		OS:        targets.OSLinux,
 		Hostname:  "target.example",
 		Username:  "other-demo",
-		PolicyIDs: []string{testPolicyID},
+		PolicyID:  testPolicyID,
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testUserID},
 		Auth:      targets.PasswordAuth("password"),
@@ -329,7 +342,7 @@ func TestReadTargetsForUserFiltersOwnedTargets(t *testing.T) {
 		ID:        testTargetID,
 		Hostname:  "owned.example",
 		Username:  "demo",
-		PolicyIDs: []string{"baseline"},
+		PolicyID:  "baseline",
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testUserID},
 		Auth:      targets.PasswordAuth("password"),
@@ -339,7 +352,7 @@ func TestReadTargetsForUserFiltersOwnedTargets(t *testing.T) {
 		ID:        testOtherID,
 		Hostname:  "other.example",
 		Username:  "demo",
-		PolicyIDs: []string{"baseline"},
+		PolicyID:  "baseline",
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testOtherID},
 		Auth:      targets.PasswordAuth("password"),
@@ -349,7 +362,7 @@ func TestReadTargetsForUserFiltersOwnedTargets(t *testing.T) {
 		ID:        testThirdID,
 		Hostname:  "shared.example",
 		Username:  "demo",
-		PolicyIDs: []string{"baseline"},
+		PolicyID:  "baseline",
 		AgentIDs:  []string{testAgentID},
 		UserIDs:   []string{testOtherID, testUserID},
 		Auth:      targets.PasswordAuth("password"),
@@ -437,7 +450,7 @@ func writeTargetRecord(t *testing.T, paths Paths, target targets.Target) {
 func writePolicy(t *testing.T, paths Paths, id string) {
 	t.Helper()
 	mkdirAll(t, paths.PolicyDir)
-	body := `{"id":"` + id + `","name":"Test Policy","enabled":true,"rules":[{"id":"default","effect":"approval","always":true}]}`
+	body := `{"id":"` + id + `","owner_user_id":"` + testUserID + `","name":"Test Policy","enabled":true,"rules":[{"id":"default","effect":"allow","command_template":"hostname"}]}`
 	if err := os.WriteFile(filepath.Join(paths.PolicyDir, id+".json"), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}

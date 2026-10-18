@@ -4,6 +4,7 @@ package taskflow
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ type Manager interface {
 type Options struct {
 	RequireCommandApproval bool
 	Policies               policy.Evaluator
+	Logger                 *log.Logger
 }
 
 // Flow decides how Proxyma tasks move between lifecycle states.
@@ -140,7 +142,7 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 		Target:        policyTarget(task.Target),
 		Command:       task.Command,
 		RemoteCommand: remoteCommand(task),
-		PolicyIDs:     policyIDs(task.Target),
+		PolicyID:      targetPolicyID(task.Target),
 		Metadata:      task.Metadata,
 	})
 	if err != nil {
@@ -155,7 +157,21 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 	if _, err := f.manager.SetPolicyDecision(task.TaskID, decision); err != nil {
 		return tasks.PolicyDecision{}, err
 	}
+	f.logPolicyDecision(task, decision)
 	return decision, nil
+}
+
+func (f *Flow) logPolicyDecision(task *tasks.Task, decision tasks.PolicyDecision) {
+	if f.options.Logger == nil || task == nil {
+		return
+	}
+	if decision.Reason != "" {
+		f.options.Logger.Printf("policy decision=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s reason=%q",
+			decision.Decision, task.TaskID, task.AgentID, decision.PolicyID, decision.RuleID, decision.Reason)
+		return
+	}
+	f.options.Logger.Printf("policy decision=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s",
+		decision.Decision, task.TaskID, task.AgentID, decision.PolicyID, decision.RuleID)
 }
 
 func (f *Flow) requestApproval(ctx context.Context, task *tasks.Task) error {
@@ -196,17 +212,17 @@ func policyTarget(target *tasks.Target) policy.Target {
 		return policy.Target{}
 	}
 	return policy.Target{
-		Hostname:  target.Hostname,
-		IP:        target.IP,
-		PolicyIDs: append([]string(nil), target.PolicyIDs...),
+		Hostname: target.Hostname,
+		IP:       target.IP,
+		PolicyID: target.PolicyID,
 	}
 }
 
-func policyIDs(target *tasks.Target) []string {
+func targetPolicyID(target *tasks.Target) string {
 	if target == nil {
-		return nil
+		return ""
 	}
-	return append([]string(nil), target.PolicyIDs...)
+	return target.PolicyID
 }
 
 func remoteCommand(task *tasks.Task) string {

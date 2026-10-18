@@ -24,6 +24,7 @@ tar -tzf "$FIRST" >"$LISTING"
 for required in \
   harness/RELEASE \
   harness/proxyma-agent.json \
+  harness/agent-configuration/agent.example.json \
   harness/agent-configuration/.gitkeep \
   harness/task-state/active/.gitkeep \
   harness/task-state/blocked/.gitkeep \
@@ -37,6 +38,9 @@ done
 
 if grep -F 'df9ec8bb-1a22-4181-a7c8-126ad553221d.json' "$LISTING" >/dev/null; then
   fail "package contains the development credential"
+fi
+if grep -Fx 'harness/agent-configuration/agent.json' "$LISTING" >/dev/null; then
+  fail "package contains a real credential file"
 fi
 if grep -E '^harness/task-state/(active|blocked|closed)/[^.][^/]*\.json$' "$LISTING" >/dev/null; then
   fail "package contains runtime task state"
@@ -53,6 +57,8 @@ tar -xzf "$FIRST" -C "$TEST_ROOT/extracted"
 grep -Fx 'version=v1.2.3' "$TEST_ROOT/extracted/harness/RELEASE" >/dev/null || fail "release version metadata is missing"
 grep -Fx 'commit=deadbeef' "$TEST_ROOT/extracted/harness/RELEASE" >/dev/null || fail "release commit metadata is missing"
 grep -F 'https://proxyma.example' "$TEST_ROOT/extracted/harness/proxyma-agent.json" >/dev/null || fail "configuration is not production-neutral"
+grep -F '"agent_id": "TOBECHANGED"' "$TEST_ROOT/extracted/harness/agent-configuration/agent.example.json" >/dev/null || fail "credential example is missing the agent id placeholder"
+grep -F '"agent_jwt_signing_key": "TOBECHANGED"' "$TEST_ROOT/extracted/harness/agent-configuration/agent.example.json" >/dev/null || fail "credential example is missing the signing key placeholder"
 if grep -R -F 'dev-only-codex-harness-signing-key' "$TEST_ROOT/extracted/harness" >/dev/null; then
   fail "package exposes the development signing key"
 fi
@@ -100,6 +106,8 @@ SOURCE_ROOT="$TEST_ROOT/source-checkout"
 mkdir -p "$SOURCE_ROOT"
 git archive HEAD | tar -x -C "$SOURCE_ROOT"
 cp "$ROOT/scripts/package-agent-harness.sh" "$SOURCE_ROOT/scripts/package-agent-harness.sh"
+mkdir -p "$SOURCE_ROOT/harness/agent-configuration"
+cp "$ROOT/harness/agent-configuration/agent.example.json" "$SOURCE_ROOT/harness/agent-configuration/agent.example.json"
 git -C "$SOURCE_ROOT" init -q
 git -C "$SOURCE_ROOT" add -A -- .
 git -C "$SOURCE_ROOT" config user.email test@example.invalid

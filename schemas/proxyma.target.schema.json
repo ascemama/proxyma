@@ -4,7 +4,7 @@
   "title": "Proxyma Target",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "transport", "os", "username", "policy_ids", "agent_ids", "user_ids", "auth"],
+  "required": ["id", "transport", "os", "username", "policy_id", "agent_ids", "user_ids", "auth"],
   "anyOf": [
     {
       "required": ["hostname"]
@@ -59,15 +59,10 @@
       "type": "string",
       "description": "Username Proxyma resolves for the {user} placeholder."
     },
-    "policy_ids": {
-      "type": "array",
-      "description": "Ordered Proxyma policy IDs that apply to this target.",
-      "minItems": 1,
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "uniqueItems": true
+    "policy_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The single Proxyma policy assigned to this target."
     },
     "agent_ids": {
       "type": "array",

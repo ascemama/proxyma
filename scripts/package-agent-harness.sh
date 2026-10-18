@@ -53,7 +53,8 @@ for required in \
   "$ROOT/harness/examples" \
   "$ROOT/harness/instruction-pack" \
   "$ROOT/harness/tests" \
-  "$ROOT/harness/examples/proxyma-agent.json"; do
+  "$ROOT/harness/examples/proxyma-agent.json" \
+  "$ROOT/harness/agent-configuration/agent.example.json"; do
   if [[ ! -e "$required" || -L "$required" ]]; then
     echo "Missing or unsafe harness package input: $required" >&2
     exit 1
@@ -139,6 +140,7 @@ else
   copy_tracked_tree harness/tests
 fi
 install -m 0644 "$ROOT/harness/examples/proxyma-agent.json" "$PAYLOAD_DIR/proxyma-agent.json"
+install -m 0644 "$ROOT/harness/agent-configuration/agent.example.json" "$PAYLOAD_DIR/agent-configuration/agent.example.json"
 : >"$PAYLOAD_DIR/agent-configuration/.gitkeep"
 : >"$PAYLOAD_DIR/task-state/active/.gitkeep"
 : >"$PAYLOAD_DIR/task-state/blocked/.gitkeep"

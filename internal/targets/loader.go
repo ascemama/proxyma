@@ -91,8 +91,8 @@ func validate(target *Target, projectRoot string, resolvePrivateKey bool) error 
 		return fmt.Errorf("missing required target field hostname or ip")
 	case strings.TrimSpace(target.Username) == "":
 		return fmt.Errorf("missing required field username")
-	case len(target.PolicyIDs) == 0:
-		return fmt.Errorf("missing required field policy_ids")
+	case strings.TrimSpace(target.PolicyID) == "":
+		return fmt.Errorf("missing required field policy_id")
 	case len(target.AgentIDs) == 0:
 		return fmt.Errorf("missing required field agent_ids")
 	case len(target.UserIDs) == 0:
@@ -102,12 +102,7 @@ func validate(target *Target, projectRoot string, resolvePrivateKey bool) error 
 	case strings.TrimSpace(target.Auth.Type) == "":
 		return fmt.Errorf("missing required field auth.type")
 	}
-	for i, policyID := range target.PolicyIDs {
-		target.PolicyIDs[i] = strings.TrimSpace(policyID)
-		if target.PolicyIDs[i] == "" {
-			return fmt.Errorf("policy_ids must not contain empty values")
-		}
-	}
+	target.PolicyID = strings.TrimSpace(target.PolicyID)
 	seenAgentIDs := make(map[string]bool, len(target.AgentIDs))
 	for i, agentID := range target.AgentIDs {
 		target.AgentIDs[i] = strings.TrimSpace(agentID)
