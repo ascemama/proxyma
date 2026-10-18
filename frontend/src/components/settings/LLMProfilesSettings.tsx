@@ -32,7 +32,14 @@ export function LLMProfilesSettings({ csrfToken, user }: LLMProfilesSettingsProp
     mutationFn: (id: string) => deleteLLMProfile(id, csrfToken),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['llm-profiles'] })
   });
-  const testMutation = useMutation({ mutationFn: () => testLLMProfile({ ...draft, api_key: draft.api_key ?? '' }, csrfToken), onSuccess: () => setTested(true) });
+  const testMutation = useMutation({ mutationFn: () => testLLMProfile({
+    name: draft.name,
+    provider: draft.provider,
+    model: draft.model,
+    base_url: draft.base_url,
+    api_key: draft.api_key ?? '',
+    timeout_seconds: draft.timeout_seconds
+  }, csrfToken), onSuccess: () => setTested(true) });
 
   useEffect(() => {
     if (!draft.base_url) setDraft((value) => ({ ...value, base_url: defaultBaseURL(draft.provider) }));
