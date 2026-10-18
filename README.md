@@ -223,7 +223,7 @@ arguments are the highest-precedence runtime overrides:
 | `--user-activation-token-max-ttl` | `48h` | Maximum administrator-selected activation-link lifetime. |
 | `--output-limit` | `1048576` | Maximum captured bytes for stdout or stderr before truncation. |
 | `--require-command-approval` | `true` | Require approval when no explicit command policy evaluator is available. |
-| `--debug` | `false` | Log HTTP requests, request bodies, command execution details, and truncated LLM prompts/responses; API keys are never logged. |
+| `--debug` | `false` | Log HTTP requests, request bodies, command execution details, and LLM prompts/responses plus justifications; API keys are never logged. |
 | `--rebuild-interaction-history` | `false` | Rebuild the SQLite interaction index from JSON records before serving. |
 
 Environment-variable names and JSON field mappings are listed in

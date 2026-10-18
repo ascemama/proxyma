@@ -99,14 +99,14 @@ func (r *testLLMReviewer) Review(_ context.Context, _ string, _ llm.ReviewReques
 }
 
 func TestEvaluateLLMFallbackAndDeterministicShortCircuit(t *testing.T) {
-	reviewer := &testLLMReviewer{result: llm.ReviewResult{Decision: llm.DecisionApproved, Valid: true}}
+	reviewer := &testLLMReviewer{result: llm.ReviewResult{Decision: llm.DecisionApproved, Justification: "The command only reads host information.", Valid: true}}
 	set := NewSetWithLLM(map[string]Policy{baselinePolicyID: {
 		ID: baselinePolicyID, OwnerUserID: testOwnerID, Name: "LLM", Enabled: true,
 		Rules: []Rule{{ID: "deny-dangerous", Effect: DecisionDeny, CommandTemplate: "rm -rf {path}"}},
 		LLM:   &LLMPolicy{Enabled: true, ProfileID: "profile-1", Prompt: "Approve read-only commands only."},
 	}}, reviewer)
 	result, err := set.Evaluate(context.Background(), Request{PolicyID: baselinePolicyID, RemoteCommand: "hostname"})
-	if err != nil || result.Decision != DecisionAllow || result.Source != "llm" || reviewer.calls != 1 {
+	if err != nil || result.Decision != DecisionAllow || result.Source != "llm" || result.Justification != "The command only reads host information." || reviewer.calls != 1 {
 		t.Fatalf("LLM result = %#v calls=%d err=%v", result, reviewer.calls, err)
 	}
 	result, err = set.Evaluate(context.Background(), Request{PolicyID: baselinePolicyID, RemoteCommand: "rm -rf /tmp/demo"})

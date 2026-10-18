@@ -13,20 +13,24 @@ import (
 
 func TestParseDecisionIsStrict(t *testing.T) {
 	for _, test := range []struct {
-		name     string
-		payload  string
-		decision string
-		valid    bool
+		name          string
+		payload       string
+		decision      string
+		justification string
+		valid         bool
 	}{
-		{name: "approved", payload: `{"decision":"approved"}`, decision: DecisionApproved, valid: true},
-		{name: "denied", payload: `{"decision":"denied"}`, decision: DecisionDenied, valid: true},
-		{name: "approval", payload: `{"decision":"require approval"}`, decision: DecisionRequireApproval, valid: true},
+		{name: "approved", payload: `{"decision":"approved","justification":"Read-only command."}`, decision: DecisionApproved, justification: "Read-only command.", valid: true},
+		{name: "denied", payload: `{"decision":"denied","justification":"This command changes system state."}`, decision: DecisionDenied, justification: "This command changes system state.", valid: true},
+		{name: "approval", payload: `{"decision":"require approval","justification":"The command cannot be classified with sufficient certainty."}`, decision: DecisionRequireApproval, justification: "The command cannot be classified with sufficient certainty.", valid: true},
 		{name: "unknown", payload: `{"decision":"maybe"}`, decision: DecisionRequireApproval},
+		{name: "missing justification", payload: `{"decision":"approved"}`, decision: DecisionRequireApproval},
+		{name: "empty justification", payload: `{"decision":"approved","justification":"   "}`, decision: DecisionRequireApproval},
+		{name: "oversized justification", payload: `{"decision":"approved","justification":"` + strings.Repeat("x", 1001) + `"}`, decision: DecisionRequireApproval},
 		{name: "extra text", payload: `approved`, decision: DecisionRequireApproval},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			result := parseDecision([]byte(test.payload))
-			if result.Decision != test.decision || result.Valid != test.valid {
+			if result.Decision != test.decision || result.Justification != test.justification || result.Valid != test.valid {
 				t.Fatalf("result = %#v", result)
 			}
 		})
@@ -51,10 +55,16 @@ func TestOpenAICompatibleReviewUsesJSONDecision(t *testing.T) {
 		if body["reasoning_effort"] != "minimal" {
 			t.Fatalf("OpenAI request used unexpected reasoning effort: %#v", body["reasoning_effort"])
 		}
+		responseFormat := body["response_format"].(map[string]any)
+		jsonSchema := responseFormat["json_schema"].(map[string]any)
+		required := jsonSchema["schema"].(map[string]any)["required"].([]any)
+		if len(required) != 2 || required[0] != "decision" || required[1] != "justification" {
+			t.Fatalf("required schema fields = %#v", required)
+		}
 		if _, present := body["temperature"]; present {
 			t.Fatal("OpenAI request should use the model default temperature")
 		}
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"decision\":\"approved\"}"}}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"decision\":\"approved\",\"justification\":\"The command only reads the host name.\"}"}}]}`))
 	}))
 	defer server.Close()
 	profile := Profile{ID: "profile-1", OwnerUserID: "owner-1", Name: "test", Provider: ProviderOpenAI, Model: "test-model", BaseURL: server.URL, APIKey: "test-key", TimeoutSeconds: 5, Enabled: true}
@@ -65,7 +75,7 @@ func TestOpenAICompatibleReviewUsesJSONDecision(t *testing.T) {
 	if err != nil || !result.Valid || result.Decision != DecisionApproved {
 		t.Fatalf("result = %#v err=%v", result, err)
 	}
-	if !strings.Contains(logs.String(), `prompt="read-only"`) || !strings.Contains(logs.String(), `decision=approved`) {
+	if !strings.Contains(logs.String(), `prompt="read-only"`) || !strings.Contains(logs.String(), `decision=approved`) || !strings.Contains(logs.String(), `justification="The command only reads the host name."`) {
 		t.Fatalf("missing debug details: %s", logs.String())
 	}
 	if strings.Contains(logs.String(), "test-key") || strings.Contains(logs.String(), "hostname") {

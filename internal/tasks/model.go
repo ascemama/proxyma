@@ -96,12 +96,13 @@ type Approval struct {
 
 // PolicyDecision records the command policy decision that governed execution.
 type PolicyDecision struct {
-	Decision     string `json:"decision"`
-	PolicyID     string `json:"policy_id,omitempty"`
-	RuleID       string `json:"rule_id,omitempty"`
-	Reason       string `json:"reason,omitempty"`
-	Source       string `json:"source,omitempty"`
-	LLMProfileID string `json:"llm_profile_id,omitempty"`
+	Decision      string `json:"decision"`
+	PolicyID      string `json:"policy_id,omitempty"`
+	RuleID        string `json:"rule_id,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+	Justification string `json:"justification,omitempty"`
+	Source        string `json:"source,omitempty"`
+	LLMProfileID  string `json:"llm_profile_id,omitempty"`
 }
 
 // TaskResult is the final command outcome exposed to agents.

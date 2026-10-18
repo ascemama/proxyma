@@ -80,6 +80,7 @@ func TestSendPublishesApprovalNotification(t *testing.T) {
 		"Target: 127.0.0.1",
 		"Command: ssh {user}@127.0.0.1 hostname",
 		"Reasoning: test",
+		"LLM justification: ",
 		"Requested by: agent-demo",
 	} {
 		if !strings.Contains(got.Message, want) {
@@ -398,9 +399,10 @@ func testInteraction(id string) interaction.Interaction {
 		Message:          "Run command?",
 		RequestedBy:      "agent-demo",
 		Metadata: map[string]any{
-			"target":    "127.0.0.1",
-			"command":   "ssh {user}@127.0.0.1 hostname",
-			"reasoning": "test",
+			"target":               "127.0.0.1",
+			"command":              "ssh {user}@127.0.0.1 hostname",
+			"reasoning":            "test",
+			"policy_justification": "The command only reads the host name.",
 		},
 	}
 }

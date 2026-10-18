@@ -1482,6 +1482,12 @@ function InteractionHistoryDetail({ item }: { item: InteractionHistoryItem | nul
             <h4>Message</h4>
             <p>{item.message}</p>
           </div>
+          {item.policy_justification ? (
+            <div className="detail-section">
+              <h4>LLM justification</h4>
+              <p>{item.policy_justification}</p>
+            </div>
+          ) : null}
           <dl className="detail-list">
             <div><dt>Approved</dt><dd>{item.approved === undefined ? 'N/A' : item.approved ? 'Yes' : 'No'}</dd></div>
             <div><dt>Responded by</dt><dd>{item.responded_by || 'No response'}</dd></div>

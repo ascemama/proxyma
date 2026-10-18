@@ -254,7 +254,7 @@ func TestFlowApprovalPolicyIncludesMetadata(t *testing.T) {
 	if len(provider.sent) != 1 {
 		t.Fatalf("sent = %#v", provider.sent)
 	}
-	if provider.sent[0].Metadata["policy_id"] != "" || provider.sent[0].Metadata["policy_rule_id"] != "" || provider.sent[0].Metadata["policy_reason"] != "no policy rule matched command" {
+	if provider.sent[0].Metadata["policy_id"] != "" || provider.sent[0].Metadata["policy_rule_id"] != "" || provider.sent[0].Metadata["policy_reason"] != "no policy rule matched command" || provider.sent[0].Metadata["policy_justification"] != "" {
 		t.Fatalf("metadata = %#v", provider.sent[0].Metadata)
 	}
 }

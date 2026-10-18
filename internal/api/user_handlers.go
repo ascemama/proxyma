@@ -2618,6 +2618,7 @@ func userInteractionHistoryResponse(page history.InteractionPage) UserInteractio
 			TargetHostname:                   item.TargetHostname,
 			TargetIP:                         item.TargetIP,
 			Command:                          item.Command,
+			PolicyJustification:              item.PolicyJustification,
 			CreatedAt:                        item.CreatedAt,
 			ExpiresAt:                        item.ExpiresAt,
 			RespondedAt:                      item.RespondedAt,

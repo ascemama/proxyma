@@ -60,7 +60,9 @@ The profile stores the provider API key on the Proxyma server and the key is
 never returned through the API. Select it in the policy's LLM fallback section
 and write a prompt such as “approve only commands that are clearly read-only
 with very high certainty”. Deterministic rules are checked first; an invalid or
-uncertain LLM response still requires approval.
+uncertain LLM response still requires approval. A valid response must include
+both the decision and a short justification. The justification explains the
+result but never overrides the decision.
 
 ![Add Policy form](images/first-time-policy.jpg)
 

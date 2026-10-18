@@ -172,6 +172,9 @@ func (p *Provider) writePrompt(request interaction.Interaction) {
 	if reasoning := stringMetadata(request.Metadata, "reasoning"); reasoning != "" {
 		_, _ = fmt.Fprintf(p.writer, "Reasoning: %s\n", reasoning)
 	}
+	if justification := stringMetadata(request.Metadata, "policy_justification"); justification != "" {
+		_, _ = fmt.Fprintf(p.writer, "LLM justification: %s\n", justification)
+	}
 	if requestedBy := strings.TrimSpace(request.RequestedBy); requestedBy != "" {
 		_, _ = fmt.Fprintf(p.writer, "Requested by: %s\n", requestedBy)
 	}

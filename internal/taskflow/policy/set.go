@@ -175,7 +175,7 @@ func (s *Set) Evaluate(ctx context.Context, request Request) (Result, error) {
 			case llm.DecisionDenied:
 				decision, reason = DecisionDeny, "denied by LLM policy"
 			}
-			return Result{Decision: decision, PolicyID: policy.policy.ID, Reason: reason, Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+			return Result{Decision: decision, PolicyID: policy.policy.ID, Reason: reason, Justification: llmResult.Justification, Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
 		}
 		return Result{Decision: DecisionApproval, Reason: "no policy rule matched command"}, nil
 	}

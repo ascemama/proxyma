@@ -111,10 +111,22 @@ Content-Type: application/json
 {"target_id":"target-uuid","command":"systemctl status ssh"}
 ```
 
-The provider response is normalized to `approved`, `denied`, or
-`require approval`. Network failures, malformed JSON, unknown decisions, and
-timeouts always become `approval` and do not bypass the existing interaction
-flow.
+The provider response must be a JSON object containing a `decision` and a
+non-empty `justification` of no more than 1,000 characters:
+
+```json
+{
+  "decision": "approved",
+  "justification": "The command only reads the system hostname."
+}
+```
+
+The decision is normalized to `approved`, `denied`, or `require approval`.
+The justification is explanatory text only and never changes enforcement.
+Network failures, malformed JSON, missing or oversized justifications, unknown
+decisions, and timeouts always become `approval` and do not bypass the existing
+interaction flow. The justification is persisted with the task policy decision
+and returned by task and interaction-history APIs.
 
 ## Activation and Password Reset
 

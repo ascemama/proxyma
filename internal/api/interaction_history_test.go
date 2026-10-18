@@ -42,6 +42,7 @@ func TestUserInteractionHistoryEndpointUsesAgentVisibility(t *testing.T) {
 		Subject:               "Approve command",
 		Message:               "Approve command",
 		Command:               "show version",
+		PolicyJustification:   "The command only reads version information.",
 		CreatedAt:             time.Now().UTC(),
 		TaskCreatedAt:         time.Now().UTC(),
 	}}}}
@@ -64,6 +65,9 @@ func TestUserInteractionHistoryEndpointUsesAgentVisibility(t *testing.T) {
 	}
 	if len(response.Items) != 1 || response.Items[0].InteractionID != "interaction-1" {
 		t.Fatalf("response = %#v", response)
+	}
+	if response.Items[0].PolicyJustification != "The command only reads version information." {
+		t.Fatalf("policy justification = %q", response.Items[0].PolicyJustification)
 	}
 }
 

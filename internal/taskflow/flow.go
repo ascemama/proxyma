@@ -149,12 +149,13 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 		return tasks.PolicyDecision{}, err
 	}
 	decision := tasks.PolicyDecision{
-		Decision:     result.Decision,
-		PolicyID:     result.PolicyID,
-		RuleID:       result.RuleID,
-		Reason:       result.Reason,
-		Source:       result.Source,
-		LLMProfileID: result.LLMProfileID,
+		Decision:      result.Decision,
+		PolicyID:      result.PolicyID,
+		RuleID:        result.RuleID,
+		Reason:        result.Reason,
+		Justification: result.Justification,
+		Source:        result.Source,
+		LLMProfileID:  result.LLMProfileID,
 	}
 	if _, err := f.manager.SetPolicyDecision(task.TaskID, decision); err != nil {
 		return tasks.PolicyDecision{}, err
@@ -190,12 +191,13 @@ func (f *Flow) requestApproval(ctx context.Context, task *tasks.Task) error {
 		Message:               "Approve the submitted Proxyma command before execution.",
 		RequestedBy:           task.RequestedBy,
 		Metadata: map[string]any{
-			"target":         formatTarget(task.Target),
-			"command":        task.Command,
-			"reasoning":      task.Reasoning,
-			"policy_id":      policyID(task.Policy),
-			"policy_rule_id": policyRuleID(task.Policy),
-			"policy_reason":  policyReason(task.Policy),
+			"target":               formatTarget(task.Target),
+			"command":              task.Command,
+			"reasoning":            task.Reasoning,
+			"policy_id":            policyID(task.Policy),
+			"policy_rule_id":       policyRuleID(task.Policy),
+			"policy_reason":        policyReason(task.Policy),
+			"policy_justification": policyJustification(task.Policy),
 		},
 	})
 	if err != nil {
@@ -259,6 +261,13 @@ func policyReason(decision *tasks.PolicyDecision) string {
 		return ""
 	}
 	return decision.Reason
+}
+
+func policyJustification(decision *tasks.PolicyDecision) string {
+	if decision == nil {
+		return ""
+	}
+	return decision.Justification
 }
 
 func (f *Flow) applyInteraction(ctx context.Context, record interaction.Interaction) error {

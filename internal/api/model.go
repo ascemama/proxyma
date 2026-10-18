@@ -113,12 +113,13 @@ type ApprovalResponse struct {
 
 // PolicyDecisionResponse is safe task-visible command policy metadata.
 type PolicyDecisionResponse struct {
-	Decision     string `json:"decision"`
-	PolicyID     string `json:"policy_id,omitempty"`
-	RuleID       string `json:"rule_id,omitempty"`
-	Reason       string `json:"reason,omitempty"`
-	Source       string `json:"source,omitempty"`
-	LLMProfileID string `json:"llm_profile_id,omitempty"`
+	Decision      string `json:"decision"`
+	PolicyID      string `json:"policy_id,omitempty"`
+	RuleID        string `json:"rule_id,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+	Justification string `json:"justification,omitempty"`
+	Source        string `json:"source,omitempty"`
+	LLMProfileID  string `json:"llm_profile_id,omitempty"`
 }
 
 // TaskHistoryEventResponse records one externally visible task lifecycle transition.
@@ -496,6 +497,7 @@ type UserInteractionHistoryItemResponse struct {
 	TargetHostname                   string     `json:"target_hostname,omitempty"`
 	TargetIP                         string     `json:"target_ip,omitempty"`
 	Command                          string     `json:"command"`
+	PolicyJustification              string     `json:"policy_justification,omitempty"`
 	CreatedAt                        time.Time  `json:"created_at"`
 	ExpiresAt                        *time.Time `json:"expires_at,omitempty"`
 	RespondedAt                      *time.Time `json:"responded_at,omitempty"`
@@ -652,12 +654,13 @@ func policyDecisionResponseFromPolicyDecision(decision *tasks.PolicyDecision) *P
 		return nil
 	}
 	return &PolicyDecisionResponse{
-		Decision:     decision.Decision,
-		PolicyID:     decision.PolicyID,
-		RuleID:       decision.RuleID,
-		Reason:       decision.Reason,
-		Source:       decision.Source,
-		LLMProfileID: decision.LLMProfileID,
+		Decision:      decision.Decision,
+		PolicyID:      decision.PolicyID,
+		RuleID:        decision.RuleID,
+		Reason:        decision.Reason,
+		Justification: decision.Justification,
+		Source:        decision.Source,
+		LLMProfileID:  decision.LLMProfileID,
 	}
 }
 

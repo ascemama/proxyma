@@ -49,8 +49,9 @@ type ReviewRequest struct {
 }
 
 type ReviewResult struct {
-	Decision string
-	Valid    bool
+	Decision      string
+	Justification string
+	Valid         bool
 }
 
 func DefaultBaseURL(provider Provider) string {

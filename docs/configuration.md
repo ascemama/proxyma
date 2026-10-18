@@ -149,8 +149,12 @@ with their API keys under the configured `llm_profile_dir` (by default
 `var/proxyma/llm_profiles`). API keys are never returned by the API. Policies
 refer to a profile ID and contain the prompt used for the fallback decision.
 OpenAI, OpenRouter, Claude, and custom HTTPS endpoints are supported. Provider
-requests must return only `approved`, `denied`, or `require approval`; every
-other response is treated as approval required.
+requests must return a JSON object containing `decision` and a non-empty
+`justification` of at most 1,000 characters. The decision must be `approved`,
+`denied`, or `require approval`; every malformed or incomplete response is
+treated as approval required. The justification is explanatory and does not
+override the decision. It is persisted with the task, shown in approval
+interactions and interaction history, and included in debug logs.
 
 With `--debug`, Proxyma logs the LLM profile, provider, model, user-defined
 prompt, HTTP status, duration, normalized decision, and a truncated provider

@@ -107,9 +107,12 @@ GUI users may newly assign `local` or an enabled interaction instance whose `cre
 Policy decisions first use the deterministic blacklist and whitelist rules. A
 matching blacklist rule denies the command; otherwise a matching whitelist rule
 allows it. If no rule matches and the policy has an enabled LLM fallback, the
-server sends the command plus the policy prompt to the selected profile. Only a
-valid `approved` response allows execution; invalid, unavailable, or uncertain
-responses require approval. The WebGUI/API is the only policy mutation path.
+server sends the command plus the policy prompt to the selected profile. A
+valid response must contain both a decision and a concise justification. Only a
+valid `approved` decision allows execution; invalid, unavailable, or uncertain
+responses require approval. The justification is displayed with approval
+requests and stored as explanatory task metadata. The WebGUI/API is the only
+policy mutation path.
 Interaction providers, including NTFY, only answer pending approval requests
 and never modify policies.
 

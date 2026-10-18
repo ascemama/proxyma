@@ -84,6 +84,7 @@ type InteractionHistoryItem struct {
 	TargetHostname                   string     `json:"target_hostname,omitempty"`
 	TargetIP                         string     `json:"target_ip,omitempty"`
 	Command                          string     `json:"command"`
+	PolicyJustification              string     `json:"policy_justification,omitempty"`
 	CreatedAt                        time.Time  `json:"created_at"`
 	ExpiresAt                        *time.Time `json:"expires_at,omitempty"`
 	RespondedAt                      *time.Time `json:"responded_at,omitempty"`
@@ -203,6 +204,7 @@ func BuildIndexedInteraction(record interaction.Interaction, task tasks.Task, ag
 		TargetHostname:                   targetHostname,
 		TargetIP:                         targetIP,
 		Command:                          task.Command,
+		PolicyJustification:              policyJustification(task.Policy),
 		CreatedAt:                        record.CreatedAt.UTC(),
 		ExpiresAt:                        cloneTime(record.ExpiresAt),
 		RespondedAt:                      cloneTime(record.RespondedAt),
@@ -224,6 +226,13 @@ func BuildIndexedInteraction(record interaction.Interaction, task tasks.Task, ag
 		})
 	}
 	return out, diagnostics, nil
+}
+
+func policyJustification(decision *tasks.PolicyDecision) string {
+	if decision == nil {
+		return ""
+	}
+	return decision.Justification
 }
 
 // Rebuild loads every joined interaction into the index after clearing it.

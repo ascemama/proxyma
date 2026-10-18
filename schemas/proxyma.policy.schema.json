@@ -41,7 +41,7 @@
     },
     "llm": {
       "$ref": "#/$defs/llm",
-      "description": "Optional fallback classifier used only when no deterministic rule matches."
+      "description": "Optional fallback classifier used only when no deterministic rule matches. The provider must return a decision and a concise justification; invalid responses require approval."
     }
   },
   "$defs": {

@@ -532,7 +532,7 @@ func findTargetForPolicyEvaluation(paths users.Paths, id string, user users.User
 }
 
 func policyDecisionResponse(result policy.Result) PolicyDecisionResponse {
-	return PolicyDecisionResponse{Decision: result.Decision, PolicyID: result.PolicyID, RuleID: result.RuleID, Reason: result.Reason, Source: result.Source, LLMProfileID: result.LLMProfileID}
+	return PolicyDecisionResponse{Decision: result.Decision, PolicyID: result.PolicyID, RuleID: result.RuleID, Reason: result.Reason, Justification: result.Justification, Source: result.Source, LLMProfileID: result.LLMProfileID}
 }
 
 func importEntryResponses(entries []users.RuleListEntry) []UserPolicyRuleListEntryResponse {

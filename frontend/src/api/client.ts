@@ -252,6 +252,7 @@ export type InteractionHistoryItem = {
   target_hostname?: string;
   target_ip?: string;
   command: string;
+  policy_justification?: string;
   created_at: string;
   expires_at?: string;
   responded_at?: string;
