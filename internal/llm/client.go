@@ -231,6 +231,7 @@ func reviewOpenAICompatible(ctx context.Context, client *http.Client, profile Pr
 	if profile.Provider == ProviderOpenAI {
 		// GPT-5 reasoning tokens count against max_completion_tokens. Leave
 		// enough room for both reasoning and the small JSON decision.
+		body["reasoning_effort"] = "minimal"
 		body["max_completion_tokens"] = 256
 	} else {
 		body["temperature"] = 0
