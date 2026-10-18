@@ -220,7 +220,6 @@ func reviewOpenAICompatible(ctx context.Context, client *http.Client, profile Pr
 			{"role": "user", "content": commandPrompt(request.Command)},
 		},
 		"temperature": 0,
-		"max_tokens":  64,
 		"response_format": map[string]any{
 			"type": "json_schema",
 			"json_schema": map[string]any{
@@ -229,6 +228,11 @@ func reviewOpenAICompatible(ctx context.Context, client *http.Client, profile Pr
 				"schema": decisionSchema(),
 			},
 		},
+	}
+	if profile.Provider == ProviderOpenAI {
+		body["max_completion_tokens"] = 64
+	} else {
+		body["max_tokens"] = 64
 	}
 	var response struct {
 		Choices []struct {

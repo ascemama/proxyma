@@ -45,6 +45,9 @@ func TestOpenAICompatibleReviewUsesJSONDecision(t *testing.T) {
 		if !strings.Contains(body["messages"].([]any)[1].(map[string]any)["content"].(string), "hostname") {
 			t.Fatal("command was not sent to provider")
 		}
+		if body["max_completion_tokens"] != float64(64) {
+			t.Fatalf("OpenAI request used unexpected token limit: %#v", body["max_completion_tokens"])
+		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"decision\":\"approved\"}"}}]}`))
 	}))
 	defer server.Close()
