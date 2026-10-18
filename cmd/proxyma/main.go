@@ -70,6 +70,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("configure LLM profiles: %v", err)
 	}
+	llmCatalog.ConfigureDebug(cfg.Debug, logger)
 	mutableLLM := llm.NewMutableCatalog(llmCatalog)
 	policies, policyDiagnostics, err := policy.LoadDir(cfg.PolicyDir)
 	if err != nil {

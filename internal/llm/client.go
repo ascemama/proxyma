@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,11 +21,14 @@ const (
 	defaultTimeout = 30 * time.Second
 	maxTimeout     = 120 * time.Second
 	maxResponse    = 64 * 1024
+	maxDebugText   = 16 * 1024
 )
 
 type Catalog struct {
 	profiles map[string]Profile
 	client   *http.Client
+	debug    bool
+	logger   *log.Logger
 }
 
 type MutableCatalog struct {
@@ -72,6 +76,16 @@ func NewCatalog(profiles []Profile) (*Catalog, error) {
 	return catalog, nil
 }
 
+// ConfigureDebug controls optional troubleshooting logs. API keys and command
+// contents are never included in these logs.
+func (c *Catalog) ConfigureDebug(debug bool, logger *log.Logger) {
+	if c == nil {
+		return
+	}
+	c.debug = debug
+	c.logger = logger
+}
+
 func (c *Catalog) Profiles() []Profile {
 	if c == nil {
 		return nil
@@ -111,14 +125,40 @@ func (c *Catalog) Review(ctx context.Context, profileID string, request ReviewRe
 			return ReviewResult{}, err
 		}
 	}
+	started := time.Now()
+	var result ReviewResult
+	var rawResponse string
+	var status int
+	var reviewErr error
 	switch profile.Provider {
 	case ProviderOpenAI, ProviderOpenRouter:
-		return reviewOpenAICompatible(ctx, client, profile, request)
+		result, rawResponse, status, reviewErr = reviewOpenAICompatible(ctx, client, profile, request)
 	case ProviderClaude:
-		return reviewClaude(ctx, client, profile, request)
+		result, rawResponse, status, reviewErr = reviewClaude(ctx, client, profile, request)
 	default:
 		return ReviewResult{}, fmt.Errorf("unsupported LLM provider %q", profile.Provider)
 	}
+	c.logReview(profile, request, result, rawResponse, status, time.Since(started), reviewErr)
+	return result, reviewErr
+}
+
+func (c *Catalog) logReview(profile Profile, request ReviewRequest, result ReviewResult, rawResponse string, status int, duration time.Duration, reviewErr error) {
+	if c == nil || !c.debug || c.logger == nil {
+		return
+	}
+	request.Prompt = strings.ReplaceAll(request.Prompt, profile.APIKey, "[redacted]")
+	rawResponse = strings.ReplaceAll(rawResponse, profile.APIKey, "[redacted]")
+	if len(request.Prompt) > maxDebugText {
+		request.Prompt = request.Prompt[:maxDebugText] + "...[truncated]"
+	}
+	if len(rawResponse) > maxDebugText {
+		rawResponse = rawResponse[:maxDebugText] + "...[truncated]"
+	}
+	errorText := ""
+	if reviewErr != nil {
+		errorText = strings.ReplaceAll(reviewErr.Error(), profile.APIKey, "[redacted]")
+	}
+	c.logger.Printf("llm review profile_id=%s provider=%s model=%s status=%d duration=%s prompt=%q response=%q decision=%s error=%q", profile.ID, profile.Provider, profile.Model, status, duration, request.Prompt, rawResponse, result.Decision, errorText)
 }
 
 func ValidateProfile(profile *Profile) error {
@@ -172,7 +212,7 @@ func profileTimeout(profile Profile) time.Duration {
 	return time.Duration(profile.TimeoutSeconds) * time.Second
 }
 
-func reviewOpenAICompatible(ctx context.Context, client *http.Client, profile Profile, request ReviewRequest) (ReviewResult, error) {
+func reviewOpenAICompatible(ctx context.Context, client *http.Client, profile Profile, request ReviewRequest) (ReviewResult, string, int, error) {
 	body := map[string]any{
 		"model": profile.Model,
 		"messages": []map[string]string{
@@ -197,16 +237,17 @@ func reviewOpenAICompatible(ctx context.Context, client *http.Client, profile Pr
 			} `json:"message"`
 		} `json:"choices"`
 	}
-	if err := postJSON(ctx, client, strings.TrimRight(profile.BaseURL, "/")+"/chat/completions", profile.APIKey, "", body, &response); err != nil {
-		return ReviewResult{}, err
+	rawResponse, status, err := postJSON(ctx, client, strings.TrimRight(profile.BaseURL, "/")+"/chat/completions", profile.APIKey, "", body, &response)
+	if err != nil {
+		return ReviewResult{}, rawResponse, status, err
 	}
 	if len(response.Choices) == 0 {
-		return ReviewResult{}, errors.New("LLM response contained no choices")
+		return ReviewResult{}, rawResponse, status, errors.New("LLM response contained no choices")
 	}
-	return parseDecision([]byte(response.Choices[0].Message.Content)), nil
+	return parseDecision([]byte(response.Choices[0].Message.Content)), rawResponse, status, nil
 }
 
-func reviewClaude(ctx context.Context, client *http.Client, profile Profile, request ReviewRequest) (ReviewResult, error) {
+func reviewClaude(ctx context.Context, client *http.Client, profile Profile, request ReviewRequest) (ReviewResult, string, int, error) {
 	body := map[string]any{
 		"model":      profile.Model,
 		"max_tokens": 128,
@@ -226,28 +267,29 @@ func reviewClaude(ctx context.Context, client *http.Client, profile Profile, req
 			Text  string          `json:"text"`
 		} `json:"content"`
 	}
-	if err := postJSON(ctx, client, strings.TrimRight(profile.BaseURL, "/")+"/messages", profile.APIKey, "2023-06-01", body, &response); err != nil {
-		return ReviewResult{}, err
+	rawResponse, status, err := postJSON(ctx, client, strings.TrimRight(profile.BaseURL, "/")+"/messages", profile.APIKey, "2023-06-01", body, &response)
+	if err != nil {
+		return ReviewResult{}, rawResponse, status, err
 	}
 	for _, block := range response.Content {
 		if block.Type == "tool_use" {
-			return parseDecision(block.Input), nil
+			return parseDecision(block.Input), rawResponse, status, nil
 		}
 		if block.Type == "text" {
-			return parseDecision([]byte(block.Text)), nil
+			return parseDecision([]byte(block.Text)), rawResponse, status, nil
 		}
 	}
-	return ReviewResult{}, errors.New("LLM response contained no decision")
+	return ReviewResult{}, rawResponse, status, errors.New("LLM response contained no decision")
 }
 
-func postJSON(ctx context.Context, client *http.Client, endpoint, apiKey, anthropicVersion string, body any, output any) error {
+func postJSON(ctx context.Context, client *http.Client, endpoint, apiKey, anthropicVersion string, body any, output any) (string, int, error) {
 	data, err := json.Marshal(body)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if anthropicVersion != "" {
@@ -258,20 +300,20 @@ func postJSON(ctx context.Context, client *http.Client, endpoint, apiKey, anthro
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	defer response.Body.Close()
 	data, err = io.ReadAll(io.LimitReader(response.Body, maxResponse))
 	if err != nil {
-		return err
+		return string(data), response.StatusCode, err
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("LLM provider returned HTTP %d", response.StatusCode)
+		return string(data), response.StatusCode, fmt.Errorf("LLM provider returned HTTP %d", response.StatusCode)
 	}
 	if err := json.Unmarshal(data, output); err != nil {
-		return fmt.Errorf("invalid LLM provider response: %w", err)
+		return string(data), response.StatusCode, fmt.Errorf("invalid LLM provider response: %w", err)
 	}
-	return nil
+	return string(data), response.StatusCode, nil
 }
 
 func parseDecision(data []byte) ReviewResult {
@@ -348,11 +390,18 @@ func NewHTTPClient(profile Profile) (*http.Client, error) {
 }
 
 func TestProfile(ctx context.Context, profile Profile) error {
+	return TestProfileWithDebug(ctx, profile, false, nil)
+}
+
+// TestProfileWithDebug tests a provider profile while honoring server debug logging.
+func TestProfileWithDebug(ctx context.Context, profile Profile, debug bool, logger *log.Logger) error {
 	client, err := NewHTTPClient(profile)
 	if err != nil {
 		return err
 	}
-	_, err = (&Catalog{profiles: map[string]Profile{profile.ID: profile}, client: client}).Review(ctx, profile.ID, ReviewRequest{Command: "true", Prompt: "Return approved only for this connection test."})
+	catalog := &Catalog{profiles: map[string]Profile{profile.ID: profile}, client: client}
+	catalog.ConfigureDebug(debug, logger)
+	_, err = catalog.Review(ctx, profile.ID, ReviewRequest{Command: "true", Prompt: "Return approved only for this connection test."})
 	return err
 }
 

@@ -152,6 +152,12 @@ OpenAI, OpenRouter, Claude, and custom HTTPS endpoints are supported. Provider
 requests must return only `approved`, `denied`, or `require approval`; every
 other response is treated as approval required.
 
+With `--debug`, Proxyma logs the LLM profile, provider, model, user-defined
+prompt, HTTP status, duration, normalized decision, and a truncated provider
+response to help troubleshoot integrations. Commands and API keys are not
+logged. Because prompts and provider responses may contain sensitive text,
+debug logs should be protected and rotated like other operational logs.
+
 ## Agents
 
 An agent is a trusted API caller. It has an Agent JWT Signing Key used as

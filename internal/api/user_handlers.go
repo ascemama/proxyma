@@ -2360,6 +2360,7 @@ func (s *Server) refreshLLMProfilesAndPolicies(paths users.Paths) error {
 	if err != nil {
 		return validationError(err.Error())
 	}
+	catalog.ConfigureDebug(s.Debug, s.Logger)
 	set, policyDiagnostics, err := policy.LoadDir(paths.PolicyDir)
 	if err != nil {
 		return err

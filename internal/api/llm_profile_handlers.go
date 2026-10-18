@@ -178,7 +178,7 @@ func (s *Server) testLLMProfile(w http.ResponseWriter, r *http.Request, user use
 		writeUserMutationError(w, err)
 		return
 	}
-	if err := llm.TestProfile(r.Context(), profile); err != nil {
+	if err := llm.TestProfileWithDebug(r.Context(), profile, s.Debug, s.Logger); err != nil {
 		writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "LLM connection test failed", Code: "llm_test_failed"})
 		return
 	}

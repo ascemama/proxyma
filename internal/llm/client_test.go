@@ -1,8 +1,10 @@
 package llm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -48,8 +50,16 @@ func TestOpenAICompatibleReviewUsesJSONDecision(t *testing.T) {
 	defer server.Close()
 	profile := Profile{ID: "profile-1", OwnerUserID: "owner-1", Name: "test", Provider: ProviderOpenAI, Model: "test-model", BaseURL: server.URL, APIKey: "test-key", TimeoutSeconds: 5, Enabled: true}
 	catalog := &Catalog{profiles: map[string]Profile{profile.ID: profile}, client: server.Client()}
+	var logs bytes.Buffer
+	catalog.ConfigureDebug(true, log.New(&logs, "", 0))
 	result, err := catalog.Review(context.Background(), profile.ID, ReviewRequest{Command: "hostname", Prompt: "read-only"})
 	if err != nil || !result.Valid || result.Decision != DecisionApproved {
 		t.Fatalf("result = %#v err=%v", result, err)
+	}
+	if !strings.Contains(logs.String(), `prompt="read-only"`) || !strings.Contains(logs.String(), `decision=approved`) {
+		t.Fatalf("missing debug details: %s", logs.String())
+	}
+	if strings.Contains(logs.String(), "test-key") || strings.Contains(logs.String(), "hostname") {
+		t.Fatalf("debug log leaked secret or command: %s", logs.String())
 	}
 }
