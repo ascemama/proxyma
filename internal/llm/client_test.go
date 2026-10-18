@@ -48,6 +48,9 @@ func TestOpenAICompatibleReviewUsesJSONDecision(t *testing.T) {
 		if body["max_completion_tokens"] != float64(64) {
 			t.Fatalf("OpenAI request used unexpected token limit: %#v", body["max_completion_tokens"])
 		}
+		if _, present := body["temperature"]; present {
+			t.Fatal("OpenAI request should use the model default temperature")
+		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"decision\":\"approved\"}"}}]}`))
 	}))
 	defer server.Close()
