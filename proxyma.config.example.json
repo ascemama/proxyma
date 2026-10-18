@@ -21,6 +21,7 @@
     "interaction_config_dir": "var/proxyma/interaction_instances",
     "user_session_dir": "var/proxyma/user_sessions",
     "credential_token_dir": "var/proxyma/credential_tokens",
+    "llm_profile_dir": "var/proxyma/llm_profiles",
     "known_hosts_path": "var/proxyma/.ssh/known_hosts"
   },
   "execution": {

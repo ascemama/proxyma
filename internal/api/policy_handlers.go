@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"proxyma/internal/ids"
+	"proxyma/internal/targets"
 	"proxyma/internal/taskflow/policy"
 	"proxyma/internal/users"
 )
@@ -41,6 +42,14 @@ func (s *Server) handleUserPolicy(w http.ResponseWriter, r *http.Request) {
 	if suffix == "rule-lists/import" {
 		if r.Method == http.MethodPost {
 			s.importUserPolicyRules(w, r, id)
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if suffix == "evaluate" {
+		if r.Method == http.MethodPost {
+			s.evaluateUserPolicy(w, r, id)
 			return
 		}
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -121,6 +130,10 @@ func (s *Server) createUserPolicy(w http.ResponseWriter, r *http.Request) {
 		writePolicyMutationError(w, err)
 		return
 	}
+	if err := validatePolicyLLM(paths, item, user); err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
 	result, err := users.CreatePolicy(paths, item, nil)
 	if err != nil {
 		writePolicyMutationError(w, err)
@@ -169,6 +182,10 @@ func (s *Server) updateUserPolicy(w http.ResponseWriter, r *http.Request, id str
 	}
 	item, err := policyFromMutationRequest(request, existing.OwnerUserID)
 	if err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
+	if err := validatePolicyLLM(paths, item, user); err != nil {
 		writePolicyMutationError(w, err)
 		return
 	}
@@ -317,6 +334,9 @@ func policyPathParts(path string) (string, string, bool) {
 	if len(parts) == 3 && parts[0] != "" && parts[1] == "rule-lists" && parts[2] == "import" {
 		return parts[0], "rule-lists/import", true
 	}
+	if len(parts) == 2 && parts[0] != "" && parts[1] == "evaluate" {
+		return parts[0], "evaluate", true
+	}
 	return "", "", false
 }
 
@@ -348,7 +368,7 @@ func policyFromMutationRequest(request UserPolicyMutationRequest, ownerID string
 	if request.Enabled != nil {
 		enabled = *request.Enabled
 	}
-	item := policy.Policy{Name: strings.TrimSpace(request.Name), Description: strings.TrimSpace(request.Description), OwnerUserID: strings.TrimSpace(ownerID), Enabled: enabled, Rules: make([]policy.Rule, 0, len(request.Rules))}
+	item := policy.Policy{Name: strings.TrimSpace(request.Name), Description: strings.TrimSpace(request.Description), OwnerUserID: strings.TrimSpace(ownerID), Enabled: enabled, Rules: make([]policy.Rule, 0, len(request.Rules)), LLM: cloneLLMPolicy(request.LLM)}
 	for _, rule := range request.Rules {
 		ruleID := strings.TrimSpace(rule.ID)
 		if ruleID == "" {
@@ -390,6 +410,13 @@ func (s *Server) policyResponse(paths users.Paths, item policy.Policy) (UserPoli
 		return UserPolicyResponse{}, err
 	}
 	response := UserPolicyResponse{ID: item.ID, OwnerUserID: item.OwnerUserID, Name: item.Name, Description: item.Description, Enabled: item.Enabled, Rules: policyRuleResponses(item.Rules), AssignedTargetIDs: make([]string, 0, len(assigned)), AssignedTargets: make([]UserPolicyTargetResponse, 0, len(assigned))}
+	if item.LLM != nil {
+		response.LLM = &UserPolicyLLMResponse{Enabled: item.LLM.Enabled, ProfileID: item.LLM.ProfileID, Prompt: item.LLM.Prompt}
+		if profile, err := findLLMProfile(paths, item.LLM.ProfileID); err == nil {
+			public := profile.Public()
+			response.LLM.Profile = &public
+		}
+	}
 	for _, rule := range item.Rules {
 		if rule.Effect == policy.DecisionDeny {
 			response.BlacklistRuleCount++
@@ -409,6 +436,103 @@ func (s *Server) policyResponse(paths users.Paths, item policy.Policy) (UserPoli
 		response.AssignedTargets = append(response.AssignedTargets, UserPolicyTargetResponse{ID: target.ID, Label: label, Description: target.Description})
 	}
 	return response, nil
+}
+
+func cloneLLMPolicy(value *policy.LLMPolicy) *policy.LLMPolicy {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	copy.ProfileID = strings.TrimSpace(copy.ProfileID)
+	copy.Prompt = strings.TrimSpace(copy.Prompt)
+	return &copy
+}
+
+func validatePolicyLLM(paths users.Paths, item policy.Policy, user users.User) error {
+	if item.LLM == nil || !item.LLM.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(item.LLM.ProfileID) == "" {
+		return fmt.Errorf("enabled LLM policy requires profile_id")
+	}
+	if strings.TrimSpace(item.LLM.Prompt) == "" {
+		return fmt.Errorf("enabled LLM policy requires a prompt")
+	}
+	profile, err := findLLMProfile(paths, item.LLM.ProfileID)
+	if err != nil {
+		return fmt.Errorf("LLM profile %q does not exist", item.LLM.ProfileID)
+	}
+	if !users.CanUseLLMProfile(profile, user.ID, user.Admin) {
+		return fmt.Errorf("user is not allowed to use LLM profile %q", item.LLM.ProfileID)
+	}
+	return nil
+}
+
+func (s *Server) evaluateUserPolicy(w http.ResponseWriter, r *http.Request, policyID string) {
+	user, _, ok := userSessionFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "missing user session", Code: "auth_required"})
+		return
+	}
+	paths, configured := s.managementPaths()
+	if !configured {
+		writeError(w, http.StatusInternalServerError, "management paths are not configured")
+		return
+	}
+	var request PolicyEvaluationRequest
+	if !decodeStrictJSON(w, r, &request, maxPolicyBodyBytes, "invalid JSON policy evaluation request") {
+		return
+	}
+	if strings.TrimSpace(request.Command) == "" || strings.TrimSpace(request.TargetID) == "" {
+		writeError(w, http.StatusBadRequest, "target_id and command are required")
+		return
+	}
+	target, err := findTargetForPolicyEvaluation(paths, request.TargetID, user)
+	if err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
+	if target.PolicyID != strings.TrimSpace(policyID) {
+		writeError(w, http.StatusBadRequest, "target is not assigned to this policy")
+		return
+	}
+	if s.Policies == nil {
+		writeError(w, http.StatusInternalServerError, "policy evaluator is not configured")
+		return
+	}
+	result, err := s.Policies.Evaluate(r.Context(), policy.Request{PolicyID: policyID, Target: policy.Target{Hostname: target.Hostname, IP: target.IP, PolicyID: target.PolicyID}, Command: request.Command, RemoteCommand: request.Command})
+	if err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, PolicyEvaluationResponse{Decision: policyDecisionResponse(result)})
+}
+
+func findTargetForPolicyEvaluation(paths users.Paths, id string, user users.User) (targets.Target, error) {
+	all, err := users.ReadTargetsForUser(paths, user.ID)
+	if err != nil {
+		return targets.Target{}, err
+	}
+	if user.Admin {
+		registry, diagnostics, loadErr := targets.LoadDir(paths.TargetDir)
+		if loadErr != nil {
+			return targets.Target{}, loadErr
+		}
+		if len(diagnostics) > 0 {
+			return targets.Target{}, fmt.Errorf("targets invalid: %s: %s", diagnostics[0].Path, diagnostics[0].Message)
+		}
+		all = registry.All()
+	}
+	for _, target := range all {
+		if target.ID == strings.TrimSpace(id) {
+			return target, nil
+		}
+	}
+	return targets.Target{}, fmt.Errorf("target %q does not exist or is not owned by current user", id)
+}
+
+func policyDecisionResponse(result policy.Result) PolicyDecisionResponse {
+	return PolicyDecisionResponse{Decision: result.Decision, PolicyID: result.PolicyID, RuleID: result.RuleID, Reason: result.Reason, Source: result.Source, LLMProfileID: result.LLMProfileID}
 }
 
 func importEntryResponses(entries []users.RuleListEntry) []UserPolicyRuleListEntryResponse {

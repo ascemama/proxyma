@@ -141,7 +141,7 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 		RequestedBy:   task.RequestedBy,
 		Target:        policyTarget(task.Target),
 		Command:       task.Command,
-		RemoteCommand: remoteCommand(task),
+		RemoteCommand: tasks.RedactCredentialValues(remoteCommand(task), task.SensitiveValues...),
 		PolicyID:      targetPolicyID(task.Target),
 		Metadata:      task.Metadata,
 	})
@@ -149,10 +149,12 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 		return tasks.PolicyDecision{}, err
 	}
 	decision := tasks.PolicyDecision{
-		Decision: result.Decision,
-		PolicyID: result.PolicyID,
-		RuleID:   result.RuleID,
-		Reason:   result.Reason,
+		Decision:     result.Decision,
+		PolicyID:     result.PolicyID,
+		RuleID:       result.RuleID,
+		Reason:       result.Reason,
+		Source:       result.Source,
+		LLMProfileID: result.LLMProfileID,
 	}
 	if _, err := f.manager.SetPolicyDecision(task.TaskID, decision); err != nil {
 		return tasks.PolicyDecision{}, err
@@ -166,12 +168,12 @@ func (f *Flow) logPolicyDecision(task *tasks.Task, decision tasks.PolicyDecision
 		return
 	}
 	if decision.Reason != "" {
-		f.options.Logger.Printf("policy decision=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s reason=%q",
-			decision.Decision, task.TaskID, task.AgentID, decision.PolicyID, decision.RuleID, decision.Reason)
+		f.options.Logger.Printf("policy decision=%s source=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s llm_profile_id=%s reason=%q",
+			decision.Decision, decision.Source, task.TaskID, task.AgentID, decision.PolicyID, decision.RuleID, decision.LLMProfileID, decision.Reason)
 		return
 	}
-	f.options.Logger.Printf("policy decision=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s",
-		decision.Decision, task.TaskID, task.AgentID, decision.PolicyID, decision.RuleID)
+	f.options.Logger.Printf("policy decision=%s source=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s llm_profile_id=%s",
+		decision.Decision, decision.Source, task.TaskID, task.AgentID, decision.PolicyID, decision.RuleID, decision.LLMProfileID)
 }
 
 func (f *Flow) requestApproval(ctx context.Context, task *tasks.Task) error {

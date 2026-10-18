@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"proxyma/internal/llm"
 )
 
 const (
@@ -83,6 +85,45 @@ func TestEvaluateUsesOnlyTheSelectedPolicy(t *testing.T) {
 	}
 	if result.Decision != DecisionAllow || result.PolicyID != allowPolicyID {
 		t.Fatalf("result = %#v", result)
+	}
+}
+
+type testLLMReviewer struct {
+	result llm.ReviewResult
+	calls  int
+}
+
+func (r *testLLMReviewer) Review(_ context.Context, _ string, _ llm.ReviewRequest) (llm.ReviewResult, error) {
+	r.calls++
+	return r.result, nil
+}
+
+func TestEvaluateLLMFallbackAndDeterministicShortCircuit(t *testing.T) {
+	reviewer := &testLLMReviewer{result: llm.ReviewResult{Decision: llm.DecisionApproved, Valid: true}}
+	set := NewSetWithLLM(map[string]Policy{baselinePolicyID: {
+		ID: baselinePolicyID, OwnerUserID: testOwnerID, Name: "LLM", Enabled: true,
+		Rules: []Rule{{ID: "deny-dangerous", Effect: DecisionDeny, CommandTemplate: "rm -rf {path}"}},
+		LLM:   &LLMPolicy{Enabled: true, ProfileID: "profile-1", Prompt: "Approve read-only commands only."},
+	}}, reviewer)
+	result, err := set.Evaluate(context.Background(), Request{PolicyID: baselinePolicyID, RemoteCommand: "hostname"})
+	if err != nil || result.Decision != DecisionAllow || result.Source != "llm" || reviewer.calls != 1 {
+		t.Fatalf("LLM result = %#v calls=%d err=%v", result, reviewer.calls, err)
+	}
+	result, err = set.Evaluate(context.Background(), Request{PolicyID: baselinePolicyID, RemoteCommand: "rm -rf /tmp/demo"})
+	if err != nil || result.Decision != DecisionDeny || result.Source != "rule" || reviewer.calls != 1 {
+		t.Fatalf("deterministic result = %#v calls=%d err=%v", result, reviewer.calls, err)
+	}
+}
+
+func TestEvaluateInvalidLLMResultRequiresApproval(t *testing.T) {
+	reviewer := &testLLMReviewer{result: llm.ReviewResult{Decision: "unexpected", Valid: false}}
+	set := NewSetWithLLM(map[string]Policy{baselinePolicyID: {
+		ID: baselinePolicyID, OwnerUserID: testOwnerID, Name: "LLM", Enabled: true,
+		LLM: &LLMPolicy{Enabled: true, ProfileID: "profile-1", Prompt: "Classify."},
+	}}, reviewer)
+	result, err := set.Evaluate(context.Background(), Request{PolicyID: baselinePolicyID, RemoteCommand: "hostname"})
+	if err != nil || result.Decision != DecisionApproval || result.Source != "llm" {
+		t.Fatalf("result = %#v err=%v", result, err)
 	}
 }
 

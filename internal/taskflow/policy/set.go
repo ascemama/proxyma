@@ -4,17 +4,27 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
+
+	"proxyma/internal/llm"
 )
 
 // Policy is one user-authored command policy file.
 type Policy struct {
-	Schema      string `json:"$schema,omitempty"`
-	ID          string `json:"id"`
-	OwnerUserID string `json:"owner_user_id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Enabled     bool   `json:"enabled"`
-	Rules       []Rule `json:"rules"`
+	Schema      string     `json:"$schema,omitempty"`
+	ID          string     `json:"id"`
+	OwnerUserID string     `json:"owner_user_id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description,omitempty"`
+	Enabled     bool       `json:"enabled"`
+	Rules       []Rule     `json:"rules"`
+	LLM         *LLMPolicy `json:"llm,omitempty"`
+}
+
+type LLMPolicy struct {
+	Enabled   bool   `json:"enabled"`
+	ProfileID string `json:"profile_id,omitempty"`
+	Prompt    string `json:"prompt,omitempty"`
 }
 
 // Rule maps a command match condition to a policy effect.
@@ -28,6 +38,13 @@ type Rule struct {
 // Set evaluates commands against named policies.
 type Set struct {
 	policies map[string]compiledPolicy
+	llm      llm.Reviewer
+}
+
+func (s *Set) SetReviewer(reviewer llm.Reviewer) {
+	if s != nil {
+		s.llm = reviewer
+	}
 }
 
 type compiledPolicy struct {
@@ -48,7 +65,12 @@ type match struct {
 
 // NewSet returns an evaluator containing the provided policies.
 func NewSet(policies map[string]Policy) *Set {
+	return NewSetWithLLM(policies, nil)
+}
+
+func NewSetWithLLM(policies map[string]Policy, reviewer llm.Reviewer) *Set {
 	set := &Set{policies: make(map[string]compiledPolicy, len(policies))}
+	set.llm = reviewer
 	for id, policy := range policies {
 		var rules []compiledRule
 		for _, rule := range policy.Rules {
@@ -69,6 +91,10 @@ func (s *Set) All() []Policy {
 	for _, compiled := range s.policies {
 		policy := compiled.policy
 		policy.Rules = append([]Rule(nil), policy.Rules...)
+		if policy.LLM != nil {
+			copy := *policy.LLM
+			policy.LLM = &copy
+		}
 		items = append(items, policy)
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -95,7 +121,7 @@ func (s *Set) ValidateReference(target, policyID string) []Diagnostic {
 }
 
 // Evaluate returns the winning policy decision for a prepared command.
-func (s *Set) Evaluate(_ context.Context, request Request) (Result, error) {
+func (s *Set) Evaluate(ctx context.Context, request Request) (Result, error) {
 	if s == nil {
 		return Result{Decision: DecisionDeny, Reason: "target policy evaluator is not configured"}, nil
 	}
@@ -126,12 +152,31 @@ func (s *Set) Evaluate(_ context.Context, request Request) (Result, error) {
 				PolicyID: policy.policy.ID,
 				RuleID:   rule.rule.ID,
 				Reason:   rule.rule.Reason,
+				Source:   "rule",
 			},
 			effectRank: rankEffect(rule.rule.Effect),
 			order:      order,
 		})
 	}
 	if len(matches) == 0 {
+		if policy.policy.LLM != nil && policy.policy.LLM.Enabled {
+			if strings.TrimSpace(policy.policy.LLM.ProfileID) == "" || strings.TrimSpace(policy.policy.LLM.Prompt) == "" || s.llm == nil {
+				return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "LLM policy is unavailable; user approval required", Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+			}
+			llmResult, err := s.llm.Review(ctx, policy.policy.LLM.ProfileID, llm.ReviewRequest{Command: request.RemoteCommand, Prompt: policy.policy.LLM.Prompt})
+			if err != nil || !llmResult.Valid {
+				return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "LLM response was unavailable or invalid; user approval required", Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+			}
+			decision := DecisionApproval
+			reason := "LLM requires user approval"
+			switch llmResult.Decision {
+			case llm.DecisionApproved:
+				decision, reason = DecisionAllow, "approved by LLM policy"
+			case llm.DecisionDenied:
+				decision, reason = DecisionDeny, "denied by LLM policy"
+			}
+			return Result{Decision: decision, PolicyID: policy.policy.ID, Reason: reason, Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+		}
 		return Result{Decision: DecisionApproval, Reason: "no policy rule matched command"}, nil
 	}
 	sort.SliceStable(matches, func(i, j int) bool {

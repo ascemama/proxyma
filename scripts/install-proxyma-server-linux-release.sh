@@ -258,6 +258,7 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0700 \
   "$DATA_DIR/interactions" \
   "$DATA_DIR/user_sessions" \
   "$DATA_DIR/credential_tokens" \
+  "$DATA_DIR/llm_profiles" \
   "$DATA_DIR/.ssh"
 
 TLS_DIR="$CONFIG_DIR/tls"
@@ -329,6 +330,7 @@ elif [[ ! -e "$CONFIG_FILE" ]]; then
     "interaction_config_dir": "$CONFIG_DIR/interactions",
     "user_session_dir": "$DATA_DIR/user_sessions",
     "credential_token_dir": "$DATA_DIR/credential_tokens",
+    "llm_profile_dir": "$DATA_DIR/llm_profiles",
     "known_hosts_path": "$DATA_DIR/.ssh/known_hosts"
   },
   "execution": {

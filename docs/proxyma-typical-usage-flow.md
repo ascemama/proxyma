@@ -7,7 +7,7 @@ policy before execution.
 ## Taskflow vs Tasks
 
 `internal/taskflow` is the lifecycle policy layer. It looks at durable task
-state, target-owned command policy, and interaction state, then decides the next
+state, target-owned command policy, the optional LLM fallback, and interaction state, then decides the next
 high-level transition: start directly, deny, request approval, wait for an
 answer, apply an approval/rejection/expiration, or ask the task manager to
 start/block a task. It also owns the scheduler loop that periodically invokes
@@ -96,6 +96,8 @@ flowchart TD
         P2{"Denied?"}
         P3["Match deterministic allow rules<br/>Data: typed command templates and validated arguments"]
         P4{"Allowed?"}
+        P5["Optional LLM fallback<br/>Data: redacted command + user prompt"]
+        P6{"LLM approved?"}
     end
 
     subgraph Scheduler["internal/taskflow.Scheduler"]
@@ -159,7 +161,11 @@ flowchart TD
     P4 -->|"yes"| T0
     T0 -->|"write policy"| TS1
     T0 --> TF7
-    P4 -->|"no: approval fallback"| T0A
+    P4 -->|"no: evaluate LLM if enabled"| P5
+    P5 --> P6
+    P6 -->|"approved"| T0
+    P6 -->|"denied"| TF8
+    P6 -->|"invalid / requires approval / unavailable"| T0A
     T0A -->|"write policy"| TS1
     T0A --> TF3
     TF3 --> I1

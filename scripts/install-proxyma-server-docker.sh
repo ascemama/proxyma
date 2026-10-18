@@ -370,6 +370,7 @@ deployment_dirs=(
   "$DATA_DIR/interactions"
   "$DATA_DIR/user_sessions"
   "$DATA_DIR/credential_tokens"
+  "$DATA_DIR/llm_profiles"
   "$DATA_DIR/.ssh"
 )
 
@@ -440,6 +441,7 @@ if [[ ! -e "$CONFIG_FILE" ]]; then
     "interaction_config_dir": "/etc/proxyma/interactions",
     "user_session_dir": "/var/lib/proxyma/user_sessions",
     "credential_token_dir": "/var/lib/proxyma/credential_tokens",
+    "llm_profile_dir": "/var/lib/proxyma/llm_profiles",
     "known_hosts_path": "/var/lib/proxyma/.ssh/known_hosts"
   },
   "execution": {

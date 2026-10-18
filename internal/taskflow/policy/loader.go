@@ -75,6 +75,17 @@ func Validate(policy *Policy) error {
 	case strings.TrimSpace(policy.Name) == "":
 		return fmt.Errorf("missing required field name")
 	}
+	if policy.LLM != nil && policy.LLM.Enabled {
+		if strings.TrimSpace(policy.LLM.ProfileID) == "" {
+			return fmt.Errorf("llm.profile_id is required when LLM fallback is enabled")
+		}
+		if strings.TrimSpace(policy.LLM.Prompt) == "" {
+			return fmt.Errorf("llm.prompt is required when LLM fallback is enabled")
+		}
+		if len(policy.LLM.Prompt) > 16384 {
+			return fmt.Errorf("llm.prompt is too long")
+		}
+	}
 	for i := range policy.Rules {
 		if err := validateRule(&policy.Rules[i]); err != nil {
 			return fmt.Errorf("rule %d: %w", i, err)

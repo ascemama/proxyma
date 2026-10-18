@@ -55,6 +55,13 @@ rule run without approval. Everything else creates the normal approval
 interaction. Use **Import JSON** to append a prepared rule-list file to an
 existing policy; the import never creates a separate policy.
 
+Optionally, create an LLM profile from **Settings** before editing the policy.
+The profile stores the provider API key on the Proxyma server and the key is
+never returned through the API. Select it in the policy's LLM fallback section
+and write a prompt such as “approve only commands that are clearly read-only
+with very high certainty”. Deterministic rules are checked first; an invalid or
+uncertain LLM response still requires approval.
+
 ![Add Policy form](images/first-time-policy.jpg)
 
 Policies can be edited in place. Changes affect every target currently assigned

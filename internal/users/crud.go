@@ -22,6 +22,7 @@ type Paths struct {
 	TargetDir            string
 	PolicyDir            string
 	InteractionConfigDir string
+	LLMProfileDir        string
 }
 
 // IDGenerator generates an opaque Proxyma resource ID.

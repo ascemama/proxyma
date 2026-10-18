@@ -85,6 +85,37 @@ through interaction providers or NTFY.
 Each target has exactly one `policy_id`. Assigning a target through this
 endpoint replaces its previous policy; targets cannot be left without a policy.
 
+## LLM Profiles and Policy Preview
+
+LLM profiles are reusable provider credentials managed separately from policies:
+
+```http
+GET    /v1/user/llm-profiles
+POST   /v1/user/llm-profiles
+GET    /v1/user/llm-profiles/{profile_id}
+PUT    /v1/user/llm-profiles/{profile_id}
+DELETE /v1/user/llm-profiles/{profile_id}
+POST   /v1/user/llm-profiles/test
+```
+
+The API never returns an API key. Updating a profile with an empty `api_key`
+keeps the existing key. Profiles are owned by users; administrators may manage
+all profiles. A policy may select an accessible profile and provide an LLM
+prompt through its `llm` object. The evaluator checks deterministic rules first,
+then calls the selected profile only when no rule matches:
+
+```http
+POST /v1/user/policies/{policy_id}/evaluate
+Content-Type: application/json
+
+{"target_id":"target-uuid","command":"systemctl status ssh"}
+```
+
+The provider response is normalized to `approved`, `denied`, or
+`require approval`. Network failures, malformed JSON, unknown decisions, and
+timeouts always become `approval` and do not bypass the existing interaction
+flow.
+
 ## Activation and Password Reset
 
 Pending users and users with an administrator-generated password-reset link use

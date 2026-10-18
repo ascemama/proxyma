@@ -1058,6 +1058,48 @@ code {
   margin: 0;
 }
 
+.llm-settings-content {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-subheading,
+.llm-profile-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.llm-profile-list {
+  display: grid;
+  gap: 8px;
+}
+
+.llm-profile-row {
+  background: var(--surface-subtle);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.llm-profile-row > div {
+  display: grid;
+  gap: 3px;
+  margin-right: auto;
+}
+
+.llm-profile-row small {
+  color: var(--muted);
+}
+
+.llm-profile-form {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
 .settings-password-grid {
   margin-top: 20px;
 }
@@ -1829,7 +1871,8 @@ code {
 }
 
 .policy-rule-section,
-.policy-assignment-section {
+.policy-assignment-section,
+.policy-llm-section {
   border-top: 1px solid var(--line);
   display: grid;
   gap: 12px;
@@ -1878,6 +1921,14 @@ code {
 
 .policy-template-field small {
   line-height: 1.5;
+}
+
+.policy-llm-section {
+  background: var(--surface-subtle);
+}
+
+.policy-llm-grid {
+  align-items: start;
 }
 
 .policy-empty-rules,

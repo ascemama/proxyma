@@ -47,6 +47,9 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.CredentialTokenDir != "var/proxyma/credential_tokens" {
 		t.Fatalf("CredentialTokenDir = %q", cfg.CredentialTokenDir)
 	}
+	if cfg.LLMProfileDir != "var/proxyma/llm_profiles" {
+		t.Fatalf("LLMProfileDir = %q", cfg.LLMProfileDir)
+	}
 	if cfg.KnownHostsPath != filepath.Join("var", "proxyma", ".ssh", "known_hosts") {
 		t.Fatalf("KnownHostsPath = %q", cfg.KnownHostsPath)
 	}
@@ -89,6 +92,7 @@ func TestFromArgs(t *testing.T) {
 		"--interaction-config-dir", "interaction-configs-test",
 		"--user-session-dir", "sessions-test",
 		"--credential-token-dir", "credential-tokens-test",
+		"--llm-profile-dir", "llm-profiles-test",
 		"--known-hosts-path", "known-hosts-test",
 		"--command-timeout", "2s",
 		"--interaction-timeout", "3s",
@@ -100,7 +104,7 @@ func TestFromArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ListenAddress != "127.0.0.1:0" || cfg.TargetDir != "targets-test" || cfg.PolicyDir != "policies-test" || cfg.AgentDir != "agents-test" || cfg.UserDir != "users-test" || cfg.TaskDir != "tasks-test" || cfg.InteractionDir != "interactions-test" || cfg.InteractionConfigDir != "interaction-configs-test" || cfg.UserSessionDir != "sessions-test" || cfg.CredentialTokenDir != "credential-tokens-test" {
+	if cfg.ListenAddress != "127.0.0.1:0" || cfg.TargetDir != "targets-test" || cfg.PolicyDir != "policies-test" || cfg.AgentDir != "agents-test" || cfg.UserDir != "users-test" || cfg.TaskDir != "tasks-test" || cfg.InteractionDir != "interactions-test" || cfg.InteractionConfigDir != "interaction-configs-test" || cfg.UserSessionDir != "sessions-test" || cfg.CredentialTokenDir != "credential-tokens-test" || cfg.LLMProfileDir != "llm-profiles-test" {
 		t.Fatalf("unexpected config: %#v", cfg)
 	}
 	if cfg.Scheme != SchemeHTTP || cfg.TLSMode != TLSModeProvided || cfg.TLSCertificateFile != "provided.crt" || cfg.TLSPrivateKeyFile != "provided.key" {
@@ -470,6 +474,7 @@ func TestExampleConfigAndSchemaCoverRuntimeFields(t *testing.T) {
 		"interaction_config_dir",
 		"user_session_dir",
 		"credential_token_dir",
+		"llm_profile_dir",
 		"known_hosts_path",
 		"command_timeout",
 		"interaction_timeout",

@@ -4,7 +4,8 @@ Proxyma keeps operator-managed records in JSON files and validates their
 relationships when the service starts. The default entity directories are
 `var/proxyma/targets/`, `var/proxyma/policies/`, `var/proxyma/agents/`,
 `var/proxyma/users/`, and `var/proxyma/interaction_instances/`; deployments may
-override every path. Durable tasks and approval records use
+override every path. Protected LLM profiles, including provider API keys, use
+`var/proxyma/llm_profiles/`. Durable tasks and approval records use
 `var/proxyma/tasks/` and `var/proxyma/interactions/` respectively.
 
 Files under `docs/examples/` are source-controlled examples only. They are not
@@ -108,9 +109,11 @@ The complete contract is
 
 Each target references exactly one command-policy ID. Policies are owned by the
 user who creates them and contain blacklist (`deny`) and whitelist (`allow`)
-typed command templates. Within the selected policy, deny wins over allow; an
-unmatched command requires human approval. Assigning a different policy
-replaces the target's current policy.
+typed command templates. Within the selected policy, deny wins over allow. If
+no rule matches, an optional LLM profile can apply a user-authored prompt; an
+invalid, unavailable, or uncertain result requires human approval. Without an
+LLM fallback, an unmatched command requires human approval. Assigning a
+different policy replaces the target's current policy.
 
 ```json
 {
@@ -140,6 +143,14 @@ replaces the target's current policy.
 See [`schemas/proxyma.policy.schema.json`](../schemas/proxyma.policy.schema.json)
 and the checked-in example
 [`docs/examples/policy-baseline-readonly.json`](examples/policy-baseline-readonly.json).
+
+LLM provider profiles are managed from Settings in the WebGUI and are stored
+with their API keys under the configured `llm_profile_dir` (by default
+`var/proxyma/llm_profiles`). API keys are never returned by the API. Policies
+refer to a profile ID and contain the prompt used for the fallback decision.
+OpenAI, OpenRouter, Claude, and custom HTTPS endpoints are supported. Provider
+requests must return only `approved`, `denied`, or `require approval`; every
+other response is treated as approval required.
 
 ## Agents
 

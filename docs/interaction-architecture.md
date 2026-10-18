@@ -12,10 +12,12 @@ flowchart LR
         AgentFiles["var/proxyma/agents/*.json"] --> AgentRegistry["agents.Registry"]
         UserFiles["var/proxyma/users/*.json"] --> UserRegistry["users.Registry"]
         PolicyFiles["var/proxyma/policies/*.json"] --> PolicyRegistry["policy.Set"]
+        LLMFiles["var/proxyma/llm_profiles/*.json"] --> LLMRegistry["llm.MutableCatalog"]
         Registry --> StartupValidation["Startup reference validation"]
         AgentRegistry --> StartupValidation
         UserRegistry --> StartupValidation
         PolicyRegistry --> StartupValidation
+        LLMRegistry --> StartupValidation
 
         Registry --> BuildProviders["instances.BuildProviders"]
         RuntimeOptions["ProviderRuntimeOptions<br/>debug + logger"] --> BuildProviders
@@ -30,8 +32,11 @@ flowchart LR
         AgentRegistry --> AgentAPI
         AgentAPI -- "copies interaction_instance_id" --> TaskManager["tasks.Manager"]
         TaskManager --> Task["Durable Task"]
-        Task --> Policy["Policy evaluation<br/>deny / allow / approval fallback"]
+        Task --> Policy["Policy evaluation<br/>deny / allow / optional LLM fallback"]
         PolicyRegistry --> Policy
+        LLMRegistry --> Policy
+        Policy -- "deny" --> Block["Block task"]
+        Policy -- "allow" --> Execute["Execute task"]
         Policy -- "approval required" --> Flow["taskflow.Flow"]
         Flow -- "Request with instance ID" --> Service["interaction.Service<br/>Communicator + Responder"]
         Service -- "save pending record" --> InteractionStore["Interaction Store<br/>var/proxyma/interactions"]
@@ -54,8 +59,7 @@ flowchart LR
         Service -- "save answered / canceled / expired" --> InteractionStore
         Flow -- "Tick + Communicator.Get" --> Service
         Service -- "interaction status" --> Flow
-        Flow -- "approved" --> Execute["Execute task"]
-        Flow -- "rejected, canceled, or expired" --> Block["Block task"]
+        Flow -- "rejected, canceled, or expired" --> Block
     end
 
     subgraph Management["GUI interaction management"]
@@ -100,11 +104,14 @@ the internal `Responder` interface, keeping command requesters separate from app
 GUI users may newly assign `local` or an enabled interaction instance whose `creator_user_id` matches their user ID. Existing assignments owned by another user may be preserved while editing other agent fields, but cannot be newly selected after replacement.
 7. Taskflow observes the persisted interaction status and decides whether to execute or block the task.
 
-Policy decisions are deterministic in V1. A matching blacklist rule denies the
-command; otherwise a matching whitelist rule allows it; otherwise taskflow asks
-the configured interaction provider for approval. The WebGUI/API is the only
-policy mutation path. Interaction providers, including NTFY, only answer
-pending approval requests and never modify policies.
+Policy decisions first use the deterministic blacklist and whitelist rules. A
+matching blacklist rule denies the command; otherwise a matching whitelist rule
+allows it. If no rule matches and the policy has an enabled LLM fallback, the
+server sends the command plus the policy prompt to the selected profile. Only a
+valid `approved` response allows execution; invalid, unavailable, or uncertain
+responses require approval. The WebGUI/API is the only policy mutation path.
+Interaction providers, including NTFY, only answer pending approval requests
+and never modify policies.
 
 Configuration reloads use build-then-swap behavior. If any provider cannot be constructed, `SetProviders` is not called and the active router configuration remains unchanged. After a successful swap, new interactions use the new providers while replaced providers continue serving their already-pending interactions and close after those interactions drain.
 

@@ -85,6 +85,7 @@ import { applyTheme, type Theme } from '../theme';
 import { showLocalInteraction } from '../environment';
 import { ApplicationFooter } from './ApplicationFooter';
 import { PolicyPage as PolicyManagementPage } from './policy/PolicyPage';
+import { LLMProfilesSettings } from './settings/LLMProfilesSettings';
 
 type DashboardProps = {
   session: UserSession;
@@ -638,6 +639,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
           onPreviewTheme={applyTheme}
           onSaveTheme={handleSaveTheme}
           onSubmit={handleChangePassword}
+          csrfToken={session.csrf_token}
           theme={session.user.theme}
           user={session.user}
         />
@@ -2121,6 +2123,7 @@ function SettingsModal({
   onPreviewTheme,
   onSaveTheme,
   onSubmit,
+  csrfToken,
   theme,
   user
 }: {
@@ -2132,10 +2135,11 @@ function SettingsModal({
   onPreviewTheme: (theme: Theme) => void;
   onSaveTheme: (theme: Theme) => Promise<void>;
   onSubmit: (input: ChangePasswordInput) => Promise<void>;
+  csrfToken: string;
   theme: Theme;
   user: UserProfile;
 }) {
-  const [activeSection, setActiveSection] = useState<'security' | 'appearance'>('security');
+  const [activeSection, setActiveSection] = useState<'security' | 'appearance' | 'llm'>('security');
   const [draftTheme, setDraftTheme] = useState<Theme>(theme);
   const [appearanceChanged, setAppearanceChanged] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -2236,6 +2240,15 @@ function SettingsModal({
               <Palette size={17} />
               Appearance
             </button>
+            <button
+              className={`settings-nav-item ${activeSection === 'llm' ? 'active' : ''}`}
+              type="button"
+              aria-current={activeSection === 'llm' ? 'page' : undefined}
+              onClick={() => setActiveSection('llm')}
+            >
+              <Bot size={17} />
+              LLM profiles
+            </button>
           </nav>
 
           {activeSection === 'security' ? (
@@ -2325,7 +2338,7 @@ function SettingsModal({
               </button>
             </div>
           </form>
-          ) : (
+          ) : activeSection === 'appearance' ? (
             <form className="settings-content" onSubmit={handleSaveAppearance}>
               <div>
                 <h3>Appearance</h3>
@@ -2389,6 +2402,10 @@ function SettingsModal({
                 </button>
               </div>
             </form>
+          ) : (
+            <div className="settings-content">
+              <LLMProfilesSettings csrfToken={csrfToken} user={user} />
+            </div>
           )}
         </div>
       </section>

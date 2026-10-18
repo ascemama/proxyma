@@ -1,0 +1,12 @@
+{
+  "$schema": "../../schemas/proxyma.llm-profile.schema.json",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "owner_user_id": "00000000-0000-4000-8000-000000000002",
+  "name": "OpenAI safety reviewer",
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "base_url": "https://api.openai.com/v1",
+  "api_key": "TO_BE_SET_IN_THE_WEBGUI",
+  "timeout_seconds": 30,
+  "enabled": true
+}

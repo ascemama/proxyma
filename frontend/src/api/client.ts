@@ -155,6 +155,40 @@ export type Policy = {
   whitelist_rule_count: number;
   assigned_target_ids: string[];
   assigned_targets: PolicyTarget[];
+  llm?: PolicyLLM;
+};
+
+export type LLMProvider = 'openai' | 'openrouter' | 'claude';
+
+export type LLMProfile = {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  provider: LLMProvider;
+  model: string;
+  base_url: string;
+  timeout_seconds: number;
+  enabled: boolean;
+  has_api_key: boolean;
+};
+
+export type LLMProfileMutationInput = {
+  name: string;
+  provider: LLMProvider;
+  model: string;
+  base_url?: string;
+  api_key?: string;
+  timeout_seconds: number;
+  enabled?: boolean;
+};
+
+export type LLMProfileTestInput = Omit<LLMProfileMutationInput, 'enabled'> & { api_key: string };
+
+export type PolicyLLM = {
+  enabled: boolean;
+  profile_id?: string;
+  prompt?: string;
+  profile?: LLMProfile;
 };
 
 export type PolicyMutationInput = {
@@ -162,6 +196,7 @@ export type PolicyMutationInput = {
   description?: string;
   enabled?: boolean;
   rules?: PolicyRule[];
+  llm?: { enabled: boolean; profile_id?: string; prompt?: string };
 };
 
 export type PolicyRuleListEntry = {
@@ -569,6 +604,27 @@ export function deleteTarget(id: string, csrfToken: string): Promise<{ status: s
 export async function getPolicies(): Promise<Policy[]> {
   const response = await requestJSON<{ policies: Policy[] }>('/v1/user/policies');
   return response.policies;
+}
+
+export async function getLLMProfiles(): Promise<LLMProfile[]> {
+  const response = await requestJSON<{ profiles: LLMProfile[] }>('/v1/user/llm-profiles');
+  return response.profiles;
+}
+
+export function createLLMProfile(input: LLMProfileMutationInput, csrfToken: string): Promise<LLMProfile> {
+  return requestJSON<LLMProfile>('/v1/user/llm-profiles', { method: 'POST', headers: { 'X-CSRF-Token': csrfToken }, body: JSON.stringify(input) });
+}
+
+export function updateLLMProfile(id: string, input: LLMProfileMutationInput, csrfToken: string): Promise<LLMProfile> {
+  return requestJSON<LLMProfile>(`/v1/user/llm-profiles/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'X-CSRF-Token': csrfToken }, body: JSON.stringify(input) });
+}
+
+export function deleteLLMProfile(id: string, csrfToken: string): Promise<{ status: string }> {
+  return requestJSON<{ status: string }>(`/v1/user/llm-profiles/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken } });
+}
+
+export function testLLMProfile(input: LLMProfileTestInput, csrfToken: string): Promise<{ status: string }> {
+  return requestJSON<{ status: string }>('/v1/user/llm-profiles/test', { method: 'POST', headers: { 'X-CSRF-Token': csrfToken }, body: JSON.stringify(input) });
 }
 
 export function createPolicy(input: PolicyMutationInput, csrfToken: string): Promise<Policy> {

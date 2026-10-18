@@ -31,6 +31,7 @@ const (
 	DefaultInteractionConfigDir = "var/proxyma/interaction_instances"
 	DefaultUserSessionDir       = "var/proxyma/user_sessions"
 	DefaultCredentialTokenDir   = "var/proxyma/credential_tokens"
+	DefaultLLMProfileDir        = "var/proxyma/llm_profiles"
 	DefaultOutputLimit          = 1 << 20
 )
 
@@ -66,6 +67,7 @@ type Config struct {
 	InteractionConfigDir      string
 	UserSessionDir            string
 	CredentialTokenDir        string
+	LLMProfileDir             string
 	KnownHostsPath            string
 	CommandTimeout            time.Duration
 	InteractionTimeout        time.Duration
@@ -101,6 +103,7 @@ type configOverride struct {
 	InteractionConfigDir      *string
 	UserSessionDir            *string
 	CredentialTokenDir        *string
+	LLMProfileDir             *string
 	KnownHostsPath            *string
 	CommandTimeout            *time.Duration
 	InteractionTimeout        *time.Duration
@@ -146,6 +149,7 @@ type pathsConfig struct {
 	InteractionConfigDir *string `json:"interaction_config_dir"`
 	UserSessionDir       *string `json:"user_session_dir"`
 	CredentialTokenDir   *string `json:"credential_token_dir"`
+	LLMProfileDir        *string `json:"llm_profile_dir"`
 	KnownHostsPath       *string `json:"known_hosts_path"`
 }
 
@@ -188,6 +192,7 @@ func Default() Config {
 		InteractionConfigDir:      DefaultInteractionConfigDir,
 		UserSessionDir:            DefaultUserSessionDir,
 		CredentialTokenDir:        DefaultCredentialTokenDir,
+		LLMProfileDir:             DefaultLLMProfileDir,
 		KnownHostsPath:            defaultKnownHostsPath(),
 		CommandTimeout:            DefaultCommandTimeout,
 		InteractionTimeout:        DefaultInteractionTimeout,
@@ -298,6 +303,7 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 		interactionConfigDir      string
 		userSessionDir            string
 		credentialTokenDir        string
+		llmProfileDir             string
 		knownHostsPath            string
 		commandTimeout            time.Duration
 		interactionTimeout        time.Duration
@@ -328,6 +334,7 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 	fs.StringVar(&raw.interactionConfigDir, "interaction-config-dir", "", "directory containing interaction instance JSON configuration")
 	fs.StringVar(&raw.userSessionDir, "user-session-dir", "", "directory containing persisted user session JSON records")
 	fs.StringVar(&raw.credentialTokenDir, "credential-token-dir", "", "directory containing persisted activation and password-reset token records")
+	fs.StringVar(&raw.llmProfileDir, "llm-profile-dir", "", "directory containing persisted LLM provider profiles")
 	fs.StringVar(&raw.knownHostsPath, "known-hosts-path", "", "OpenSSH known_hosts file used for SSH host-key verification")
 	fs.DurationVar(&raw.commandTimeout, "command-timeout", 0, "default command execution timeout")
 	fs.DurationVar(&raw.interactionTimeout, "interaction-timeout", 0, "default human interaction timeout")
@@ -380,6 +387,8 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 			opts.cli.UserSessionDir = &raw.userSessionDir
 		case "credential-token-dir":
 			opts.cli.CredentialTokenDir = &raw.credentialTokenDir
+		case "llm-profile-dir":
+			opts.cli.LLMProfileDir = &raw.llmProfileDir
 		case "known-hosts-path":
 			opts.cli.KnownHostsPath = &raw.knownHostsPath
 		case "command-timeout":
@@ -450,6 +459,7 @@ func decodeFileOverride(reader io.Reader) (configOverride, error) {
 		override.InteractionConfigDir = raw.Paths.InteractionConfigDir
 		override.UserSessionDir = raw.Paths.UserSessionDir
 		override.CredentialTokenDir = raw.Paths.CredentialTokenDir
+		override.LLMProfileDir = raw.Paths.LLMProfileDir
 		override.KnownHostsPath = raw.Paths.KnownHostsPath
 	}
 	if raw.Execution != nil {
@@ -522,6 +532,7 @@ func envOverride(lookupEnv func(string) (string, bool)) (configOverride, error) 
 		{"PROXYMA_INTERACTION_CONFIG_DIR", func(v string) error { override.InteractionConfigDir = &v; return nil }},
 		{"PROXYMA_USER_SESSION_DIR", func(v string) error { override.UserSessionDir = &v; return nil }},
 		{"PROXYMA_CREDENTIAL_TOKEN_DIR", func(v string) error { override.CredentialTokenDir = &v; return nil }},
+		{"PROXYMA_LLM_PROFILE_DIR", func(v string) error { override.LLMProfileDir = &v; return nil }},
 		{"PROXYMA_KNOWN_HOSTS_PATH", func(v string) error { override.KnownHostsPath = &v; return nil }},
 		{"PROXYMA_COMMAND_TIMEOUT", func(v string) error {
 			parsed, err := time.ParseDuration(v)
@@ -647,6 +658,9 @@ func applyOverride(cfg *Config, override configOverride) error {
 	}
 	if override.CredentialTokenDir != nil {
 		cfg.CredentialTokenDir = *override.CredentialTokenDir
+	}
+	if override.LLMProfileDir != nil {
+		cfg.LLMProfileDir = *override.LLMProfileDir
 	}
 	if override.KnownHostsPath != nil {
 		cfg.KnownHostsPath = *override.KnownHostsPath

@@ -47,10 +47,11 @@ func run(args []string, stdout io.Writer, stderr io.Writer, stdin io.Reader, loo
 		return 2
 	}
 	paths := users.Paths{
-		UserDir:   cfg.UserDir,
-		AgentDir:  cfg.AgentDir,
-		TargetDir: cfg.TargetDir,
-		PolicyDir: cfg.PolicyDir,
+		UserDir:       cfg.UserDir,
+		AgentDir:      cfg.AgentDir,
+		TargetDir:     cfg.TargetDir,
+		PolicyDir:     cfg.PolicyDir,
+		LLMProfileDir: cfg.LLMProfileDir,
 	}
 	result, err := dispatch(paths, commandArgs, stdin)
 	if err != nil {

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.local/schemas/proxyma.llm-profile.schema.json",
+  "title": "Proxyma LLM Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "owner_user_id", "name", "provider", "model", "base_url", "api_key", "timeout_seconds", "enabled"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "format": "uuid" },
+    "owner_user_id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1 },
+    "provider": { "type": "string", "enum": ["openai", "openrouter", "claude"] },
+    "model": { "type": "string", "minLength": 1 },
+    "base_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "api_key": { "type": "string", "minLength": 1, "writeOnly": true },
+    "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 120 },
+    "enabled": { "type": "boolean" }
+  }
+}

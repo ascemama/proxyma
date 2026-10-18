@@ -18,6 +18,7 @@ import (
 	"proxyma/internal/interaction"
 	"proxyma/internal/interaction/history"
 	interactioninstances "proxyma/internal/interaction/instances"
+	"proxyma/internal/llm"
 	"proxyma/internal/sshclient"
 	"proxyma/internal/targets"
 	"proxyma/internal/taskflow/policy"
@@ -39,6 +40,7 @@ type Server struct {
 	CredentialTokens          *users.CredentialTokenStore
 	Targets                   targets.Registry
 	Policies                  *policy.MutableEvaluator
+	LLMProfiles               *llm.MutableCatalog
 	Tasks                     *tasks.Manager
 	Interactions              interaction.Communicator
 	InteractionHistory        history.QueryStore

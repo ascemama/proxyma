@@ -18,6 +18,7 @@ import (
 	"proxyma/internal/ids"
 	"proxyma/internal/interaction/history"
 	interactioninstances "proxyma/internal/interaction/instances"
+	"proxyma/internal/llm"
 	"proxyma/internal/remoteexec"
 	"proxyma/internal/sshclient"
 	"proxyma/internal/store"
@@ -2339,6 +2340,36 @@ func (s *Server) refreshPolicyEvaluator(paths users.Paths) error {
 	}
 	if len(diagnostics) > 0 {
 		return validationError("policies invalid: " + diagnostics[0].Path + ": " + diagnostics[0].Message)
+	}
+	set.SetReviewer(s.LLMProfiles)
+	if s.Policies != nil {
+		s.Policies.Set(set)
+	}
+	return nil
+}
+
+func (s *Server) refreshLLMProfilesAndPolicies(paths users.Paths) error {
+	profiles, diagnostics, err := llm.LoadDir(paths.LLMProfileDir)
+	if err != nil {
+		return err
+	}
+	if len(diagnostics) > 0 {
+		return validationError("LLM profiles invalid: " + diagnostics[0].Path + ": " + diagnostics[0].Message)
+	}
+	catalog, err := llm.NewCatalog(profiles)
+	if err != nil {
+		return validationError(err.Error())
+	}
+	set, policyDiagnostics, err := policy.LoadDir(paths.PolicyDir)
+	if err != nil {
+		return err
+	}
+	if len(policyDiagnostics) > 0 {
+		return validationError("policies invalid: " + policyDiagnostics[0].Path + ": " + policyDiagnostics[0].Message)
+	}
+	set.SetReviewer(s.LLMProfiles)
+	if s.LLMProfiles != nil {
+		s.LLMProfiles.Set(catalog)
 	}
 	if s.Policies != nil {
 		s.Policies.Set(set)

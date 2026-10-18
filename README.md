@@ -108,7 +108,7 @@ human-interaction instances.
 | Agent command execution | Agents submit target commands through `proxyma-agent`; they do not connect directly to targets. |
 | Target management | Configure targets, authorized agents, target owners, transports, and credentials. |
 | Human approval | Built-in local-console approval and remote NTFY approval requests/responses. No other interaction channels are currently supported. |
-| Command policy | Each target uses one user-owned policy containing typed blacklist/whitelist rules; unmatched commands require approval. JSON rule lists can be imported into existing policies. |
+| Command policy | Each target uses one user-owned policy containing typed blacklist/whitelist rules and an optional LLM fallback; unmatched commands require approval. JSON rule lists can be imported into existing policies. |
 | Durable tasks | Persist task state, status history, results, exit status, and safe command metadata for polling and recovery. |
 | Audit and history | Persist human interactions and provide searchable interaction history through the dashboard. |
 | Administration | Manage users, agents, targets, policies, and interaction instances through the browser GUI or `proxymactl`. |
@@ -117,8 +117,10 @@ Policy rules use one of two effects: `allow` or `deny`. Rules are typed command
 templates such as `ping {ipv4}` or `systemctl status {service}`. Policies are
 owned by their creating user, reusable by other users, and assigned to targets.
 Each target has one assigned policy. Within that policy, deny takes precedence
-over allow; commands with no match require human approval. The WebGUI can
-append a blacklist/whitelist JSON rule list to an existing policy.
+over allow. If no deterministic rule matches, the optional LLM profile is asked
+to return a strict JSON decision; invalid, unavailable, or uncertain responses
+fall back to human approval. The WebGUI can append a blacklist/whitelist JSON
+rule list to an existing policy.
 
 ### Technical Capabilities
 
@@ -212,6 +214,7 @@ arguments are the highest-precedence runtime overrides:
 | `--interaction-config-dir` | `var/proxyma/interaction_instances` | Interaction instance configuration directory. |
 | `--user-session-dir` | `var/proxyma/user_sessions` | Persisted user session directory. |
 | `--credential-token-dir` | `var/proxyma/credential_tokens` | Hashed activation and password-reset token directory. |
+| `--llm-profile-dir` | `var/proxyma/llm_profiles` | Protected server-side LLM profiles and API keys. |
 | `--known-hosts-path` | `var/proxyma/.ssh/known_hosts` | Proxyma-owned OpenSSH host-key trust file. |
 | `--command-timeout` | `5m` | Default command execution timeout using Go duration syntax. |
 | `--interaction-timeout` | `24h` | Pending human-interaction timeout using Go duration syntax. |

@@ -55,7 +55,7 @@
     "paths": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["target_dir", "policy_dir", "agent_dir", "user_dir", "task_dir", "interaction_dir", "interaction_history_db", "interaction_config_dir", "user_session_dir", "credential_token_dir", "known_hosts_path"],
+      "required": ["target_dir", "policy_dir", "agent_dir", "user_dir", "task_dir", "interaction_dir", "interaction_history_db", "interaction_config_dir", "user_session_dir", "credential_token_dir", "llm_profile_dir", "known_hosts_path"],
       "properties": {
         "target_dir": {
           "type": "string",
@@ -106,6 +106,11 @@
           "type": "string",
           "default": "var/proxyma/credential_tokens",
           "description": "Directory containing persisted one-time activation and password-reset token records."
+        },
+        "llm_profile_dir": {
+          "type": "string",
+          "default": "var/proxyma/llm_profiles",
+          "description": "Protected directory containing server-side LLM provider profiles and API keys."
         },
         "known_hosts_path": {
           "type": "string",

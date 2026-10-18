@@ -20,6 +20,7 @@ flowchart LR
     Agents["Agents"]
     Targets["Targets"]
     Policies["Policies<br/>(owned by owner_user_id)"]
+    LLMProfiles["LLM profiles<br/>(owned by owner_user_id)"]
     Instances["Interaction instances<br/>(owned by creator user)"]
     Tasks["Tasks / command requests"]
     Interactions["Durable interactions<br/>(task-scoped; no direct user owner)"]
@@ -29,6 +30,7 @@ flowchart LR
     Users -->|"owns one or more"| Targets
     Users -->|"creates and owns"| Instances
     Users -->|"creates and owns"| Policies
+    Users -->|"creates and owns"| LLMProfiles
     Config -->|"stores"| Policies
 
     Targets -.->|"authorizes one or more"| Agents
@@ -38,6 +40,7 @@ flowchart LR
     Agents -->|"submits"| Tasks
     Instances -.->|"configures approval path for"| Tasks
     Tasks -->|"may create"| Interactions
+    Policies -.->|"optionally references one"| LLMProfiles
     Agents -.->|"interaction instance ID<br/>is copied to task"| Tasks
     Interactions -.->|"is delivered through"| Instances
 ```
@@ -55,6 +58,9 @@ The ownership answers are therefore explicit:
 - **Durable interactions:** these are approval records created for a task. They
   belong to the task lifecycle and are not directly owned by the user who
   eventually responds.
+- **LLM profiles:** provider configuration and API keys are owned by their
+  creating user. Policies may reference a profile that the policy editor is
+  allowed to use; the key is never exposed through the API or an interaction.
 
 The interaction instance is therefore the bridge between management and
 execution: a user creates and owns it, an agent selects it, and tasks use it to
@@ -70,6 +76,8 @@ record.
 | Target → Agent | A target lists one or more agents authorized to submit commands to it. This is authorization, not ownership. |
 | Target → Policy | Each target references exactly one policy ID. A policy can be shared by many targets; assigning a different policy replaces the current assignment. |
 | Policy → User | `owner_user_id` identifies the single user who owns and manages the policy. |
+| Policy → LLM profile | An enabled policy may reference one reusable profile; the profile remains owned by its creating user. |
+| User → LLM profile | A profile has exactly one owner and stores its provider API key in protected server-side storage. |
 | User → Interaction instance | A non-local interaction instance has exactly one `creator_user_id`. That user owns the instance. The built-in `local` instance is a singleton and has no user owner. |
 | Agent → Interaction instance | Each agent has exactly one effective interaction instance: an explicit instance or the built-in `local` instance. An instance may be referenced by zero or more agents. |
 | Task → Interaction | A task may create one durable approval interaction. The interaction records the selected instance ID and belongs to the task lifecycle. |
@@ -85,6 +93,7 @@ its referenced users, agents, and policies exist.
 flowchart TD
     User["User"]
     Policy["Policy<br/>(owned by owner_user_id)"]
+    LLMProfile["LLM profile<br/>(owned by owner_user_id)"]
     Agent["Agent"]
     Instance["Interaction instance<br/>(owned by creator user)"]
     Assignment["Agent interaction assignment"]
@@ -96,6 +105,7 @@ flowchart TD
     User -->|"creates / owns"| Agent
     User -->|"creates and owns"| Instance
     User -->|"creates and owns"| Policy
+    User -->|"creates and owns"| LLMProfile
     Config -->|"stores"| Policy
 
     Agent --> Assignment
@@ -105,6 +115,7 @@ flowchart TD
     User -->|"owns"| Target
     Agent -->|"must be authorized by"| Target
     Policy -->|"must be referenced by"| Target
+    Policy -.->|"optional fallback reference"| LLMProfile
 
     Agent -->|"submits after authentication"| Task
     Target -->|"is selected by task"| Task
@@ -119,6 +130,8 @@ The current model should be read using these rules:
 - Ownership controls which users may manage an entity.
 - Agent authorization controls which agents may submit commands to a target.
 - A target's policy references control which command rules are evaluated.
+- A policy's optional LLM profile reference controls which provider is asked
+  after deterministic rules do not match.
 - An agent's interaction assignment controls where approval requests are sent.
 - None of these relationships gives an agent permission to answer an approval;
   only the configured human interaction provider may return the human response.
@@ -134,3 +147,8 @@ and an unmatched command requires approval.
 Rule-list JSON files are import inputs only. They contain `blacklist` and
 `whitelist` arrays and are appended to an existing policy through the WebGUI;
 they do not contain policy ownership, target assignments, or credentials.
+
+An LLM profile is a separate reusable entity. It contains provider metadata and
+server-side credentials; the policy stores only the profile reference and its
+prompt. Deterministic deny/allow rules are evaluated first, and any invalid or
+uncertain LLM result falls back to approval.

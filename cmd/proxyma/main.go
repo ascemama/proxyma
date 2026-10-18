@@ -18,6 +18,7 @@ import (
 	"proxyma/internal/interaction"
 	"proxyma/internal/interaction/history"
 	interactioninstances "proxyma/internal/interaction/instances"
+	"proxyma/internal/llm"
 	"proxyma/internal/sshclient"
 	"proxyma/internal/store/jsonfile"
 	"proxyma/internal/store/sqlitehistory"
@@ -55,6 +56,21 @@ func main() {
 	for _, diagnostic := range diagnostics {
 		log.Printf("target rejected: %s: %s", diagnostic.Path, diagnostic.Message)
 	}
+	llmProfiles, llmDiagnostics, err := llm.LoadDir(cfg.LLMProfileDir)
+	if err != nil {
+		log.Fatalf("load LLM profiles: %v", err)
+	}
+	for _, diagnostic := range llmDiagnostics {
+		log.Printf("LLM profile rejected: %s: %s", diagnostic.Path, diagnostic.Message)
+	}
+	if len(llmDiagnostics) > 0 {
+		log.Fatalf("load LLM profiles: %d profile file(s) rejected", len(llmDiagnostics))
+	}
+	llmCatalog, err := llm.NewCatalog(llmProfiles)
+	if err != nil {
+		log.Fatalf("configure LLM profiles: %v", err)
+	}
+	mutableLLM := llm.NewMutableCatalog(llmCatalog)
 	policies, policyDiagnostics, err := policy.LoadDir(cfg.PolicyDir)
 	if err != nil {
 		log.Fatalf("load policies: %v", err)
@@ -65,6 +81,7 @@ func main() {
 	if len(policyDiagnostics) > 0 {
 		log.Fatalf("load policies: %d policy file(s) rejected", len(policyDiagnostics))
 	}
+	policies.SetReviewer(mutableLLM)
 	if referenceDiagnostics := validatePolicyReferences(registry, policies); len(referenceDiagnostics) > 0 {
 		for _, diagnostic := range referenceDiagnostics {
 			log.Printf("target policy rejected: %s: %s", diagnostic.Path, diagnostic.Message)
@@ -228,7 +245,9 @@ func main() {
 			TargetDir:            cfg.TargetDir,
 			PolicyDir:            cfg.PolicyDir,
 			InteractionConfigDir: cfg.InteractionConfigDir,
+			LLMProfileDir:        cfg.LLMProfileDir,
 		},
+		LLMProfiles:               mutableLLM,
 		CommandTimeout:            cfg.CommandTimeout,
 		OutputLimit:               cfg.OutputLimit,
 		KnownHostsPath:            cfg.KnownHostsPath,

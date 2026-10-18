@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"proxyma/internal/interaction"
+	"proxyma/internal/llm"
 	"proxyma/internal/taskflow/policy"
 	"proxyma/internal/tasks"
 	"proxyma/internal/transcriptor"
@@ -112,10 +113,12 @@ type ApprovalResponse struct {
 
 // PolicyDecisionResponse is safe task-visible command policy metadata.
 type PolicyDecisionResponse struct {
-	Decision string `json:"decision"`
-	PolicyID string `json:"policy_id,omitempty"`
-	RuleID   string `json:"rule_id,omitempty"`
-	Reason   string `json:"reason,omitempty"`
+	Decision     string `json:"decision"`
+	PolicyID     string `json:"policy_id,omitempty"`
+	RuleID       string `json:"rule_id,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	Source       string `json:"source,omitempty"`
+	LLMProfileID string `json:"llm_profile_id,omitempty"`
 }
 
 // TaskHistoryEventResponse records one externally visible task lifecycle transition.
@@ -351,6 +354,14 @@ type UserPolicyResponse struct {
 	WhitelistRuleCount int                        `json:"whitelist_rule_count"`
 	AssignedTargetIDs  []string                   `json:"assigned_target_ids"`
 	AssignedTargets    []UserPolicyTargetResponse `json:"assigned_targets"`
+	LLM                *UserPolicyLLMResponse     `json:"llm,omitempty"`
+}
+
+type UserPolicyLLMResponse struct {
+	Enabled   bool               `json:"enabled"`
+	ProfileID string             `json:"profile_id,omitempty"`
+	Prompt    string             `json:"prompt,omitempty"`
+	Profile   *llm.PublicProfile `json:"profile,omitempty"`
 }
 
 // UserPolicyRuleResponse is one policy rule returned to GUI callers.
@@ -370,10 +381,47 @@ type UserPolicyTargetResponse struct {
 
 // UserPolicyMutationRequest is submitted by GUI users to create policies.
 type UserPolicyMutationRequest struct {
-	Name        string        `json:"name,omitempty"`
-	Description string        `json:"description,omitempty"`
-	Enabled     *bool         `json:"enabled,omitempty"`
-	Rules       []policy.Rule `json:"rules,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Enabled     *bool             `json:"enabled,omitempty"`
+	Rules       []policy.Rule     `json:"rules,omitempty"`
+	LLM         *policy.LLMPolicy `json:"llm,omitempty"`
+}
+
+type UserLLMProfilesResponse struct {
+	Profiles []llm.PublicProfile `json:"profiles"`
+}
+
+type UserLLMProfileMutationRequest struct {
+	Name           string       `json:"name"`
+	Provider       llm.Provider `json:"provider"`
+	Model          string       `json:"model"`
+	BaseURL        string       `json:"base_url"`
+	APIKey         string       `json:"api_key,omitempty"`
+	TimeoutSeconds int          `json:"timeout_seconds"`
+	Enabled        *bool        `json:"enabled,omitempty"`
+}
+
+type UserLLMProfileTestRequest struct {
+	Name           string       `json:"name"`
+	Provider       llm.Provider `json:"provider"`
+	Model          string       `json:"model"`
+	BaseURL        string       `json:"base_url"`
+	APIKey         string       `json:"api_key"`
+	TimeoutSeconds int          `json:"timeout_seconds"`
+}
+
+type UserLLMProfileTestResponse struct {
+	Status string `json:"status"`
+}
+
+type PolicyEvaluationRequest struct {
+	TargetID string `json:"target_id"`
+	Command  string `json:"command"`
+}
+
+type PolicyEvaluationResponse struct {
+	Decision PolicyDecisionResponse `json:"decision"`
 }
 
 // UserPolicyTargetAssignmentRequest replaces target assignments visible to the actor.
@@ -604,10 +652,12 @@ func policyDecisionResponseFromPolicyDecision(decision *tasks.PolicyDecision) *P
 		return nil
 	}
 	return &PolicyDecisionResponse{
-		Decision: decision.Decision,
-		PolicyID: decision.PolicyID,
-		RuleID:   decision.RuleID,
-		Reason:   decision.Reason,
+		Decision:     decision.Decision,
+		PolicyID:     decision.PolicyID,
+		RuleID:       decision.RuleID,
+		Reason:       decision.Reason,
+		Source:       decision.Source,
+		LLMProfileID: decision.LLMProfileID,
 	}
 }
 

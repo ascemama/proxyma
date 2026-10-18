@@ -38,6 +38,10 @@
       "items": {
         "$ref": "#/$defs/rule"
       }
+    },
+    "llm": {
+      "$ref": "#/$defs/llm",
+      "description": "Optional fallback classifier used only when no deterministic rule matches."
     }
   },
   "$defs": {
@@ -64,6 +68,24 @@
         "reason": {
           "type": "string",
           "description": "Human-readable reason stored on the task and shown in approval prompts."
+        }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "profile_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "prompt": {
+          "type": "string",
+          "maxLength": 16384
         }
       }
     }
