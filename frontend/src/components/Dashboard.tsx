@@ -163,10 +163,10 @@ type AgentCreationPrerequisites = {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', page: 'dashboard', icon: Gauge },
-  { label: 'Target', page: 'target', icon: Network },
-  { label: 'Agent', page: 'agent', icon: Bot },
+  { label: 'Targets', page: 'target', icon: Network },
+  { label: 'Agents', page: 'agent', icon: Bot },
   { label: 'Interactions', page: 'interaction', icon: ListChecks },
-  { label: 'Policy', page: 'policy', icon: ShieldCheck },
+  { label: 'Policies', page: 'policy', icon: ShieldCheck },
   { label: 'Command History', page: 'command-history', icon: History },
   { label: 'Interaction History', page: 'interaction-history', icon: FileClock },
   { label: 'Users', page: 'user', icon: Users, adminOnly: true },
@@ -388,15 +388,15 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
 
   const pageTitle =
     activePage === 'target'
-      ? 'Target'
+      ? 'Targets'
       : activePage === 'agent'
-        ? 'Agent'
+        ? 'Agents'
         : activePage === 'interaction'
           ? 'Interactions'
           : activePage === 'user'
             ? 'Users'
             : activePage === 'policy'
-              ? 'Policy'
+              ? 'Policies'
               : activePage === 'command-history'
                 ? 'Command History'
                 : activePage === 'interaction-history'
