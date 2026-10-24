@@ -276,7 +276,7 @@ func TestFlowLogsPolicyDecisionsWithoutCommandContent(t *testing.T) {
 			var logs bytes.Buffer
 			manager, communicator, _ := newFlowHarness(t, true)
 			task := submitPolicyTask(t, manager, tt.command)
-			flow := New(manager, communicator, Options{Policies: testPolicySet(), Logger: log.New(&logs, "", 0)})
+			flow := New(manager, communicator, Options{Policies: testPolicySet(), Debug: true, Logger: log.New(&logs, "", 0)})
 
 			if _, err := flow.StartCreated(context.Background()); err != nil {
 				t.Fatal(err)
@@ -292,6 +292,23 @@ func TestFlowLogsPolicyDecisionsWithoutCommandContent(t *testing.T) {
 			}
 			if tt.name != "allow" && strings.Contains(output, tt.command) {
 				t.Fatalf("log output contains command: %q", output)
+			}
+			for _, stage := range []string{"blacklist", "whitelist", "llm"} {
+				if !strings.Contains(output, "policy step="+stage) {
+					t.Fatalf("log output %q does not contain %s policy step", output, stage)
+				}
+			}
+			if tt.name == "allow" && !strings.Contains(output, "policy step=blacklist result=not_matched") ||
+				tt.name == "deny" && !strings.Contains(output, "policy step=blacklist result=matched") ||
+				tt.name == "approval" && !strings.Contains(output, "policy step=blacklist result=not_matched") {
+				t.Fatalf("log output has unexpected blacklist result: %q", output)
+			}
+			if tt.name == "allow" && !strings.Contains(output, "policy step=whitelist result=matched") ||
+				tt.name != "allow" && !strings.Contains(output, "policy step=whitelist result=not_matched") {
+				t.Fatalf("log output has unexpected whitelist result: %q", output)
+			}
+			if !strings.Contains(output, "policy step=llm result=skipped") {
+				t.Fatalf("log output has unexpected LLM result: %q", output)
 			}
 		})
 	}

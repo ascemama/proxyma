@@ -132,21 +132,22 @@ func (s *Set) Evaluate(ctx context.Context, request Request) (Result, error) {
 	if policyID == "" {
 		return Result{Decision: DecisionDeny, Reason: "target is missing policy_id"}, nil
 	}
-	var matches []match
+	var denyMatches []match
+	var allowMatches []match
 	order := 0
 	policy, ok := s.policies[policyID]
 	if !ok {
 		return Result{Decision: DecisionDeny, PolicyID: policyID, Reason: fmt.Sprintf("target references unknown policy id %q", policyID)}, nil
 	}
 	if !policy.enabled() {
-		return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "policy is disabled"}, nil
+		return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "policy is disabled", Trace: disabledTrace(policy.policy.ID)}, nil
 	}
 	for _, rule := range policy.rules {
 		order++
 		if !rule.matches(request.RemoteCommand) {
 			continue
 		}
-		matches = append(matches, match{
+		candidate := match{
 			result: Result{
 				Decision: rule.rule.Effect,
 				PolicyID: policy.policy.ID,
@@ -156,16 +157,39 @@ func (s *Set) Evaluate(ctx context.Context, request Request) (Result, error) {
 			},
 			effectRank: rankEffect(rule.rule.Effect),
 			order:      order,
-		})
+		}
+		if rule.rule.Effect == DecisionDeny {
+			denyMatches = append(denyMatches, candidate)
+		} else {
+			allowMatches = append(allowMatches, candidate)
+		}
 	}
-	if len(matches) == 0 {
+	trace := []EvaluationStep{
+		policyStep(policy.policy.ID, "blacklist", denyMatches),
+		policyStep(policy.policy.ID, "whitelist", allowMatches),
+	}
+	if len(denyMatches) > 0 || len(allowMatches) > 0 {
+		trace = append(trace, EvaluationStep{Stage: "llm", Outcome: "skipped", PolicyID: policy.policy.ID})
+		matches := append(append([]match(nil), denyMatches...), allowMatches...)
+		sort.SliceStable(matches, func(i, j int) bool {
+			if matches[i].effectRank != matches[j].effectRank {
+				return matches[i].effectRank > matches[j].effectRank
+			}
+			return matches[i].order < matches[j].order
+		})
+		matches[0].result.Trace = trace
+		return matches[0].result, nil
+	}
+	if len(denyMatches) == 0 && len(allowMatches) == 0 {
 		if policy.policy.LLM != nil && policy.policy.LLM.Enabled {
 			if strings.TrimSpace(policy.policy.LLM.ProfileID) == "" || strings.TrimSpace(policy.policy.LLM.Prompt) == "" || s.llm == nil {
-				return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "LLM policy is unavailable; user approval required", Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+				trace = append(trace, EvaluationStep{Stage: "llm", Outcome: "unavailable", PolicyID: policy.policy.ID, LLMProfileID: policy.policy.LLM.ProfileID})
+				return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "LLM policy is unavailable; user approval required", Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID, Trace: trace}, nil
 			}
 			llmResult, err := s.llm.Review(ctx, policy.policy.LLM.ProfileID, llm.ReviewRequest{Command: request.RemoteCommand, Prompt: policy.policy.LLM.Prompt})
 			if err != nil || !llmResult.Valid {
-				return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "LLM response was unavailable or invalid; user approval required", Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+				trace = append(trace, EvaluationStep{Stage: "llm", Outcome: "invalid", PolicyID: policy.policy.ID, LLMProfileID: policy.policy.LLM.ProfileID})
+				return Result{Decision: DecisionApproval, PolicyID: policy.policy.ID, Reason: "LLM response was unavailable or invalid; user approval required", Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID, Trace: trace}, nil
 			}
 			decision := DecisionApproval
 			reason := "LLM requires user approval"
@@ -175,17 +199,30 @@ func (s *Set) Evaluate(ctx context.Context, request Request) (Result, error) {
 			case llm.DecisionDenied:
 				decision, reason = DecisionDeny, "denied by LLM policy"
 			}
-			return Result{Decision: decision, PolicyID: policy.policy.ID, Reason: reason, Justification: llmResult.Justification, Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID}, nil
+			trace = append(trace, EvaluationStep{Stage: "llm", Outcome: llmResult.Decision, PolicyID: policy.policy.ID, LLMProfileID: policy.policy.LLM.ProfileID})
+			return Result{Decision: decision, PolicyID: policy.policy.ID, Reason: reason, Justification: llmResult.Justification, Source: "llm", LLMProfileID: policy.policy.LLM.ProfileID, Trace: trace}, nil
 		}
-		return Result{Decision: DecisionApproval, Reason: "no policy rule matched command"}, nil
+		trace = append(trace, EvaluationStep{Stage: "llm", Outcome: "skipped", PolicyID: policy.policy.ID})
+		return Result{Decision: DecisionApproval, Reason: "no policy rule matched command", Trace: trace}, nil
 	}
-	sort.SliceStable(matches, func(i, j int) bool {
-		if matches[i].effectRank != matches[j].effectRank {
-			return matches[i].effectRank > matches[j].effectRank
-		}
-		return matches[i].order < matches[j].order
-	})
-	return matches[0].result, nil
+	return Result{Decision: DecisionApproval, Reason: "no policy rule matched command", Trace: trace}, nil
+}
+
+func policyStep(policyID, stage string, matches []match) EvaluationStep {
+	step := EvaluationStep{Stage: stage, Outcome: "not_matched", PolicyID: policyID}
+	if len(matches) > 0 {
+		step.Outcome = "matched"
+		step.RuleID = matches[0].result.RuleID
+	}
+	return step
+}
+
+func disabledTrace(policyID string) []EvaluationStep {
+	return []EvaluationStep{
+		{Stage: "blacklist", Outcome: "skipped", PolicyID: policyID},
+		{Stage: "whitelist", Outcome: "skipped", PolicyID: policyID},
+		{Stage: "llm", Outcome: "skipped", PolicyID: policyID},
+	}
 }
 
 func (p compiledPolicy) enabled() bool {

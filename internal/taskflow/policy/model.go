@@ -43,13 +43,23 @@ type Target struct {
 
 // Result is the durable policy decision attached to a task.
 type Result struct {
-	Decision      string `json:"decision"`
-	PolicyID      string `json:"policy_id,omitempty"`
-	RuleID        string `json:"rule_id,omitempty"`
-	Reason        string `json:"reason,omitempty"`
-	Justification string `json:"justification,omitempty"`
-	Source        string `json:"source,omitempty"`
-	LLMProfileID  string `json:"llm_profile_id,omitempty"`
+	Decision      string           `json:"decision"`
+	PolicyID      string           `json:"policy_id,omitempty"`
+	RuleID        string           `json:"rule_id,omitempty"`
+	Reason        string           `json:"reason,omitempty"`
+	Justification string           `json:"justification,omitempty"`
+	Source        string           `json:"source,omitempty"`
+	LLMProfileID  string           `json:"llm_profile_id,omitempty"`
+	Trace         []EvaluationStep `json:"-"`
+}
+
+// EvaluationStep records one non-persistent stage of policy evaluation.
+type EvaluationStep struct {
+	Stage        string
+	Outcome      string
+	PolicyID     string
+	RuleID       string
+	LLMProfileID string
 }
 
 // IsFinal reports whether the result is one of Proxyma's runnable policy decisions.

@@ -109,6 +109,9 @@ func TestEvaluateLLMFallbackAndDeterministicShortCircuit(t *testing.T) {
 	if err != nil || result.Decision != DecisionAllow || result.Source != "llm" || result.Justification != "The command only reads host information." || reviewer.calls != 1 {
 		t.Fatalf("LLM result = %#v calls=%d err=%v", result, reviewer.calls, err)
 	}
+	if len(result.Trace) != 3 || result.Trace[0].Stage != "blacklist" || result.Trace[0].Outcome != "not_matched" || result.Trace[1].Stage != "whitelist" || result.Trace[1].Outcome != "not_matched" || result.Trace[2].Stage != "llm" || result.Trace[2].Outcome != llm.DecisionApproved {
+		t.Fatalf("LLM trace = %#v", result.Trace)
+	}
 	result, err = set.Evaluate(context.Background(), Request{PolicyID: baselinePolicyID, RemoteCommand: "rm -rf /tmp/demo"})
 	if err != nil || result.Decision != DecisionDeny || result.Source != "rule" || reviewer.calls != 1 {
 		t.Fatalf("deterministic result = %#v calls=%d err=%v", result, reviewer.calls, err)

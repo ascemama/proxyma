@@ -218,6 +218,7 @@ func main() {
 	flow := taskflow.New(manager, interactionService, taskflow.Options{
 		RequireCommandApproval: cfg.RequireCommandApproval,
 		Policies:               policyEvaluator,
+		Debug:                  cfg.Debug,
 		Logger:                 logger,
 	})
 	scheduler := taskflow.NewScheduler(flow, 0)

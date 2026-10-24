@@ -27,6 +27,7 @@ type Manager interface {
 type Options struct {
 	RequireCommandApproval bool
 	Policies               policy.Evaluator
+	Debug                  bool
 	Logger                 *log.Logger
 }
 
@@ -148,6 +149,7 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 	if err != nil {
 		return tasks.PolicyDecision{}, err
 	}
+	f.logPolicyEvaluationSteps(task, result)
 	decision := tasks.PolicyDecision{
 		Decision:      result.Decision,
 		PolicyID:      result.PolicyID,
@@ -162,6 +164,16 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 	}
 	f.logPolicyDecision(task, decision)
 	return decision, nil
+}
+
+func (f *Flow) logPolicyEvaluationSteps(task *tasks.Task, result policy.Result) {
+	if !f.options.Debug || f.options.Logger == nil || task == nil {
+		return
+	}
+	for _, step := range result.Trace {
+		f.options.Logger.Printf("policy step=%s result=%s task_id=%s agent_id=%s policy_id=%s rule_id=%s llm_profile_id=%s",
+			step.Stage, step.Outcome, task.TaskID, task.AgentID, step.PolicyID, step.RuleID, step.LLMProfileID)
+	}
 }
 
 func (f *Flow) logPolicyDecision(task *tasks.Task, decision tasks.PolicyDecision) {
