@@ -374,6 +374,24 @@ Optionally resolve a target without submitting a command:
 proxyma-agent inspect --target server.example
 ```
 
+Before choosing the first command for a target, retrieve its current policy
+guidance. The response is target-authorized and contains only blacklist and
+whitelist templates:
+
+```bash
+proxyma-agent policy --target server.example
+```
+
+This guidance is provided because an agent can often accomplish the same goal
+with multiple command forms. It helps the harness choose a command matching a
+pre-approved whitelist template and avoid forms covered by the blacklist. It is
+not an authorization decision; Proxyma checks every submitted command against
+the current server-side policy.
+
+Reuse that guidance for the target during the current harness session. Fetch it
+again after restarting the harness. Proxyma still evaluates every submitted
+command against the current server-side policy.
+
 Invoke the installed Codex skill explicitly on the first run:
 
 ```text

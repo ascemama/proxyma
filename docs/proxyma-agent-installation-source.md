@@ -177,3 +177,8 @@ commands, and troubleshooting steps are shared with release installations:
 - [Configure the harness](proxyma-agent-installation-release.md#configure-the-harness)
 - [Validate the installation](proxyma-agent-installation-release.md#validate-the-installation)
 - [Configuration discovery and troubleshooting](proxyma-agent-installation-release.md#configuration-discovery-and-troubleshooting)
+
+The harness retrieves target policy guidance lazily before the first command for
+each target with `proxyma-agent policy --target=<hostname-or-ip>`. It reuses the
+guidance until the harness restarts; server-side command enforcement remains
+authoritative.

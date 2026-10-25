@@ -117,6 +117,17 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		}
 	case "inspect":
 		envelope, err = runInspect(ctx, service, commandArgs)
+	case "policy":
+		targetValue, parseErr := parseSingleFlag(command, commandArgs, "target")
+		if parseErr != nil {
+			err = parseErr
+			break
+		}
+		target := Target{Hostname: targetValue}
+		if net.ParseIP(targetValue) != nil {
+			target = Target{IP: targetValue}
+		}
+		envelope, err = service.Policy(ctx, target)
 	case "doctor":
 		if len(commandArgs) != 0 {
 			err = usageError(command, "doctor does not accept arguments")

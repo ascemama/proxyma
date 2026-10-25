@@ -32,6 +32,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 				{Name: "task-update", Summary: "Update agent-owned task fields from JSON input."},
 				{Name: "task-complete", Summary: "Complete a logical task from JSON input."},
 				{Name: "inspect", Summary: "Inspect a logical task or safely resolve a target."},
+				{Name: "policy", Summary: "Retrieve the current policy guidance for an authorized target."},
 				{Name: "doctor", Summary: "Validate local configuration, state, credentials, and server capability."},
 				{Name: "version", Summary: "Show CLI and protocol versions."},
 				{Name: "help", Summary: "Show global or command-specific help."},
@@ -75,6 +76,15 @@ func helpFor(command string) (*HelpInfo, bool) {
 				{Name: "--target", Value: "HOST_OR_IP", Description: "Hostname or IP to resolve safely."},
 			},
 			Notes: []string{"Supply exactly one of --task or --target."},
+		}, true
+	case "policy":
+		return &HelpInfo{
+			Usage:   "proxyma-agent policy --target HOST_OR_IP",
+			Summary: "Retrieve the current blacklist and whitelist guidance for an authorized target.",
+			Flags: []HelpFlag{
+				{Name: "--target", Value: "HOST_OR_IP", Required: true, Description: "Hostname or IP of a target assigned to this agent."},
+			},
+			Notes: []string{"The response is advisory and remains valid for the current harness session; Proxyma still evaluates every submitted command against the current policy."},
 		}, true
 	case "doctor":
 		return &HelpInfo{

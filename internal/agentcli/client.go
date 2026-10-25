@@ -104,6 +104,24 @@ func (c *Client) Resolve(ctx context.Context, target Target) (ResolvedTarget, er
 	return response, err
 }
 
+func (c *Client) Policy(ctx context.Context, target Target) (PolicyGuidance, error) {
+	query := url.Values{}
+	if target.Hostname != "" {
+		query.Set("hostname", target.Hostname)
+	}
+	if target.IP != "" {
+		query.Set("ip", target.IP)
+	}
+	var response PolicyGuidance
+	if err := c.request(ctx, http.MethodGet, "/v1/agent/targets/policy?"+query.Encode(), nil, &response); err != nil {
+		return PolicyGuidance{}, err
+	}
+	if strings.TrimSpace(response.Policy.ID) == "" {
+		return PolicyGuidance{}, proxymaInvalidResponse("Proxyma policy response omitted the policy id")
+	}
+	return response, nil
+}
+
 func (c *Client) Submit(ctx context.Context, request commandRequest) (commandResponse, error) {
 	var response commandResponse
 	err := c.request(ctx, http.MethodPost, "/v1/agent/commands", request, &response)

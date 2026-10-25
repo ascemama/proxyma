@@ -3195,7 +3195,6 @@ function TargetFormModal({
 
   function handlePolicyChange(policyID: string) {
     setSelectedPolicyID(policyID);
-    setPolicyChanged(true);
   }
 
   function toggleAgent(agentID: string) {

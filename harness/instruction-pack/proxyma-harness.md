@@ -8,18 +8,29 @@ operations with shell scripts or raw HTTP.
 ## Required lifecycle
 
 1. At the start of relevant work, run `proxyma-agent resume`.
-2. Continue every returned task with `action: continue` before unrelated remote work.
-3. For `action: wait`, poll no faster than the configured interval while active. Do
+2. Before the first command for a target in the current harness session, run
+   `proxyma-agent policy --target=<hostname-or-ip>`. Keep the returned policy
+   guidance in session context and repeat this once for each additional target.
+   The purpose is to let the harness choose the exact command form that the user
+   has pre-approved, and to avoid command forms that the user has explicitly
+   blacklisted. Agents often have several technically equivalent ways to achieve
+   a goal; this guidance helps them choose the form that avoids unnecessary
+   approval requests without weakening server-side enforcement.
+3. Prefer an exact whitelist template when it satisfies the user's goal. Avoid
+   commands matching blacklist templates. This guidance is advisory; Proxyma
+   evaluates every submitted command against the current server-side policy.
+4. Continue every returned task with `action: continue` before unrelated remote work.
+5. For `action: wait`, poll no faster than the configured interval while active. Do
    not submit a replacement command.
-4. For `action: blocked`, report the reason and required next action. Never bypass
+6. For `action: blocked`, report the reason and required next action. Never bypass
    Proxyma to make progress.
-5. Submit remote work with one JSON object through
+7. Submit remote work with one JSON object through
    `proxyma-agent submit --input <file-or->`. Supply the user goal, target hostname or
    IP, remote payload, reasoning, and your harness name in `requested_by`.
-6. Use the returned `client_task_id` and `revision` for later `poll`, `task-update`,
+8. Use the returned `client_task_id` and `revision` for later `poll`, `task-update`,
    `submit`, or `task-complete` calls. Existing-task mutations require the latest
    revision.
-7. Interpret completed output yourself. Submit another payload only when necessary
+9. Interpret completed output yourself. Submit another payload only when necessary
    for the same goal; otherwise call `task-complete` with a final summary.
 
 ## Exact CLI contract
@@ -31,6 +42,7 @@ proxyma-agent resume
 proxyma-agent poll --task=<client_task_id>
 proxyma-agent inspect --task=<client_task_id>
 proxyma-agent inspect --target=<hostname-or-ip>
+proxyma-agent policy --target=<hostname-or-ip>
 proxyma-agent submit --input=<file-or->
 proxyma-agent task-update --input=<file-or->
 proxyma-agent task-complete --input=<file-or->
@@ -80,6 +92,8 @@ uncertain or the CLI returns `invalid_usage` or `invalid_input`, run
 - Never read or edit the configured state directory. JSON and Markdown there are
   CLI-owned; use `inspect`, `task-update`, and `task-complete`.
 - Never construct transport wrappers. Give `submit` only the remote payload.
+- Policy guidance is fetched lazily once per target for the current harness session;
+  restarting the harness requires fetching it again.
 - Never retry an uncertain submission as a new request. Run `resume`; it reuses the
   persisted operation ID and is safe across crashes.
 - Never expose bearer tokens, signing keys, resolved usernames, passwords, private

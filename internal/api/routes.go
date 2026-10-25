@@ -32,6 +32,7 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("/v1/user/policies/", s.authenticateUserSession(s.verifyUserSessionCSRF(http.HandlerFunc(s.handleUserPolicy))))
 	mux.Handle("/v1/user/command-history", s.authenticateUserSession(http.HandlerFunc(s.handleUserCommandHistory)))
 	mux.Handle("/v1/agent/commands", s.authenticateAgent(http.HandlerFunc(s.handleCommands)))
+	mux.Handle("/v1/agent/targets/policy", s.authenticateAgent(http.HandlerFunc(s.handleAgentPolicyGuidance)))
 	mux.Handle("/v1/agent/targets/resolve", s.authenticateAgent(http.HandlerFunc(s.handleResolveTarget)))
 	mux.Handle("/v1/agent/interactions/", s.authenticateAgent(http.HandlerFunc(s.handleAgentInteractions)))
 	mux.Handle("/v1/agent/tasks/", s.authenticateAgent(http.HandlerFunc(s.handleTaskStatus)))

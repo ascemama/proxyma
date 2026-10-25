@@ -420,6 +420,14 @@ func (s *Service) InspectTarget(ctx context.Context, target Target) (Envelope, e
 	return Envelope{ProtocolVersion: ProtocolVersion, OK: true, Command: "inspect", Action: "none", Target: &resolved}, nil
 }
 
+func (s *Service) Policy(ctx context.Context, target Target) (Envelope, error) {
+	guidance, err := s.client.Policy(ctx, target)
+	if err != nil {
+		return Envelope{}, err
+	}
+	return Envelope{ProtocolVersion: ProtocolVersion, OK: true, Command: "policy", Action: "none", Policy: &guidance}, nil
+}
+
 func (s *Service) Doctor(ctx context.Context) (Envelope, error) {
 	if err := s.client.Health(ctx); err != nil {
 		return Envelope{}, err

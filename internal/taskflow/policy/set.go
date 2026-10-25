@@ -89,18 +89,33 @@ func (s *Set) All() []Policy {
 	}
 	items := make([]Policy, 0, len(s.policies))
 	for _, compiled := range s.policies {
-		policy := compiled.policy
-		policy.Rules = append([]Rule(nil), policy.Rules...)
-		if policy.LLM != nil {
-			copy := *policy.LLM
-			policy.LLM = &copy
-		}
-		items = append(items, policy)
+		items = append(items, clonePolicy(compiled.policy))
 	}
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].ID < items[j].ID
 	})
 	return items
+}
+
+// Find returns a copy of one policy from the active evaluator.
+func (s *Set) Find(policyID string) (Policy, bool) {
+	if s == nil {
+		return Policy{}, false
+	}
+	compiled, ok := s.policies[normalizeID(policyID)]
+	if !ok {
+		return Policy{}, false
+	}
+	return clonePolicy(compiled.policy), true
+}
+
+func clonePolicy(item Policy) Policy {
+	item.Rules = append([]Rule(nil), item.Rules...)
+	if item.LLM != nil {
+		llmPolicy := *item.LLM
+		item.LLM = &llmPolicy
+	}
+	return item
 }
 
 // Has reports whether a policy id is configured.

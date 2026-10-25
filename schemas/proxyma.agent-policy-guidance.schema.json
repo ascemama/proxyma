@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proxyma.example/schemas/proxyma.agent-policy-guidance.schema.json",
+  "title": "Proxyma agent policy guidance",
+  "type": "object",
+  "required": ["target", "policy"],
+  "additionalProperties": false,
+  "properties": {
+    "target": {
+      "type": "object",
+      "required": ["id", "transport", "os"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "transport": {"type": "string"},
+        "os": {"type": "string"},
+        "hostname": {"type": "string"},
+        "ip": {"type": "string"}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": ["id", "name", "enabled", "blacklist", "whitelist"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "enabled": {"type": "boolean"},
+        "blacklist": {"$ref": "#/$defs/rules"},
+        "whitelist": {"$ref": "#/$defs/rules"}
+      }
+    }
+  },
+  "$defs": {
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command_template"],
+        "additionalProperties": false,
+        "properties": {
+          "command_template": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -52,24 +52,32 @@ The complete command workflow is:
 
 1. The harness decides that it needs to run a specific command on a target.
 2. During proxyma-agent installation, a harness skill is deployed which provide information on when and how to use proxyma-agent CLI to get command run on target server.
-3. The harness uses `proxyma-agent` to authenticate, resolve the target, and
+3. Before the first command for a target in the current session, the harness
+   requests that target's blacklist and whitelist guidance with
+   `proxyma-agent policy --target`. It reuses the guidance for that target until
+   the harness restarts.
+   This gives the harness enough context to select an exact pre-approved command
+   template instead of an equivalent wrapper or script that would require
+   approval. The server remains authoritative and checks the submitted command
+   independently.
+4. The harness uses `proxyma-agent` to authenticate, resolve the target, and
    submit the command to the Proxyma Server. The request contains the target
    identity, canonical command, and reasoning, but not the target credentials.
-4. The Proxyma Server authenticates the agent and verifies that the agent is
+5. The Proxyma Server authenticates the agent and verifies that the agent is
    authorized to use the target.
-5. The Proxyma Server resolves the target's connection details and evaluates
+6. The Proxyma Server resolves the target's connection details and evaluates
    the target's assigned command policies.
-6. If the policy denies the command, the server blocks the task and returns the
+7. If the policy denies the command, the server blocks the task and returns the
    denial to the agent.
-7. If the policy requires approval, the server creates a pending interaction
+8. If the policy requires approval, the server creates a pending interaction
    and asks the configured human-interaction provider for a decision. The
    current providers are the built-in local console and NTFY.
-8. A user approves or rejects the request. Approval continues the workflow;
+9. A user approves or rejects the request. Approval continues the workflow;
    rejection or expiration blocks the task.
-9. For an allowed or approved command, the Proxyma Server executes it against
+10. For an allowed or approved command, the Proxyma Server executes it against
    the target using its stored connection details, without exposing those
    credentials to the agent.
-10. The server persists the task, command result, status, and audit information.
+11. The server persists the task, command result, status, and audit information.
    The harness polls through `proxyma-agent` until it receives the final
    status, stdout, stderr, and exit status.
 
@@ -238,6 +246,8 @@ submission, polling, duplicate prevention, and durable client task state. Agents
 
 - route target-machine commands through Proxyma instead of connecting directly;
 - run `proxyma-agent resume` before new remote work;
+- run `proxyma-agent policy --target=<hostname-or-ip>` before the first command
+  for each target in a harness session;
 - supply only target identity, remote payload, and reasoning;
 - interpret results and decide when the logical user goal is complete.
 

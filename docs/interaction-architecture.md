@@ -28,7 +28,10 @@ flowchart LR
     end
 
     subgraph Submission["Command submission and routing"]
-        AgentClient["Agent client"] --> AgentAPI["Agent command API"]
+        AgentClient["Agent client"] --> AgentPolicyAPI["Agent policy guidance API"]
+        AgentPolicyAPI --> TargetPolicy["Current policy attached to authorized target"]
+        TargetPolicy --> AgentSession["Harness session guidance<br/>one fetch per target"]
+        AgentClient --> AgentAPI["Agent command API"]
         AgentRegistry --> AgentAPI
         AgentAPI -- "copies interaction_instance_id" --> TaskManager["tasks.Manager"]
         TaskManager --> Task["Durable Task"]

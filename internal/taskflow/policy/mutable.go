@@ -39,3 +39,19 @@ func (m *MutableEvaluator) Evaluate(ctx context.Context, request Request) (Resul
 	}
 	return evaluator.Evaluate(ctx, request)
 }
+
+// Find returns a copy of a policy from the active policy set when available.
+// It is intentionally read-only so API callers cannot mutate the evaluator.
+func (m *MutableEvaluator) Find(policyID string) (Policy, bool) {
+	if m == nil {
+		return Policy{}, false
+	}
+	m.mu.RLock()
+	evaluator := m.evaluator
+	m.mu.RUnlock()
+	lookup, ok := evaluator.(*Set)
+	if !ok {
+		return Policy{}, false
+	}
+	return lookup.Find(policyID)
+}

@@ -71,6 +71,40 @@ type ResolveTargetResponse struct {
 	CanonicalCommand CanonicalCommandHint   `json:"canonical_command"`
 }
 
+// AgentPolicyGuidanceResponse contains only the current policy guidance for an
+// agent-authorized target. It is advisory; command enforcement remains server-side.
+type AgentPolicyGuidanceResponse struct {
+	Target ResolvedPolicyTargetResponse `json:"target"`
+	Policy AgentPolicyResponse          `json:"policy"`
+}
+
+// ResolvedPolicyTargetResponse identifies the target associated with guidance
+// without exposing credentials or ownership details.
+type ResolvedPolicyTargetResponse struct {
+	ID        string `json:"id"`
+	Transport string `json:"transport"`
+	OS        string `json:"os"`
+	Hostname  string `json:"hostname,omitempty"`
+	IP        string `json:"ip,omitempty"`
+}
+
+// AgentPolicyResponse is the safe agent-facing projection of a target policy.
+type AgentPolicyResponse struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Enabled     bool              `json:"enabled"`
+	Blacklist   []AgentPolicyRule `json:"blacklist"`
+	Whitelist   []AgentPolicyRule `json:"whitelist"`
+}
+
+// AgentPolicyRule contains command guidance an agent may use when choosing a
+// command. Rule IDs and other policy-management metadata are not needed here.
+type AgentPolicyRule struct {
+	CommandTemplate string `json:"command_template"`
+	Reason          string `json:"reason,omitempty"`
+}
+
 // ResolvedTargetResponse identifies the matched target without credentials.
 type ResolvedTargetResponse struct {
 	Transport string `json:"transport"`

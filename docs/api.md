@@ -193,6 +193,39 @@ username, password, or private key. The canonical forms are:
 | Windows over SSH | `ssh {user}@host ` | `windows_shell` |
 | Windows over WinRM | `winrm {user}@host ` | `powershell` |
 
+## Retrieve Target Policy Guidance
+
+Before choosing the first command for a target, an authenticated agent may request
+the policy currently attached to that target:
+
+```http
+GET /v1/agent/targets/policy?hostname=app.example
+```
+
+or:
+
+```http
+GET /v1/agent/targets/policy?ip=192.0.2.10
+```
+
+The purpose of this request is command selection, not authorization. An agent may
+be able to express the same task in several ways—for example, by using a direct
+diagnostic command or by generating a wrapper script. Policy templates can only
+match the command that is actually submitted, so giving the harness the guidance
+lets it prefer an exact whitelist template and avoid a blacklisted form when one
+exists. The server still performs the authoritative policy check on every command.
+
+The request does not accept a policy ID. Proxyma resolves the target through the
+authenticated agent's target assignments and returns only that target's current
+policy guidance. The response contains the policy name, description, enabled state,
+blacklist templates, and whitelist templates. Credentials, owner information, LLM
+configuration, and unrelated policies are never returned.
+
+The harness should request this guidance once per target for its current session and
+reuse it while selecting commands. The guidance is advisory. Proxyma evaluates every
+submitted command against the current server-side policy, so a stale session response
+cannot bypass a policy change.
+
 ## Submit and Poll a Command
 
 Submit a complete canonical access command:

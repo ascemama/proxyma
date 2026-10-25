@@ -171,6 +171,7 @@ func TestAgentReadOnlyEndpointsRejectMutationMethods(t *testing.T) {
 	server.Interactions = interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{})
 	paths := []string{
 		"/v1/agent/targets/resolve?ip=127.0.0.1",
+		"/v1/agent/targets/policy?ip=127.0.0.1",
 		"/v1/agent/tasks/missing",
 		"/v1/agent/interactions/missing",
 		"/v1/health",

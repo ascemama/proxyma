@@ -116,6 +116,33 @@ type ResolvedTarget struct {
 	} `json:"canonical_command"`
 }
 
+type PolicyGuidance struct {
+	Target PolicyGuidanceTarget `json:"target"`
+	Policy PolicyGuidancePolicy `json:"policy"`
+}
+
+type PolicyGuidanceTarget struct {
+	ID        string `json:"id"`
+	Transport string `json:"transport"`
+	OS        string `json:"os"`
+	Hostname  string `json:"hostname,omitempty"`
+	IP        string `json:"ip,omitempty"`
+}
+
+type PolicyGuidancePolicy struct {
+	ID          string               `json:"id"`
+	Name        string               `json:"name"`
+	Description string               `json:"description,omitempty"`
+	Enabled     bool                 `json:"enabled"`
+	Blacklist   []PolicyGuidanceRule `json:"blacklist"`
+	Whitelist   []PolicyGuidanceRule `json:"whitelist"`
+}
+
+type PolicyGuidanceRule struct {
+	CommandTemplate string `json:"command_template"`
+	Reason          string `json:"reason,omitempty"`
+}
+
 type HelpFlag struct {
 	Name        string `json:"name"`
 	Value       string `json:"value,omitempty"`
@@ -154,6 +181,7 @@ type Envelope struct {
 	Tasks           []TaskState     `json:"tasks,omitempty"`
 	Counts          *Counts         `json:"counts,omitempty"`
 	Target          *ResolvedTarget `json:"target,omitempty"`
+	Policy          *PolicyGuidance `json:"policy,omitempty"`
 	Version         string          `json:"version,omitempty"`
 	Commit          string          `json:"commit,omitempty"`
 	StateSchema     string          `json:"state_schema,omitempty"`
