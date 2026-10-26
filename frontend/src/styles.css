@@ -830,24 +830,67 @@ code {
 .interaction-history-filters,
 .interaction-history-detail {
   align-self: start;
+  min-width: 0;
 }
 
 .history-filter-fields {
+  align-items: start;
   display: grid;
   gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
   padding: 0 12px 14px;
 }
 
-.history-filter-actions {
-  border-top: 1px solid var(--line);
-  display: grid;
-  gap: 10px;
-  padding: 14px 12px;
+.history-filter-fields .dialog-field {
+  min-width: 0;
 }
 
-.history-filter-actions .primary-action,
-.history-filter-actions .link-button {
+.history-filter-fields input,
+.history-filter-fields select {
+  min-width: 0;
   width: 100%;
+}
+
+.history-filter-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.history-filter-status {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.history-resize-handle {
+  align-items: stretch;
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+  min-height: 120px;
+  padding: 0;
+  position: relative;
+  width: 10px;
+}
+
+.history-resize-handle span {
+  background: var(--line);
+  border-radius: 999px;
+  display: block;
+  margin: 12px 0;
+  transition: background 120ms ease, width 120ms ease;
+  width: 2px;
+}
+
+.history-resize-handle:hover span,
+.history-resize-handle:focus-visible span {
+  background: var(--teal);
+  width: 4px;
 }
 
 .interaction-history-results {

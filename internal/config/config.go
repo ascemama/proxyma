@@ -330,7 +330,7 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 	fs.StringVar(&raw.userDir, "user-dir", "", "directory containing Proxyma user JSON files")
 	fs.StringVar(&raw.taskDir, "task-dir", "", "directory containing persisted task JSON records")
 	fs.StringVar(&raw.interactionDir, "interaction-dir", "", "directory containing persisted interaction JSON records")
-	fs.StringVar(&raw.interactionHistoryDB, "interaction-history-db", "", "SQLite database path for the interaction history search index")
+	fs.StringVar(&raw.interactionHistoryDB, "interaction-history-db", "", "SQLite database path for the unified command and interaction history search index")
 	fs.StringVar(&raw.interactionConfigDir, "interaction-config-dir", "", "directory containing interaction instance JSON configuration")
 	fs.StringVar(&raw.userSessionDir, "user-session-dir", "", "directory containing persisted user session JSON records")
 	fs.StringVar(&raw.credentialTokenDir, "credential-token-dir", "", "directory containing persisted activation and password-reset token records")
@@ -344,7 +344,7 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 	fs.Int64Var(&raw.outputLimit, "output-limit", 0, "maximum captured stdout or stderr bytes before truncation")
 	fs.BoolVar(&raw.requireCommandApproval, "require-command-approval", false, "require local approval before command execution")
 	fs.BoolVar(&raw.debug, "debug", false, "log HTTP requests, POST bodies, and command execution details")
-	fs.BoolVar(&raw.rebuildInteractionHistory, "rebuild-interaction-history", false, "rebuild the SQLite interaction history index from JSON stores before serving")
+	fs.BoolVar(&raw.rebuildInteractionHistory, "rebuild-interaction-history", false, "rebuild the SQLite command and interaction history index from JSON stores before serving")
 	if err := fs.Parse(args); err != nil {
 		return loadOptions{}, err
 	}

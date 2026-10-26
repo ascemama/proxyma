@@ -66,6 +66,9 @@ async function globalSetup() {
       './frontend/test-results/runtime-fixtures/interaction_configs',
       '--user-session-dir',
       './frontend/test-results/runtime-fixtures/user_sessions',
+      '--interaction-history-db',
+      './frontend/test-results/runtime-fixtures/interaction-history.db',
+      '--rebuild-interaction-history',
       '--require-command-approval=false'
     ],
     {

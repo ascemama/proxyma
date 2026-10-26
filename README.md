@@ -118,7 +118,7 @@ human-interaction instances.
 | Human approval | Built-in local-console approval and remote NTFY approval requests/responses. No other interaction channels are currently supported. |
 | Command policy | Each target uses one user-owned policy containing typed blacklist/whitelist rules and an optional LLM fallback; unmatched commands require approval. JSON rule lists can be imported into existing policies. |
 | Durable tasks | Persist task state, status history, results, exit status, and safe command metadata for polling and recovery. |
-| Audit and history | Persist human interactions and provide searchable interaction history through the dashboard. |
+| Audit and history | Persist command tasks and human interactions, then provide unified searchable history through the dashboard. |
 | Administration | Manage users, agents, targets, policies, and interaction instances through the browser GUI or `proxymactl`. |
 
 Policy rules use one of two effects: `allow` or `deny`. Rules are typed command
@@ -140,7 +140,7 @@ rule list to an existing policy.
 | Agent authentication | Short-lived HS256 JWTs signed with an Agent JWT Signing Key. |
 | User authentication | Argon2id passwords, persisted cookie sessions, CSRF protection, activation links, and password-reset links. |
 | Server transport security | HTTPS with an automatically managed self-signed certificate or an operator-provided certificate and key; explicit HTTP mode for local development. |
-| Persistence | JSON-backed records and tasks, plus a SQLite interaction-history search index. |
+| Persistence | JSON-backed records and tasks, plus a unified SQLite command and interaction history search index. |
 | Agent platforms | Windows, Linux, and macOS installers for the cross-platform `proxyma-agent` CLI. |
 
 Proxyma does not currently support target-side certificate authentication.
@@ -218,7 +218,7 @@ arguments are the highest-precedence runtime overrides:
 | `--user-dir` | `var/proxyma/users` | User JSON directory. |
 | `--task-dir` | `var/proxyma/tasks` | Persisted task JSON directory. |
 | `--interaction-dir` | `var/proxyma/interactions` | Persisted interaction JSON directory. |
-| `--interaction-history-db` | `var/proxyma/interaction-history.db` | SQLite interaction-history search index. |
+| `--interaction-history-db` | `var/proxyma/interaction-history.db` | SQLite command and interaction history search index. |
 | `--interaction-config-dir` | `var/proxyma/interaction_instances` | Interaction instance configuration directory. |
 | `--user-session-dir` | `var/proxyma/user_sessions` | Persisted user session directory. |
 | `--credential-token-dir` | `var/proxyma/credential_tokens` | Hashed activation and password-reset token directory. |
@@ -232,7 +232,7 @@ arguments are the highest-precedence runtime overrides:
 | `--output-limit` | `1048576` | Maximum captured bytes for stdout or stderr before truncation. |
 | `--require-command-approval` | `true` | Require approval when no explicit command policy evaluator is available. |
 | `--debug` | `false` | Log HTTP requests, request bodies, command execution details, and LLM prompts/responses plus justifications; API keys are never logged. |
-| `--rebuild-interaction-history` | `false` | Rebuild the SQLite interaction index from JSON records before serving. |
+| `--rebuild-interaction-history` | `false` | Rebuild the SQLite command and interaction history index from JSON records before serving. |
 
 Environment-variable names and JSON field mappings are listed in
 [Configuration](docs/configuration.md). Run `proxyma --version` to inspect an

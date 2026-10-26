@@ -218,31 +218,21 @@ export type PolicyRuleImportResponse = {
   conflicts: PolicyRuleListEntry[];
 };
 
-export type CommandHistoryItem = {
-  task_id: string;
+export type HistoryItem = {
+  history_id: string;
+  entry_type: 'command' | 'interaction';
+  interaction_id?: string;
+  task_id?: string;
   agent_id?: string;
   agent_name?: string;
-  target?: string;
-  command: string;
-  status: string;
-  result: string;
-  created_at: string;
-  completed_at?: string;
-};
-
-export type InteractionHistoryItem = {
-  interaction_id: string;
-  task_id: string;
-  agent_id: string;
-  agent_name?: string;
-  interaction_instance_id: string;
+  interaction_instance_id?: string;
   interaction_instance_creator_user_id?: string;
   provider?: string;
-  kind: string;
-  expected_response: string;
+  kind?: string;
+  expected_response?: string;
   status: string;
-  subject: string;
-  message: string;
+  subject?: string;
+  message?: string;
   requested_by?: string;
   approved?: boolean;
   answer?: string;
@@ -252,16 +242,19 @@ export type InteractionHistoryItem = {
   target_hostname?: string;
   target_ip?: string;
   command: string;
+  result?: string;
   policy_justification?: string;
   created_at: string;
+  completed_at?: string;
   expires_at?: string;
   responded_at?: string;
-  task_created_at: string;
+  task_created_at?: string;
 };
 
-export type InteractionHistoryQuery = {
+export type HistoryQuery = {
   limit?: number;
   cursor?: string;
+  entry_type?: 'command' | 'interaction';
   agent_id?: string;
   interaction_instance_id?: string;
   interaction_instance_creator_user_id?: string;
@@ -275,10 +268,15 @@ export type InteractionHistoryQuery = {
   command_pattern_mode?: 'literal' | 'glob' | 'regex';
 };
 
-export type InteractionHistoryPage = {
-  items: InteractionHistoryItem[];
+export type HistoryPage = {
+  items: HistoryItem[];
   next_cursor?: string;
 };
+
+export type CommandHistoryItem = HistoryItem;
+export type InteractionHistoryItem = HistoryItem;
+export type InteractionHistoryQuery = HistoryQuery;
+export type InteractionHistoryPage = HistoryPage;
 
 type ErrorResponse = {
   error?: string;
@@ -671,12 +669,7 @@ export function deletePolicy(id: string, csrfToken: string): Promise<{ status: s
   });
 }
 
-export async function getCommandHistory(limit = 20): Promise<CommandHistoryItem[]> {
-  const response = await requestJSON<{ commands: CommandHistoryItem[] }>(`/v1/user/command-history?limit=${limit}`);
-  return response.commands;
-}
-
-export async function getInteractionHistory(query: InteractionHistoryQuery = {}): Promise<InteractionHistoryPage> {
+export async function getHistory(query: HistoryQuery = {}): Promise<HistoryPage> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined && value !== '') {
@@ -684,5 +677,5 @@ export async function getInteractionHistory(query: InteractionHistoryQuery = {})
     }
   }
   const suffix = params.toString() ? `?${params.toString()}` : '';
-  return requestJSON<InteractionHistoryPage>(`/v1/user/interaction-history${suffix}`);
+  return requestJSON<HistoryPage>(`/v1/user/history${suffix}`);
 }

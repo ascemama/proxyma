@@ -283,7 +283,9 @@ PROXYMA_DEBUG
 
 Duration values use Go syntax such as `30s`, `2m`, or `1h`. Boolean values use
 Go boolean syntax. `--config`, `--no-config`, and
-`--rebuild-interaction-history` are CLI-only controls.
+`--rebuild-interaction-history` are CLI-only controls. Despite its historical name, the
+rebuild flag imports both command tasks and human interactions into the unified SQLite
+history index.
 
 The complete CLI argument table is in the
 [project README](../README.md#runtime-configuration).

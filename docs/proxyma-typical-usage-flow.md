@@ -127,6 +127,13 @@ flowchart TD
         IS1[("Interaction JSON<br/>status, response, delivery metadata")]
     end
 
+    subgraph HistoryIndex["internal/interaction/history + internal/store/sqlitehistory"]
+        HI1["Indexing task store<br/>save JSON first, then command projection"]
+        HI2["Indexing interaction store<br/>save JSON first, then interaction projection"]
+        HI3[("SQLite history_entries<br/>commands, interactions, visibility, FTS")]
+        HI4["GET /v1/user/history<br/>unified History tab"]
+    end
+
     subgraph LocalProvider["internal/interaction/local"]
         L1["Print approval prompt on Proxyma console<br/>Data shown: task_id, target, command, reasoning, requested_by"]
         L2["Read y/n from stdin"]
@@ -148,6 +155,7 @@ flowchart TD
     TR2 -->|"execution plan + transcription metadata"| A4
     A4 --> T1
     T1 -->|"write task"| TS1
+    T1 -->|"index command projection"| HI1
     T1 --> A5
     A5 -->|"202 + task_id"| H2
 
@@ -171,6 +179,7 @@ flowchart TD
     TF3 --> I1
     I1 --> I2
     I2 -->|"write interaction"| IS1
+    I2 -->|"index interaction projection"| HI1
     I1 --> L1
     L1 --> L2
     TF3 --> T2
@@ -190,6 +199,7 @@ flowchart TD
     E1 --> E2
     E2 --> T5
     T5 -->|"write final task"| TS1
+    T5 -->|"update command projection"| HI1
     TF6 -->|"no"| TF8
     TF8 --> T5
 
@@ -199,6 +209,9 @@ flowchart TD
     H3 -->|"final status observed"| H4
 
     TF5 -->|"no"| TF4
+    HI1 --> HI3
+    HI2 --> HI3
+    HI3 --> HI4
 ```
 
 ## Data Boundaries
@@ -208,6 +221,10 @@ flowchart TD
 - `internal/transcriptor` creates the internal execution plan, but task status and stored JSON expose only safe transcription metadata.
 - `internal/interaction/local` displays only safe prompt fields on the Proxyma console.
 - Task records and interaction records are persisted separately through `internal/store`.
+- Task and interaction JSON saves are decorated with best-effort indexing into the
+  shared SQLite `history_entries` read model. The JSON records remain authoritative.
+- The GUI reads both record types through `/v1/user/history`; cursor pagination and FTS
+  prevent the GUI from scanning the JSON directories.
 - `internal/taskflow` reads task and interaction state to choose lifecycle
   transitions; `internal/tasks.Manager` performs the task mutation and
   persistence for those transitions.

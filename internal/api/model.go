@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"proxyma/internal/interaction"
+	"proxyma/internal/interaction/history"
 	"proxyma/internal/llm"
 	"proxyma/internal/taskflow/policy"
 	"proxyma/internal/tasks"
@@ -484,58 +485,10 @@ type UserPolicyRuleConflictResponse struct {
 	Conflicts []UserPolicyRuleListEntryResponse `json:"conflicts"`
 }
 
-// UserCommandHistoryResponse lists recent command tasks visible to a GUI user.
-type UserCommandHistoryResponse struct {
-	Commands []UserCommandHistoryItemResponse `json:"commands"`
-}
-
-// UserCommandHistoryItemResponse is safe task metadata for GUI command history.
-type UserCommandHistoryItemResponse struct {
-	TaskID      string     `json:"task_id"`
-	AgentID     string     `json:"agent_id,omitempty"`
-	AgentName   string     `json:"agent_name,omitempty"`
-	Target      string     `json:"target,omitempty"`
-	Command     string     `json:"command"`
-	Status      string     `json:"status"`
-	Result      string     `json:"result"`
-	CreatedAt   time.Time  `json:"created_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
-}
-
-// UserInteractionHistoryResponse lists interaction messages visible to a GUI user.
-type UserInteractionHistoryResponse struct {
-	Items      []UserInteractionHistoryItemResponse `json:"items"`
-	NextCursor string                               `json:"next_cursor,omitempty"`
-}
-
-// UserInteractionHistoryItemResponse is safe interaction history metadata for GUI callers.
-type UserInteractionHistoryItemResponse struct {
-	InteractionID                    string     `json:"interaction_id"`
-	TaskID                           string     `json:"task_id"`
-	AgentID                          string     `json:"agent_id"`
-	AgentName                        string     `json:"agent_name,omitempty"`
-	InteractionInstanceID            string     `json:"interaction_instance_id"`
-	InteractionInstanceCreatorUserID string     `json:"interaction_instance_creator_user_id,omitempty"`
-	Provider                         string     `json:"provider,omitempty"`
-	Kind                             string     `json:"kind"`
-	ExpectedResponse                 string     `json:"expected_response"`
-	Status                           string     `json:"status"`
-	Subject                          string     `json:"subject"`
-	Message                          string     `json:"message"`
-	RequestedBy                      string     `json:"requested_by,omitempty"`
-	Approved                         *bool      `json:"approved,omitempty"`
-	Answer                           string     `json:"answer,omitempty"`
-	RespondedBy                      string     `json:"responded_by,omitempty"`
-	CancelReason                     string     `json:"cancel_reason,omitempty"`
-	Target                           string     `json:"target,omitempty"`
-	TargetHostname                   string     `json:"target_hostname,omitempty"`
-	TargetIP                         string     `json:"target_ip,omitempty"`
-	Command                          string     `json:"command"`
-	PolicyJustification              string     `json:"policy_justification,omitempty"`
-	CreatedAt                        time.Time  `json:"created_at"`
-	ExpiresAt                        *time.Time `json:"expires_at,omitempty"`
-	RespondedAt                      *time.Time `json:"responded_at,omitempty"`
-	TaskCreatedAt                    time.Time  `json:"task_created_at"`
+// UserHistoryResponse lists unified command and interaction history entries.
+type UserHistoryResponse struct {
+	Items      []history.HistoryItem `json:"items"`
+	NextCursor string                `json:"next_cursor,omitempty"`
 }
 
 // UserTargetResponse is safe Proxyma target metadata for GUI callers.

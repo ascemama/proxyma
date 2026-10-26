@@ -206,6 +206,7 @@ depend on the selected backend:
 - Add backend selection flags only when a second backend is implemented.
 - Add optimistic concurrency if multiple Proxyma processes will write to the same backend.
 - Add schema migrations for SQL-style backends.
-- Add a query-optimized interaction history store for GUI browsing and filtering. See
-  `docs/interaction-history-search-architecture.md`.
+- The SQLite-backed unified command and interaction history index is implemented for
+  GUI browsing and filtering. See `docs/interaction-history-search-architecture.md`
+  for its schema, decorators, migration, and rebuild flow.
 - Add quarantine or repair tooling if object stores may contain malformed records.

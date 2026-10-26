@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,8 +36,6 @@ const maxAgentBodyBytes = 16 << 10
 const maxTargetBodyBytes = 64 << 10
 const maxInteractionBodyBytes = 16 << 10
 const maxPolicyBodyBytes = 64 << 10
-const defaultCommandHistoryLimit = 20
-const maxCommandHistoryLimit = 500
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -483,13 +482,17 @@ func (s *Server) handleCreateUserAgent(w http.ResponseWriter, r *http.Request) {
 		writeAgentMutationError(w, err)
 		return
 	}
-	if err := s.refreshAgentRegistry(paths); err != nil {
-		writeAgentMutationError(w, err)
-		return
-	}
 	created, err := readStoredAgent(paths, result.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "created agent could not be read")
+		return
+	}
+	if err := s.syncHistoryAgent(created.ID, created.UserIDs); err != nil {
+		writeAgentMutationError(w, err)
+		return
+	}
+	if err := s.refreshAgentRegistry(paths); err != nil {
+		writeAgentMutationError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, safeUserAgentResponse(created))
@@ -530,13 +533,17 @@ func (s *Server) handleUpdateUserAgent(w http.ResponseWriter, r *http.Request, i
 		writeAgentMutationError(w, err)
 		return
 	}
-	if err := s.refreshAgentRegistry(paths); err != nil {
-		writeAgentMutationError(w, err)
-		return
-	}
 	updated, err := readStoredAgent(paths, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "updated agent could not be read")
+		return
+	}
+	if err := s.syncHistoryAgent(updated.ID, updated.UserIDs); err != nil {
+		writeAgentMutationError(w, err)
+		return
+	}
+	if err := s.refreshAgentRegistry(paths); err != nil {
+		writeAgentMutationError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, safeUserAgentResponse(updated))
@@ -563,6 +570,10 @@ func (s *Server) handleDeleteUserAgent(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 	if _, err := users.DeleteAgent(paths, id); err != nil {
+		writeAgentMutationError(w, err)
+		return
+	}
+	if err := s.syncHistoryAgent(id, nil); err != nil {
 		writeAgentMutationError(w, err)
 		return
 	}
@@ -790,13 +801,17 @@ func (s *Server) handleCreateUserTarget(w http.ResponseWriter, r *http.Request) 
 		writeTargetMutationError(w, err)
 		return
 	}
-	if err := s.refreshTargetRegistry(paths); err != nil {
-		writeTargetMutationError(w, err)
-		return
-	}
 	created, err := readStoredTarget(paths, result.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "created target could not be read")
+		return
+	}
+	if err := s.syncHistoryTarget(created.ID, created.UserIDs); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
+	if err := s.refreshTargetRegistry(paths); err != nil {
+		writeTargetMutationError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, safeUserTargetResponse(created))
@@ -843,13 +858,17 @@ func (s *Server) handleUpdateUserTarget(w http.ResponseWriter, r *http.Request, 
 		writeTargetMutationError(w, err)
 		return
 	}
-	if err := s.refreshTargetRegistry(paths); err != nil {
-		writeTargetMutationError(w, err)
-		return
-	}
 	updated, err := readStoredTarget(paths, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "updated target could not be read")
+		return
+	}
+	if err := s.syncHistoryTarget(updated.ID, updated.UserIDs); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
+	if err := s.refreshTargetRegistry(paths); err != nil {
+		writeTargetMutationError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, safeUserTargetResponse(updated))
@@ -876,6 +895,10 @@ func (s *Server) handleDeleteUserTarget(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	if _, err := users.DeleteTarget(paths, id); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
+	if err := s.syncHistoryTarget(id, nil); err != nil {
 		writeTargetMutationError(w, err)
 		return
 	}
@@ -1097,29 +1120,7 @@ func (s *Server) handleDeleteUserInteraction(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-func (s *Server) handleUserCommandHistory(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	user, _, ok := userSessionFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "missing user session", Code: "auth_required"})
-		return
-	}
-	if s.Tasks == nil {
-		writeError(w, http.StatusInternalServerError, "task manager is not configured")
-		return
-	}
-	limit, err := commandHistoryLimit(r)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error(), Code: "invalid_limit"})
-		return
-	}
-	writeJSON(w, http.StatusOK, userCommandHistoryResponse(s.Tasks.List(), s.agentRegistry(), s.targetRegistry(), user.ID, user.Admin, limit))
-}
-
-func (s *Server) handleUserInteractionHistory(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleUserHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -1130,20 +1131,20 @@ func (s *Server) handleUserInteractionHistory(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if s.InteractionHistory == nil {
-		writeError(w, http.StatusInternalServerError, "interaction history store is not configured")
+		writeError(w, http.StatusInternalServerError, "history store is not configured")
 		return
 	}
-	query, err := userInteractionHistoryQuery(r, user.ID, user.Admin, s.agentRegistry())
+	query, err := userHistoryQuery(r, user.ID, user.Admin, s.agentRegistry())
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error(), Code: "invalid_interaction_history_query"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error(), Code: "invalid_history_query"})
 		return
 	}
-	page, err := s.InteractionHistory.ListInteractions(r.Context(), query)
+	page, err := s.InteractionHistory.ListHistory(r.Context(), query)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error(), Code: "invalid_interaction_history_query"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error(), Code: "invalid_history_query"})
 		return
 	}
-	writeJSON(w, http.StatusOK, userInteractionHistoryResponse(page))
+	writeJSON(w, http.StatusOK, UserHistoryResponse{Items: page.Items, NextCursor: page.NextCursor})
 }
 
 func writeInvalidLogin(w http.ResponseWriter) {
@@ -2294,6 +2295,9 @@ func (s *Server) refreshAgentRegistry(paths users.Paths) error {
 		return validationError("agents invalid: " + diagnostics[0].Path + ": " + diagnostics[0].Message)
 	}
 	s.setAgentRegistry(registry)
+	if s.HistoryRegistryUpdate != nil {
+		s.HistoryRegistryUpdate(registry, s.targetRegistry())
+	}
 	return nil
 }
 
@@ -2318,6 +2322,31 @@ func (s *Server) refreshTargetRegistry(paths users.Paths) error {
 		return validationError("targets invalid: " + diagnostics[0].Path + ": " + diagnostics[0].Message)
 	}
 	s.setTargetRegistry(registry)
+	if s.HistoryRegistryUpdate != nil {
+		s.HistoryRegistryUpdate(s.agentRegistry(), registry)
+	}
+	return nil
+}
+
+func (s *Server) syncHistoryAgent(agentID string, userIDs []string) error {
+	if s.HistoryVisibilitySync == nil {
+		return nil
+	}
+	if err := s.HistoryVisibilitySync.SyncAgentVisibility(context.Background(), agentID, userIDs); err != nil {
+		s.logf("history visibility sync failed source_type=agent source_id=%s error=%q", agentID, err.Error())
+		return fmt.Errorf("sync history visibility for agent %q: %w", agentID, err)
+	}
+	return nil
+}
+
+func (s *Server) syncHistoryTarget(targetID string, userIDs []string) error {
+	if s.HistoryVisibilitySync == nil {
+		return nil
+	}
+	if err := s.HistoryVisibilitySync.SyncTargetVisibility(context.Background(), targetID, userIDs); err != nil {
+		s.logf("history visibility sync failed source_type=target source_id=%s error=%q", targetID, err.Error())
+		return fmt.Errorf("sync history visibility for target %q: %w", targetID, err)
+	}
 	return nil
 }
 
@@ -2465,66 +2494,20 @@ func writePolicyMutationError(w http.ResponseWriter, err error) {
 	writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error(), Code: "invalid_policy"})
 }
 
-func userCommandHistoryResponse(items []*tasks.Task, agentRegistry agents.Registry, targetRegistry targets.Registry, userID string, admin bool, limit int) UserCommandHistoryResponse {
-	agentNames := map[string]string{}
-	ownedAgentIDs := map[string]struct{}{}
-	for _, agent := range agentRegistry.All() {
-		if strings.TrimSpace(agent.DisplayName) != "" {
-			agentNames[agent.ID] = agent.DisplayName
-		}
-		if !admin && containsUserID(agent.UserIDs, userID) {
-			ownedAgentIDs[agent.ID] = struct{}{}
-		}
-	}
-
-	var ownedTargets []targets.Target
-	if !admin {
-		ownedTargets = ownedTargetsForUser(targetRegistry, userID)
-	}
-	filtered := make([]*tasks.Task, 0, len(items))
-	for _, task := range items {
-		if admin || userCanReadTask(task, ownedAgentIDs, ownedTargets) {
-			filtered = append(filtered, task)
-		}
-	}
-	sort.Slice(filtered, func(i, j int) bool {
-		left := taskSortTime(filtered[i])
-		right := taskSortTime(filtered[j])
-		if left.Equal(right) {
-			return filtered[i].TaskID < filtered[j].TaskID
-		}
-		return left.After(right)
-	})
-	if limit > len(filtered) {
-		limit = len(filtered)
-	}
-
-	response := UserCommandHistoryResponse{Commands: make([]UserCommandHistoryItemResponse, 0, limit)}
-	for _, task := range filtered[:limit] {
-		response.Commands = append(response.Commands, UserCommandHistoryItemResponse{
-			TaskID:      task.TaskID,
-			AgentID:     task.AgentID,
-			AgentName:   agentNames[task.AgentID],
-			Target:      formatTarget(task.Target),
-			Command:     task.Command,
-			Status:      task.Status,
-			Result:      commandHistoryResult(task),
-			CreatedAt:   task.CreatedAt,
-			CompletedAt: task.CompletedAt,
-		})
-	}
-	return response
-}
-
-func userInteractionHistoryQuery(r *http.Request, userID string, admin bool, agentRegistry agents.Registry) (history.InteractionQuery, error) {
+func userHistoryQuery(r *http.Request, userID string, admin bool, agentRegistry agents.Registry) (history.HistoryQuery, error) {
 	values := r.URL.Query()
 	limit, err := interactionHistoryLimit(values)
 	if err != nil {
 		return history.InteractionQuery{}, err
 	}
-	query := history.InteractionQuery{
+	entryType := strings.TrimSpace(values.Get("entry_type"))
+	if entryType != "" && entryType != history.EntryTypeCommand && entryType != history.EntryTypeInteraction {
+		return history.HistoryQuery{}, fmt.Errorf("entry_type must be command or interaction")
+	}
+	query := history.HistoryQuery{
 		CurrentUserID:         userID,
 		CurrentUserIsAdmin:    admin,
+		EntryType:             entryType,
 		AgentID:               strings.TrimSpace(values.Get("agent_id")),
 		InteractionInstanceID: strings.TrimSpace(values.Get("interaction_instance_id")),
 		Status:                commaValues(values.Get("status")),
@@ -2542,7 +2525,7 @@ func userInteractionHistoryQuery(r *http.Request, userID string, admin bool, age
 	switch query.CommandPatternMode {
 	case history.CommandPatternLiteral, history.CommandPatternGlob, history.CommandPatternRegex:
 	default:
-		return history.InteractionQuery{}, fmt.Errorf("command_pattern_mode must be literal, glob, or regex")
+		return history.HistoryQuery{}, fmt.Errorf("command_pattern_mode must be literal, glob, or regex")
 	}
 	if admin {
 		query.InteractionInstanceCreatorUserID = strings.TrimSpace(values.Get("interaction_instance_creator_user_id"))
@@ -2590,44 +2573,6 @@ func interactionHistoryLimit(values url.Values) (int, error) {
 	return history.NormalizeLimit(limit), nil
 }
 
-func userInteractionHistoryResponse(page history.InteractionPage) UserInteractionHistoryResponse {
-	response := UserInteractionHistoryResponse{
-		Items:      make([]UserInteractionHistoryItemResponse, 0, len(page.Items)),
-		NextCursor: page.NextCursor,
-	}
-	for _, item := range page.Items {
-		response.Items = append(response.Items, UserInteractionHistoryItemResponse{
-			InteractionID:                    item.InteractionID,
-			TaskID:                           item.TaskID,
-			AgentID:                          item.AgentID,
-			AgentName:                        item.AgentName,
-			InteractionInstanceID:            item.InteractionInstanceID,
-			InteractionInstanceCreatorUserID: item.InteractionInstanceCreatorUserID,
-			Provider:                         item.Provider,
-			Kind:                             item.Kind,
-			ExpectedResponse:                 item.ExpectedResponse,
-			Status:                           item.Status,
-			Subject:                          item.Subject,
-			Message:                          item.Message,
-			RequestedBy:                      item.RequestedBy,
-			Approved:                         item.Approved,
-			Answer:                           item.Answer,
-			RespondedBy:                      item.RespondedBy,
-			CancelReason:                     item.CancelReason,
-			Target:                           item.Target,
-			TargetHostname:                   item.TargetHostname,
-			TargetIP:                         item.TargetIP,
-			Command:                          item.Command,
-			PolicyJustification:              item.PolicyJustification,
-			CreatedAt:                        item.CreatedAt,
-			ExpiresAt:                        item.ExpiresAt,
-			RespondedAt:                      item.RespondedAt,
-			TaskCreatedAt:                    item.TaskCreatedAt,
-		})
-	}
-	return response
-}
-
 func commaValues(value string) []string {
 	parts := strings.Split(value, ",")
 	out := make([]string, 0, len(parts))
@@ -2638,91 +2583,6 @@ func commaValues(value string) []string {
 		}
 	}
 	return out
-}
-
-func commandHistoryLimit(r *http.Request) (int, error) {
-	raw := strings.TrimSpace(r.URL.Query().Get("limit"))
-	if raw == "" {
-		return defaultCommandHistoryLimit, nil
-	}
-	limit, err := strconv.Atoi(raw)
-	if err != nil || limit <= 0 {
-		return 0, strconv.ErrSyntax
-	}
-	if limit > maxCommandHistoryLimit {
-		return maxCommandHistoryLimit, nil
-	}
-	return limit, nil
-}
-
-func ownedTargetsForUser(registry targets.Registry, userID string) []targets.Target {
-	var owned []targets.Target
-	for _, target := range registry.All() {
-		if containsUserID(target.UserIDs, userID) {
-			owned = append(owned, target)
-		}
-	}
-	return owned
-}
-
-func userCanReadTask(task *tasks.Task, ownedAgentIDs map[string]struct{}, ownedTargets []targets.Target) bool {
-	if task == nil {
-		return false
-	}
-	if _, ok := ownedAgentIDs[task.AgentID]; ok {
-		return true
-	}
-	if task.Target == nil {
-		return false
-	}
-	for _, target := range ownedTargets {
-		if sameTaskTarget(task.Target, target) {
-			return true
-		}
-	}
-	return false
-}
-
-func sameTaskTarget(taskTarget *tasks.Target, target targets.Target) bool {
-	if taskTarget == nil {
-		return false
-	}
-	if strings.TrimSpace(taskTarget.Hostname) != "" && strings.EqualFold(strings.TrimSpace(taskTarget.Hostname), strings.TrimSpace(target.Hostname)) {
-		return true
-	}
-	if strings.TrimSpace(taskTarget.IP) != "" && strings.EqualFold(strings.TrimSpace(taskTarget.IP), strings.TrimSpace(target.IP)) {
-		return true
-	}
-	return false
-}
-
-func taskSortTime(task *tasks.Task) time.Time {
-	if task == nil {
-		return time.Time{}
-	}
-	if task.CompletedAt != nil {
-		return *task.CompletedAt
-	}
-	return task.CreatedAt
-}
-
-func commandHistoryResult(task *tasks.Task) string {
-	if task == nil {
-		return ""
-	}
-	switch task.Status {
-	case tasks.StatusCompleted:
-		if task.Result != nil && task.Result.ExitStatus != nil && *task.Result.ExitStatus != 0 {
-			return "warning"
-		}
-		return "success"
-	case tasks.StatusFailed, tasks.StatusTimedOut, tasks.StatusInterrupted, tasks.StatusAbandoned, tasks.StatusBlocked:
-		return "failed"
-	case tasks.StatusWaitingUserResponse:
-		return "waiting"
-	default:
-		return task.Status
-	}
 }
 
 func containsUserID(values []string, userID string) bool {

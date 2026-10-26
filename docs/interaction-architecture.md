@@ -42,7 +42,9 @@ flowchart LR
         Policy -- "allow" --> Execute["Execute task"]
         Policy -- "approval required" --> Flow["taskflow.Flow"]
         Flow -- "Request with instance ID" --> Service["interaction.Service<br/>Communicator + Responder"]
-        Service -- "save pending record" --> InteractionStore["Interaction Store<br/>var/proxyma/interactions"]
+        Service -- "save pending record" --> InteractionStore["Indexing Interaction Store<br/>JSON first, SQLite projection second"]
+        InteractionStore --> InteractionJSON["Interaction JSON<br/>durable source of truth"]
+        InteractionStore --> HistoryIndex["SQLite history_entries<br/>interaction projection + visibility + FTS"]
         Service -- "Provider.Send" --> Router
         Router -- "local" --> LocalProvider
         Router -- "UUID" --> NtfyProvider
@@ -76,6 +78,16 @@ flowchart LR
         BuildProviders -- "complete map only" --> ReplaceProviders["InteractionRouter.SetProviders"]
         ReplaceProviders --> Router
     end
+
+    subgraph CommandHistory["Command history indexing"]
+        TaskManager --> TaskHistoryStore["Indexing task store"]
+        TaskHistoryStore --> TaskJSON["Task JSON<br/>durable source of truth"]
+        TaskHistoryStore --> TaskHistoryIndex["SQLite history_entries<br/>command projection + visibility + FTS"]
+    end
+
+    HistoryIndex --> HistoryAPI["GET /v1/user/history"]
+    TaskHistoryIndex --> HistoryAPI
+    HistoryAPI --> HistoryGUI["Unified History GUI tab"]
 ```
 
 ## Main Responsibilities
@@ -89,7 +101,7 @@ flowchart LR
 | `local.Provider` | Prompts on the Proxyma console and returns the operator response directly to `interaction.Service`. |
 | `ntfy.Provider` | Publishes an approval message and polls the configured response topic only while it has pending interactions. Recovered pending interactions restart polling automatically. |
 | `taskflow.Flow` | Requests approval when required, waits on the durable interaction status, then executes or blocks the task. |
-| User management API | Manages user-owned policies, target assignments, and interaction configuration. Policy changes refresh the evaluator; interaction changes rebuild the provider map. |
+| User management API | Manages user-owned policies, target assignments, and interaction configuration. Agent/target ownership changes synchronize only affected SQLite history visibility rows; policy changes refresh the evaluator; interaction changes rebuild the provider map. |
 
 Agent-authenticated HTTP clients can read interaction status but cannot answer an
 interaction. Providers run inside Proxyma and return authenticated human responses through
@@ -122,5 +134,5 @@ and never modify policies.
 Configuration reloads use build-then-swap behavior. If any provider cannot be constructed, `SetProviders` is not called and the active router configuration remains unchanged. After a successful swap, new interactions use the new providers while replaced providers continue serving their already-pending interactions and close after those interactions drain.
 
 Historical interaction browsing and filtering is a separate GUI concern from provider
-instance management. The proposed production query model is documented in
+instance management. The unified production query model is documented in
 `docs/interaction-history-search-architecture.md`.
