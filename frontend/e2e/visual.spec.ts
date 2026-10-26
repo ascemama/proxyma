@@ -17,9 +17,9 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   await page.getByRole('button', { name: 'Sign In' }).click();
 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByText('Recent Command History')).toBeVisible();
+  await expect(page.getByText('Recent History')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Targets', exact: true })).toBeVisible();
-  await expect(page.getByText('Agents')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agents', exact: true })).toBeVisible();
   await page.screenshot({ fullPage: true, path: 'test-results/dashboard-desktop.png' });
 
   await page.getByRole('button', { name: 'Open settings for Demo Admin' }).click();
@@ -45,9 +45,8 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   await appearanceSettings.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-  await page.getByRole('button', { name: 'Target', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Target', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Targets', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Targets', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Targets', exact: true })).toBeVisible();
   await page.screenshot({ fullPage: true, path: 'test-results/target-desktop.png' });
 
   await page.route('**/v1/user/targets/test-credentials', async (route) => {

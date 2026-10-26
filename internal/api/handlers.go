@@ -44,6 +44,8 @@ type Server struct {
 	Tasks                     *tasks.Manager
 	Interactions              interaction.Communicator
 	InteractionHistory        history.QueryStore
+	HistoryVisibilitySync     history.VisibilitySynchronizer
+	HistoryRegistryUpdate     func(agents.Registry, targets.Registry)
 	InteractionProvider       *interactioninstances.InteractionRouter
 	SSHClient                 sshclient.Client
 	WinRMClient               winrmclient.Client

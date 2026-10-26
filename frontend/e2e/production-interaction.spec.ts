@@ -26,7 +26,7 @@ test('production GUI hides local interaction and requires a configured interacti
   await installProductionAPIMocks(page, state);
   await login(page);
 
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
   await page.getByRole('button', { name: 'Add Agent' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add Agent' });
   const interactionSelect = dialog.getByLabel('Interaction');
@@ -47,7 +47,7 @@ test('production GUI hides local interaction and requires a configured interacti
   expect(state.submittedAgent).toMatchObject({ interaction_instance_id: interactionID });
 
   await page.getByRole('dialog', { name: 'Agent created' }).getByRole('button', { name: 'Done' }).click();
-  await page.getByRole('button', { name: 'Interaction History', exact: true }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
   await expect(page.getByLabel('Provider instance').locator('option[value="local"]')).toHaveCount(0);
 });
 
@@ -64,7 +64,7 @@ test('production requires an interaction at every Add Agent entry point and enab
   await expect(targetsPanel.getByRole('button', { name: /^Add Agent unavailable:/ })).toBeDisabled();
   await expect(targetsPanel.getByRole('button', { name: 'Add Interaction', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
   agentsPanel = panel(page, 'Agents');
   await expect(agentsPanel.getByRole('button', { name: /^Add Agent unavailable:/ })).toBeDisabled();
   await agentsPanel.getByRole('button', { name: 'Add Interaction', exact: true }).click();
@@ -232,9 +232,7 @@ function responseFor(path: string) {
       return { policies: [] };
     case '/v1/user/activation-policy':
       return { default_lifetime_seconds: 43200, maximum_lifetime_seconds: 172800 };
-    case '/v1/user/command-history':
-      return { commands: [] };
-    case '/v1/user/interaction-history':
+    case '/v1/user/history':
       return { items: [] };
     default:
       return null;

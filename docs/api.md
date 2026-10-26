@@ -41,6 +41,20 @@ token, and `build.version` and `build.commit` metadata.
 
 State-changing authenticated user requests require the current CSRF token.
 
+## Unified History
+
+Authenticated users query the SQLite-backed history index with:
+
+```http
+GET /v1/user/history?limit=50&entry_type=command&q=systemctl
+```
+
+The response contains a cursor-paginated `items` array combining command tasks and
+human interactions. Use `entry_type`, `agent_id`, `status`, `kind`, provider instance,
+target, RFC3339 date range, full-text `q`, and command-pattern filters to narrow the
+results. Administrators may also filter by interaction-instance creator. History rows
+contain safe command projections and never expose raw command stdout or stderr.
+
 ## Policy Management
 
 Authenticated users can list and inspect shared policies:
@@ -126,7 +140,7 @@ The justification is explanatory text only and never changes enforcement.
 Network failures, malformed JSON, missing or oversized justifications, unknown
 decisions, and timeouts always become `approval` and do not bypass the existing
 interaction flow. The justification is persisted with the task policy decision
-and returned by task and interaction-history APIs.
+and returned by task and unified history APIs.
 
 ## Activation and Password Reset
 

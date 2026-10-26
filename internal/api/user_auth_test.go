@@ -17,8 +17,10 @@ import (
 
 	"proxyma/internal/agents"
 	"proxyma/internal/ids"
+	"proxyma/internal/interaction/history"
 	interactioninstances "proxyma/internal/interaction/instances"
 	"proxyma/internal/sshclient"
+	"proxyma/internal/store/sqlitehistory"
 	"proxyma/internal/targets"
 	"proxyma/internal/taskflow/policy"
 	"proxyma/internal/tasks"
@@ -2030,24 +2032,25 @@ func TestUserCommandHistoryEndpointFiltersVisibleTasksAndRedactsSecrets(t *testi
 	}
 
 	cookie := loginCookie(t, server)
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/command-history?limit=10", nil)
+	indexTasksForHistory(t, server)
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?entry_type=command&limit=10", nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
-	var response UserCommandHistoryResponse
+	var response UserHistoryResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Commands) != 2 {
+	if len(response.Items) != 2 {
 		t.Fatalf("response = %#v", response)
 	}
-	if !containsCommandTask(response.Commands, visibleByAgent.TaskID) || !containsCommandTask(response.Commands, visibleByTarget.TaskID) {
+	if !containsHistoryTask(response.Items, visibleByAgent.TaskID) || !containsHistoryTask(response.Items, visibleByTarget.TaskID) {
 		t.Fatalf("visible tasks missing from response = %#v", response)
 	}
-	if containsCommandTask(response.Commands, hidden.TaskID) {
+	if containsHistoryTask(response.Items, hidden.TaskID) {
 		t.Fatalf("hidden task leaked in response = %#v", response)
 	}
 	body := rec.Body.String()
@@ -2126,22 +2129,23 @@ func TestUserCommandHistoryEndpointAdminSeesAllTasksAndRedactsSecrets(t *testing
 	}
 
 	cookie := loginCookie(t, server)
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/command-history?limit=10", nil)
+	indexTasksForHistory(t, server)
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?entry_type=command&limit=10", nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
-	var response UserCommandHistoryResponse
+	var response UserHistoryResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Commands) != 3 {
+	if len(response.Items) != 3 {
 		t.Fatalf("response = %#v", response)
 	}
 	for _, taskID := range []string{visibleByAgent.TaskID, visibleByTarget.TaskID, hidden.TaskID} {
-		if !containsCommandTask(response.Commands, taskID) {
+		if !containsHistoryTask(response.Items, taskID) {
 			t.Fatalf("task %s missing from response = %#v", taskID, response)
 		}
 	}
@@ -2153,23 +2157,23 @@ func TestUserCommandHistoryEndpointAdminSeesAllTasksAndRedactsSecrets(t *testing
 	}
 }
 
-func TestCommandHistoryLimitCapsAtMaximum(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/command-history?limit=9999", nil)
-	limit, err := commandHistoryLimit(req)
+func TestHistoryLimitCapsAtMaximum(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?limit=9999", nil)
+	limit, err := interactionHistoryLimit(req.URL.Query())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if limit != maxCommandHistoryLimit {
+	if limit != history.MaxLimit {
 		t.Fatalf("limit = %d", limit)
 	}
-	if maxCommandHistoryLimit != 500 {
-		t.Fatalf("maxCommandHistoryLimit = %d", maxCommandHistoryLimit)
+	if history.MaxLimit != 100 {
+		t.Fatalf("history.MaxLimit = %d", history.MaxLimit)
 	}
 }
 
 func TestUserResourceEndpointsRequireSessionAndGet(t *testing.T) {
 	server := testLoginServer(t, false)
-	for _, path := range []string{"/v1/user/agents", "/v1/user/targets", "/v1/user/command-history"} {
+	for _, path := range []string{"/v1/user/agents", "/v1/user/targets", "/v1/user/history"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		server.Routes().ServeHTTP(rec, req)
@@ -2186,7 +2190,7 @@ func TestUserResourceEndpointsRequireSessionAndGet(t *testing.T) {
 	if agentPostRec.Code != http.StatusForbidden {
 		t.Fatalf("/v1/user/agents post without csrf status = %d body=%s", agentPostRec.Code, agentPostRec.Body.String())
 	}
-	for _, path := range []string{"/v1/user/command-history"} {
+	for _, path := range []string{"/v1/user/history"} {
 		req := httptest.NewRequest(http.MethodPost, path, nil)
 		req.AddCookie(cookie)
 		rec := httptest.NewRecorder()
@@ -2197,9 +2201,9 @@ func TestUserResourceEndpointsRequireSessionAndGet(t *testing.T) {
 	}
 }
 
-func containsCommandTask(items []UserCommandHistoryItemResponse, taskID string) bool {
+func containsHistoryTask(items []history.HistoryItem, taskID string) bool {
 	for _, item := range items {
-		if item.TaskID == taskID {
+		if item.TaskID == taskID && item.EntryType == history.EntryTypeCommand {
 			return true
 		}
 	}
@@ -2223,7 +2227,29 @@ func testLoginServer(t *testing.T, allowInsecureCookies bool) *Server {
 	server.UserSessionTTL = time.Hour
 	server.UseDevelopmentCookies = allowInsecureCookies
 	server.throttle = newLoginThrottle()
+	historyStore, err := sqlitehistory.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.InteractionHistory = historyStore
 	return server
+}
+
+func indexTasksForHistory(t *testing.T, server *Server) {
+	t.Helper()
+	store, ok := server.InteractionHistory.(*sqlitehistory.Store)
+	if !ok {
+		t.Fatalf("history store type = %T", server.InteractionHistory)
+	}
+	for _, task := range server.Tasks.List() {
+		if task == nil {
+			continue
+		}
+		agent, _ := server.agentRegistry().Find(task.AgentID)
+		if err := store.UpsertCommand(context.Background(), history.BuildIndexedCommand(*task, agent, server.targetRegistry())); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func loginCookie(t *testing.T, server *Server) *http.Cookie {

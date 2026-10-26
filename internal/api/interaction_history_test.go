@@ -18,7 +18,7 @@ type fakeInteractionHistoryStore struct {
 	page  history.InteractionPage
 }
 
-func (s *fakeInteractionHistoryStore) ListInteractions(_ context.Context, query history.InteractionQuery) (history.InteractionPage, error) {
+func (s *fakeInteractionHistoryStore) ListHistory(_ context.Context, query history.HistoryQuery) (history.HistoryPage, error) {
 	s.query = query
 	return s.page, nil
 }
@@ -49,7 +49,7 @@ func TestUserInteractionHistoryEndpointUsesAgentVisibility(t *testing.T) {
 	server.InteractionHistory = store
 	cookie := interactionHistorySessionCookie(t, server, user.ID)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/interaction-history?agent_id="+agent.ID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?entry_type=interaction&agent_id="+agent.ID, nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
@@ -59,7 +59,7 @@ func TestUserInteractionHistoryEndpointUsesAgentVisibility(t *testing.T) {
 	if store.query.CurrentUserID != user.ID || store.query.CurrentUserIsAdmin || store.query.AgentID != agent.ID {
 		t.Fatalf("query = %#v", store.query)
 	}
-	var response UserInteractionHistoryResponse
+	var response UserHistoryResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestUserInteractionHistoryEndpointRejectsCreatorFilterForNonAdmin(t *testin
 	server.InteractionHistory = &fakeInteractionHistoryStore{}
 	cookie := interactionHistorySessionCookie(t, server, user.ID)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/interaction-history?interaction_instance_creator_user_id="+user.ID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?interaction_instance_creator_user_id="+user.ID, nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
@@ -99,7 +99,7 @@ func TestUserInteractionHistoryEndpointRejectsInvisibleAgentFilter(t *testing.T)
 	server.InteractionHistory = &fakeInteractionHistoryStore{}
 	cookie := interactionHistorySessionCookie(t, server, user.ID)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/interaction-history?agent_id="+agent.ID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?agent_id="+agent.ID, nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
@@ -116,12 +116,28 @@ func TestUserInteractionHistoryEndpointRejectsBroadRegex(t *testing.T) {
 	server.InteractionHistory = &fakeInteractionHistoryStore{}
 	cookie := interactionHistorySessionCookie(t, server, user.ID)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/user/interaction-history?command_pattern=show.*&command_pattern_mode=regex", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/user/history?command_pattern=show.*&command_pattern_mode=regex", nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestLegacyHistoryEndpointsAreRemoved(t *testing.T) {
+	server := testServer(t)
+	user := testUser
+	server.Users = users.NewRegistry([]users.User{user})
+	cookie := interactionHistorySessionCookie(t, server, user.ID)
+	for _, path := range []string{"/v1/user/command-history", "/v1/user/interaction-history"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		server.Routes().ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s status = %d body=%s", path, rec.Code, rec.Body.String())
+		}
 	}
 }
 

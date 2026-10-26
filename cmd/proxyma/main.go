@@ -154,14 +154,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("configure interaction provider: %v", err)
 	}
-	taskStore := jsonfile.NewTaskStore(cfg.TaskDir)
-	interactionHistoryStore, err := sqlitehistory.Open(cfg.InteractionHistoryDB)
+	rawTaskStore := jsonfile.NewTaskStore(cfg.TaskDir)
+	historyStore, err := sqlitehistory.Open(cfg.InteractionHistoryDB)
 	if err != nil {
-		log.Fatalf("open interaction history db: %v", err)
+		log.Fatalf("open history db: %v", err)
 	}
-	defer interactionHistoryStore.Close()
+	defer historyStore.Close()
+	taskStore := history.NewIndexingTaskStore(rawTaskStore, historyStore, agentRegistry, registry, logger.Printf)
 	interactionStore := jsonfile.NewInteractionStore(cfg.InteractionDir)
-	indexingInteractionStore := history.NewIndexingInteractionStore(interactionStore, interactionHistoryStore, agentRegistry, interactionRegistry, logger.Printf)
+	indexingInteractionStore := history.NewIndexingInteractionStore(interactionStore, historyStore, agentRegistry, registry, interactionRegistry, logger.Printf)
 	interactionService := interaction.New(indexingInteractionStore, interaction.Options{
 		Provider: provider,
 		Timeout:  cfg.InteractionTimeout,
@@ -205,7 +206,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("load tasks for history rebuild: %v", err)
 		}
-		diagnostics, err := history.Rebuild(context.Background(), interactionHistoryStore, interactionRecords, taskRecords, agentRegistry, interactionRegistry)
+		diagnostics, err := history.Rebuild(context.Background(), historyStore, interactionRecords, taskRecords, agentRegistry, registry, interactionRegistry)
 		if err != nil {
 			log.Fatalf("rebuild interaction history: %v", err)
 		}
@@ -228,15 +229,20 @@ func main() {
 		logger.Printf("debug logging enabled")
 	}
 	server := &api.Server{
-		Agents:              agentRegistry,
-		Users:               userRegistry,
-		UserSessions:        userSessionStore,
-		CredentialTokens:    credentialTokenStore,
-		Targets:             registry,
-		Policies:            policyEvaluator,
-		Tasks:               manager,
-		Interactions:        interactionService,
-		InteractionHistory:  interactionHistoryStore,
+		Agents:                agentRegistry,
+		Users:                 userRegistry,
+		UserSessions:          userSessionStore,
+		CredentialTokens:      credentialTokenStore,
+		Targets:               registry,
+		Policies:              policyEvaluator,
+		Tasks:                 manager,
+		Interactions:          interactionService,
+		InteractionHistory:    historyStore,
+		HistoryVisibilitySync: historyStore,
+		HistoryRegistryUpdate: func(updatedAgents agents.Registry, updatedTargets targets.Registry) {
+			taskStore.SetRegistries(updatedAgents, updatedTargets)
+			indexingInteractionStore.SetRegistries(updatedAgents, updatedTargets)
+		},
 		InteractionProvider: provider,
 		SSHClient:           sshRunner,
 		WinRMClient:         winrmRunner,

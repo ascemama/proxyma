@@ -9,7 +9,7 @@ test('user can log in and load the dashboard', async ({ page }) => {
     }
   });
   page.on('request', (request) => {
-    if (request.url().endsWith('/v1/user/command-history?limit=500')) {
+    if (request.url().endsWith('/v1/user/history?limit=100')) {
       commandHistoryRequests++;
     }
   });
@@ -36,10 +36,10 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByText(/^Version /)).toBeHidden();
   await page.getByRole('button', { name: 'Toggle navigation' }).click();
   await expect(sourceLink).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Recent Command History' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recent History' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Targets' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Agents' })).toBeVisible();
-  const recentCommandHistory = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Recent Command History' }) });
+  const recentCommandHistory = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Recent History' }) });
   const refreshCommandHistory = recentCommandHistory.getByRole('button', { name: 'Refresh' });
   await expect(refreshCommandHistory).toBeVisible();
   await expect.poll(() => commandHistoryRequests).toBe(1);
@@ -48,11 +48,11 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByRole('row', { name: /Target Name Type Owners Endpoint Last Seen Actions/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /SSH (password|key)/ }).first()).toBeVisible();
   await expect(page.getByRole('row', { name: /Agent Name Owners Linked Target Latest Command Command Result Last Run Actions/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Target', exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Agent', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Targets', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Agents', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Users', exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Policy', exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Command History', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Policies', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'History', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Interactions', exact: true })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Interactions', exact: true }).click();
@@ -61,7 +61,7 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByRole('row', { name: /Example ntfy.*NTFY.*Enabled/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Logs', exact: true })).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Interaction History', exact: true }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
   const providerInstanceFilter = page.getByLabel('Provider instance');
   await expect(providerInstanceFilter.locator('option[value="local"]')).toHaveCount(1);
 
@@ -203,22 +203,22 @@ test('admin user sees all agents targets command history and owners', async ({ p
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Target', exact: true }).click();
+  await page.getByRole('button', { name: 'Targets', exact: true }).click();
   await expect(page.getByRole('row', { name: /Target Name Type Owners Endpoint Last Seen Actions/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /DEMO-WEB-01.*Demo Admin \(demo-admin\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-EDGE-01.*Operator \(operator\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-WORKER-01.*Operator \(operator\)/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
   await expect(page.getByRole('row', { name: /Agent Name Owners Linked Target Latest Command Command Result Last Run Actions/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /demo-web-agent.*Demo Admin \(demo-admin\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-edge-agent.*Operator \(operator\)/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-worker-agent.*Operator \(operator\)/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Command History', exact: true }).click();
-  await expect(page.getByRole('row', { name: /demo-web-agent DEMO-WEB-01 demo-admin-audit Completed Success/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /operator-edge-agent OP-EDGE-01 operator-edge-audit Completed Success/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /operator-worker-agent OP-WORKER-01 operator-worker-audit Completed Warning/ })).toBeVisible();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await expect(page.getByRole('row', { name: /Completed demo-web-agent Command demo-admin-audit DEMO-WEB-01/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Completed operator-edge-agent Command operator-edge-audit OP-EDGE-01/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Completed operator-worker-agent Command operator-worker-audit OP-WORKER-01/ })).toBeVisible();
 
   expect(consoleErrors).toEqual([]);
 });
@@ -236,15 +236,26 @@ test('user can open the full command history tab', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Command History', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Command History', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Command History', exact: true })).toBeVisible();
-  await expect(page.getByRole('row', { name: /Agent Target Command Status Result Timestamp/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /demo-web-agent DEMO-WEB-01 demo-admin-audit Completed Success/ })).toBeVisible();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'History', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'History', exact: true })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Time Status Agent Kind Command Target/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Completed demo-web-agent Command demo-admin-audit DEMO-WEB-01/ })).toBeVisible();
+
+  const filterSplitter = page.getByRole('separator', { name: 'Resize filters panel' });
+  const detailSplitter = page.getByRole('separator', { name: 'Resize history details panel' });
+  await expect(filterSplitter).toHaveAttribute('aria-valuenow', '260');
+  await filterSplitter.focus();
+  await filterSplitter.press('ArrowRight');
+  await expect(filterSplitter).toHaveAttribute('aria-valuenow', '276');
+  await expect(detailSplitter).toHaveAttribute('aria-valuenow', '360');
+  await detailSplitter.focus();
+  await detailSplitter.press('ArrowLeft');
+  await expect(detailSplitter).toHaveAttribute('aria-valuenow', '376');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
   await page.getByRole('button', { name: /View all history/ }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Command History', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'History', exact: true })).toBeVisible();
 
   expect(consoleErrors).toEqual([]);
 });
@@ -263,9 +274,8 @@ test('user can manage agents from the agent tab', async ({ context, page }) => {
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Agent', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Agents', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Agents', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /Agent Name Owners Linked Target Latest Command Command Result Last Run Actions/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Add Agent' }).click();
@@ -475,16 +485,16 @@ test('non-admin user sees only their own agents and targets', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Users', exact: true })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Target', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Target', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Targets', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Targets', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-EDGE-01/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /OP-WORKER-01/ })).toBeVisible();
   for (const name of ['DEMO-WEB-01', 'DB-SRV-01', 'APP-SRV-01']) {
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0);
   }
 
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Agent', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Agents', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-edge-agent/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /operator-worker-agent/ })).toBeVisible();
   for (const name of ['demo-web-agent', 'agent-db-01', 'agent-app-01']) {
@@ -499,10 +509,10 @@ test('non-admin user sees only their own agents and targets', async ({ page }) =
   await expect(foreignAssignmentDialog.getByText(/belongs to another user or is unavailable/)).toBeVisible();
   await foreignAssignmentDialog.getByRole('button', { name: 'Cancel' }).click();
 
-  await page.getByRole('button', { name: 'Command History', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Command History', exact: true })).toBeVisible();
-  await expect(page.getByRole('row', { name: /operator-edge-agent OP-EDGE-01 operator-edge-audit Completed Success/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /operator-worker-agent OP-WORKER-01 operator-worker-audit Completed Warning/ })).toBeVisible();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'History', exact: true })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Completed operator-edge-agent Command operator-edge-audit OP-EDGE-01/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Completed operator-worker-agent Command operator-worker-audit OP-WORKER-01/ })).toBeVisible();
   for (const name of ['check-drift --full', 'backup --verify', 'rotate-credentials', 'demo-admin-audit', 'DEMO-WEB-01', 'DB-SRV-01', 'APP-SRV-01']) {
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0);
   }
@@ -523,8 +533,8 @@ test('non-admin user can view shared policies and manage an owned policy', async
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Policy', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Policy', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Policies', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Policies', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Policies', exact: true })).toBeVisible();
   const baselineRow = page.locator('.policy-list-row').filter({ hasText: 'Baseline Readonly Fixture' });
   await expect(baselineRow).toBeVisible();
@@ -562,7 +572,7 @@ test('development Local interaction keeps Agent creation enabled without configu
   let agentsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Agents', exact: true }) });
   await expect(agentsPanel.getByRole('button', { name: 'Add Agent', exact: true })).toBeEnabled();
 
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
   agentsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Agents', exact: true }) });
   await agentsPanel.getByRole('button', { name: 'Add Agent', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Add Agent' });
@@ -602,10 +612,12 @@ test('target creation requires both an agent and a policy on every target entry 
   await expect(page.getByRole('dialog', { name: 'Add Agent' })).toBeVisible();
   await page.getByRole('dialog', { name: 'Add Agent' }).getByRole('button', { name: 'Cancel' }).click();
   await targetsPanel.getByRole('button', { name: 'Add Policy', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'New policy', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Policies', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add policy', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'New policy', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Target', exact: true }).click();
+  await page.getByRole('button', { name: 'Targets', exact: true }).click();
   targetsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Targets', exact: true }) });
   addTarget = targetsPanel.getByRole('button', { name: /^Add Target unavailable:/ });
   await expect(addTarget).toBeDisabled();
@@ -638,8 +650,7 @@ test('non-admin target creation identifies each missing prerequisite and enables
   let targetsPanel = page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Owned Targets', exact: true }) });
   await expect(targetsPanel.getByRole('button', { name: /^Add Target unavailable:/ })).toBeDisabled();
   await expect(targetsPanel.getByText('Create an agent before adding a target.', { exact: true })).toBeVisible();
-  await expect(targetsPanel.getByRole('button', { name: /^Add Agent unavailable:/ })).toBeDisabled();
-  await expect(targetsPanel.getByRole('button', { name: 'Add Interaction', exact: true })).toBeVisible();
+  await expect(targetsPanel.getByRole('button', { name: 'Add Agent', exact: true })).toBeEnabled();
   await expect(targetsPanel.getByRole('button', { name: 'Add Policy', exact: true })).toHaveCount(0);
 
   agentsMissing = false;
@@ -756,9 +767,8 @@ test('user can manage targets from the target tab', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
-  await page.getByRole('button', { name: 'Target', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Target', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Targets', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Targets', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Targets', exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: /Target Name Type Owners Endpoint Last Seen Actions/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Add Target' }).click();

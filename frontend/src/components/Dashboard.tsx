@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -48,8 +48,7 @@ import {
   deleteUser,
   getAgents,
   getActivationPolicy,
-  getCommandHistory,
-  getInteractionHistory,
+  getHistory,
   getInteractions,
   getPolicies,
   getTargets,
@@ -69,8 +68,8 @@ import {
   type Agent,
   type AgentMutationInput,
   type CommandHistoryItem,
-  type InteractionHistoryItem,
-  type InteractionHistoryQuery,
+  type HistoryItem,
+  type HistoryQuery,
   type InteractionInstance,
   type InteractionMutationInput,
   type Target,
@@ -93,7 +92,7 @@ type DashboardProps = {
   onUserUpdated: (user: UserProfile) => void;
 };
 
-type PageKey = 'dashboard' | 'target' | 'agent' | 'interaction' | 'user' | 'policy' | 'command-history' | 'interaction-history';
+type PageKey = 'dashboard' | 'target' | 'agent' | 'interaction' | 'user' | 'policy' | 'history';
 
 type CredentialTestStatus = 'idle' | 'testing' | 'success' | 'error';
 
@@ -167,8 +166,7 @@ const navItems: NavItem[] = [
   { label: 'Agents', page: 'agent', icon: Bot },
   { label: 'Interactions', page: 'interaction', icon: ListChecks },
   { label: 'Policies', page: 'policy', icon: ShieldCheck },
-  { label: 'Command History', page: 'command-history', icon: History },
-  { label: 'Interaction History', page: 'interaction-history', icon: FileClock },
+  { label: 'History', page: 'history', icon: FileClock },
   { label: 'Users', page: 'user', icon: Users, adminOnly: true },
   { label: 'Logs', icon: ScrollText, disabled: true }
 ];
@@ -194,7 +192,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   const targetsQuery = useQuery({ queryKey: ['targets'], queryFn: getTargets });
   const interactionsQuery = useQuery({ queryKey: ['interactions'], queryFn: getInteractions });
   const policiesQuery = useQuery({ queryKey: ['policies'], queryFn: getPolicies });
-  const historyQuery = useQuery({ queryKey: ['command-history'], queryFn: () => getCommandHistory(500) });
+  const historyQuery = useQuery({ queryKey: ['history'], queryFn: () => getHistory({ limit: 100 }) });
   const activationPolicyQuery = useQuery({ queryKey: ['activation-policy'], queryFn: () => getActivationPolicy(session.csrf_token), enabled: session.user.admin });
 
   const createTargetMutation = useMutation({
@@ -277,7 +275,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
   const targets = targetsQuery.data ?? [];
   const interactions = interactionsQuery.data ?? [];
   const policies = policiesQuery.data ?? [];
-  const commands = historyQuery.data ?? [];
+  const commands = historyQuery.data?.items ?? [];
   const targetCreationPrerequisites = getTargetCreationPrerequisites(
     agents,
     policies,
@@ -397,10 +395,8 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             ? 'Users'
             : activePage === 'policy'
               ? 'Policies'
-              : activePage === 'command-history'
-                ? 'Command History'
-                : activePage === 'interaction-history'
-                  ? 'Interaction History'
+              : activePage === 'history'
+                ? 'History'
                 : 'Dashboard';
   const isSavingTarget = createTargetMutation.isPending || updateTargetMutation.isPending;
   const isSavingAgent = createAgentMutation.isPending || updateAgentMutation.isPending;
@@ -572,15 +568,8 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             onRefresh={() => void usersQuery.refetch()}
             users={managedUsers}
           />
-        ) : activePage === 'command-history' ? (
-          <CommandHistoryPage
-            commands={commands}
-            error={historyQuery.error}
-            isLoading={historyQuery.isLoading}
-            onRefresh={() => void historyQuery.refetch()}
-          />
-        ) : activePage === 'interaction-history' ? (
-          <InteractionHistoryPage
+        ) : activePage === 'history' ? (
+          <HistoryPage
             agents={agents}
             interactions={interactions}
             managedUsers={managedUsers}
@@ -607,7 +596,7 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             historyLoading={historyQuery.isLoading}
             managedUsers={managedUsers}
             onRefreshHistory={() => void historyQuery.refetch()}
-            onViewCommandHistory={() => setActivePage('command-history')}
+            onViewCommandHistory={() => setActivePage('history')}
             onAddAgent={openCreateAgent}
             onAddInteraction={openCreateInteraction}
             onAddPolicy={() => setActivePage('policy')}
@@ -1163,38 +1152,8 @@ function InteractionPage({
   );
 }
 
-function CommandHistoryPage({
-  commands,
-  error,
-  isLoading,
-  onRefresh
-}: {
-  commands: CommandHistoryItem[];
-  error: Error | null;
-  isLoading: boolean;
-  onRefresh: () => void;
-}) {
-  return (
-    <section className="dashboard-stack">
-      <Panel
-        action={<HistorySectionActions onRefresh={onRefresh} />}
-        count={commands.length}
-        error={error}
-        icon={<History size={18} />}
-        isLoading={isLoading}
-        title="Command History"
-      >
-        {commands.length === 0 ? (
-          <EmptyState message="No command history is visible for this account." />
-        ) : (
-          <CommandHistoryTable commands={commands} includeStatus />
-        )}
-      </Panel>
-    </section>
-  );
-}
-
-type InteractionHistoryFilters = {
+type HistoryFilters = {
+  entry_type: '' | 'command' | 'interaction';
   q: string;
   agent_id: string;
   status: string;
@@ -1208,7 +1167,20 @@ type InteractionHistoryFilters = {
   command_pattern_mode: 'literal' | 'glob' | 'regex';
 };
 
-const emptyInteractionHistoryFilters: InteractionHistoryFilters = {
+type HistoryPanelWidths = {
+  filters: number;
+  details: number;
+};
+
+type HistoryResize = {
+  panel: keyof HistoryPanelWidths;
+  startX: number;
+  startFilters: number;
+  startDetails: number;
+};
+
+const emptyHistoryFilters: HistoryFilters = {
+  entry_type: '',
   q: '',
   agent_id: '',
   status: '',
@@ -1222,7 +1194,7 @@ const emptyInteractionHistoryFilters: InteractionHistoryFilters = {
   command_pattern_mode: 'literal'
 };
 
-function InteractionHistoryPage({
+function HistoryPage({
   agents,
   interactions,
   managedUsers,
@@ -1233,36 +1205,100 @@ function InteractionHistoryPage({
   managedUsers: UserProfile[];
   session: UserSession;
 }) {
-  const [draftFilters, setDraftFilters] = useState<InteractionHistoryFilters>(emptyInteractionHistoryFilters);
-  const [appliedFilters, setAppliedFilters] = useState<InteractionHistoryFilters>(emptyInteractionHistoryFilters);
+  const [draftFilters, setDraftFilters] = useState<HistoryFilters>(emptyHistoryFilters);
+  const [appliedFilters, setAppliedFilters] = useState<HistoryFilters>(emptyHistoryFilters);
   const [cursorStack, setCursorStack] = useState<string[]>(['']);
   const [selectedID, setSelectedID] = useState('');
+  const [panelWidths, setPanelWidths] = useState<HistoryPanelWidths>({ filters: 260, details: 360 });
+  const resizeRef = useRef<HistoryResize | null>(null);
   const cursor = cursorStack[cursorStack.length - 1] || '';
   const query = useMemo(
-    () => interactionHistoryQueryFromFilters(appliedFilters, cursor),
+    () => historyQueryFromFilters(appliedFilters, cursor),
     [appliedFilters, cursor]
   );
   const historyQuery = useQuery({
-    queryKey: ['interaction-history', query],
-    queryFn: () => getInteractionHistory(query)
+    queryKey: ['history', query],
+    queryFn: () => getHistory(query)
   });
   const items = historyQuery.data?.items ?? [];
-  const selected = items.find((item) => item.interaction_id === selectedID) ?? items[0] ?? null;
+  const selected = items.find((item) => item.history_id === selectedID) ?? items[0] ?? null;
 
-  function updateFilter<K extends keyof InteractionHistoryFilters>(key: K, value: InteractionHistoryFilters[K]) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedFilters(draftFilters);
+      setCursorStack(['']);
+      setSelectedID('');
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [draftFilters]);
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      const resize = resizeRef.current;
+      if (!resize) {
+        return;
+      }
+      const delta = event.clientX - resize.startX;
+      if (resize.panel === 'filters') {
+        setPanelWidths((current) => ({
+          ...current,
+          filters: Math.min(420, Math.max(220, resize.startFilters + delta))
+        }));
+      } else {
+        setPanelWidths((current) => ({
+          ...current,
+          details: Math.min(620, Math.max(280, resize.startDetails - delta))
+        }));
+      }
+    }
+
+    function stopResize() {
+      if (!resizeRef.current) {
+        return;
+      }
+      resizeRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopResize);
+    window.addEventListener('pointercancel', stopResize);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopResize);
+      window.removeEventListener('pointercancel', stopResize);
+    };
+  }, []);
+
+  function startResize(panel: keyof HistoryPanelWidths, event: ReactPointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    resizeRef.current = {
+      panel,
+      startX: event.clientX,
+      startFilters: panelWidths.filters,
+      startDetails: panelWidths.details
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  function resizeWithKeyboard(panel: keyof HistoryPanelWidths, delta: number) {
+    setPanelWidths((current) => ({
+      ...current,
+      [panel]: panel === 'filters'
+        ? Math.min(420, Math.max(220, current.filters + delta))
+        : Math.min(620, Math.max(280, current.details - delta))
+    }));
+  }
+
+  function updateFilter<K extends keyof HistoryFilters>(key: K, value: HistoryFilters[K]) {
     setDraftFilters((current) => ({ ...current, [key]: value }));
   }
 
-  function applyFilters(event?: FormEvent) {
-    event?.preventDefault();
-    setAppliedFilters(draftFilters);
-    setCursorStack(['']);
-    setSelectedID('');
-  }
-
   function clearFilters() {
-    setDraftFilters(emptyInteractionHistoryFilters);
-    setAppliedFilters(emptyInteractionHistoryFilters);
+    setDraftFilters(emptyHistoryFilters);
+    setAppliedFilters(emptyHistoryFilters);
     setCursorStack(['']);
     setSelectedID('');
   }
@@ -1281,18 +1317,35 @@ function InteractionHistoryPage({
   }
 
   return (
-    <section className="interaction-history-shell">
-      <form className="interaction-history-filters panel" onSubmit={applyFilters}>
+    <section
+      className="interaction-history-shell"
+      style={{
+        gridTemplateColumns: `${panelWidths.filters}px 10px minmax(0, 1fr) 10px ${panelWidths.details}px`
+      }}
+    >
+      <section className="interaction-history-filters panel">
         <div className="panel-header compact">
           <div className="panel-title">
             <Filter size={18} />
             <h2>Filters</h2>
           </div>
+          <div className="history-filter-header-actions">
+            <span className="history-filter-status" aria-live="polite">Updates automatically</span>
+            <button className="link-button" type="button" onClick={clearFilters}>Clear</button>
+          </div>
         </div>
         <div className="history-filter-fields">
           <label className="dialog-field">
+            <span>Type</span>
+            <select value={draftFilters.entry_type} onChange={(event) => updateFilter('entry_type', event.target.value as HistoryFilters['entry_type'])}>
+              <option value="">All entries</option>
+              <option value="command">Commands</option>
+              <option value="interaction">Interactions</option>
+            </select>
+          </label>
+          <label className="dialog-field">
             <span>Search</span>
-            <input value={draftFilters.q} onChange={(event) => updateFilter('q', event.target.value)} placeholder="Subject, message, target..." />
+            <input value={draftFilters.q} onChange={(event) => updateFilter('q', event.target.value)} placeholder="Command, subject, message, target..." />
           </label>
           <label className="dialog-field">
             <span>Agent</span>
@@ -1322,6 +1375,16 @@ function InteractionHistoryPage({
             <span>Status</span>
             <select value={draftFilters.status} onChange={(event) => updateFilter('status', event.target.value)}>
               <option value="">All statuses</option>
+              <option value="created">Created</option>
+              <option value="accepted_by_user">Accepted by user</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="timed_out">Timed out</option>
+              <option value="interrupted">Interrupted</option>
+              <option value="abandoned">Abandoned</option>
+              <option value="blocked">Blocked</option>
+              <option value="waiting_user_response">Waiting for response</option>
               <option value="pending">Pending</option>
               <option value="answered">Answered</option>
               <option value="expired">Expired</option>
@@ -1366,33 +1429,41 @@ function InteractionHistoryPage({
           </label>
           <label className="dialog-field">
             <span>Pattern mode</span>
-            <select value={draftFilters.command_pattern_mode} onChange={(event) => updateFilter('command_pattern_mode', event.target.value as InteractionHistoryFilters['command_pattern_mode'])}>
+            <select value={draftFilters.command_pattern_mode} onChange={(event) => updateFilter('command_pattern_mode', event.target.value as HistoryFilters['command_pattern_mode'])}>
               <option value="literal">Literal</option>
               <option value="glob">Glob</option>
               <option value="regex">Regex</option>
             </select>
           </label>
         </div>
-        <div className="history-filter-actions">
-          <button className="primary-action" type="submit">
-            <Search size={16} />
-            Apply filters
-          </button>
-          <button className="link-button" type="button" onClick={clearFilters}>
-            Clear filters
-          </button>
-        </div>
-      </form>
+      </section>
+
+      <HistoryResizeHandle
+        label="Resize filters panel"
+        value={panelWidths.filters}
+        min={220}
+        max={420}
+        onPointerDown={(event) => startResize('filters', event)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            resizeWithKeyboard('filters', -16);
+          } else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            resizeWithKeyboard('filters', 16);
+          }
+        }}
+      />
 
       <section className="panel interaction-history-results">
         <div className="panel-header">
           <div className="panel-title">
             <History size={18} />
-            <h2>Interactions</h2>
+            <h2>History</h2>
             <span className="count-pill">{items.length}</span>
           </div>
           <div className="section-actions">
-            <button className="icon-button bordered" type="button" aria-label="Refresh interaction history" onClick={() => void historyQuery.refetch()}>
+            <button className="icon-button bordered" type="button" aria-label="Refresh history" onClick={() => void historyQuery.refetch()}>
               <RefreshCw size={16} />
             </button>
           </div>
@@ -1402,7 +1473,7 @@ function InteractionHistoryPage({
         ) : historyQuery.error ? (
           <EmptyState message={historyQuery.error.message} tone="error" />
         ) : items.length === 0 ? (
-          <EmptyState message="No interaction history is visible for this account." />
+          <EmptyState message="No history is visible for this account." />
         ) : (
           <>
             <div className="table-wrap history-table-wrap">
@@ -1420,14 +1491,14 @@ function InteractionHistoryPage({
                 <tbody>
                   {items.map((item) => (
                     <tr
-                      key={item.interaction_id}
-                      className={selected?.interaction_id === item.interaction_id ? 'selected-row' : ''}
-                      onClick={() => setSelectedID(item.interaction_id)}
+                      key={item.history_id}
+                      className={selected?.history_id === item.history_id ? 'selected-row' : ''}
+                      onClick={() => setSelectedID(item.history_id)}
                     >
                       <td>{formatDate(item.created_at)}</td>
                       <td><InteractionStatusBadge status={item.status} /></td>
                       <td>{item.agent_name || item.agent_id}</td>
-                      <td>{statusLabel(item.kind)}</td>
+                      <td>{item.entry_type === 'command' ? 'Command' : statusLabel(item.kind || 'interaction')}</td>
                       <td><code>{item.command}</code></td>
                       <td>{item.target || 'Unassigned'}</td>
                     </tr>
@@ -1444,44 +1515,94 @@ function InteractionHistoryPage({
         )}
       </section>
 
-      <InteractionHistoryDetail item={selected} />
+      <HistoryResizeHandle
+        label="Resize history details panel"
+        value={panelWidths.details}
+        min={280}
+        max={620}
+        onPointerDown={(event) => startResize('details', event)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            resizeWithKeyboard('details', -16);
+          } else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            resizeWithKeyboard('details', 16);
+          }
+        }}
+      />
+
+      <HistoryDetail item={selected} />
     </section>
   );
 }
 
-function InteractionHistoryDetail({ item }: { item: InteractionHistoryItem | null }) {
+function HistoryResizeHandle({
+  label,
+  value,
+  min,
+  max,
+  onPointerDown,
+  onKeyDown
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      className="history-resize-handle"
+      type="button"
+      role="separator"
+      aria-label={label}
+      aria-orientation="vertical"
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+    >
+      <span aria-hidden="true" />
+    </button>
+  );
+}
+
+function HistoryDetail({ item }: { item: HistoryItem | null }) {
   return (
     <section className="panel interaction-history-detail">
       <div className="panel-header">
         <div className="panel-title">
           <Eye size={18} />
-          <h2>Interaction Details</h2>
+          <h2>{item?.entry_type === 'command' ? 'Command Details' : 'Interaction Details'}</h2>
         </div>
       </div>
       {!item ? (
-        <EmptyState message="Select an interaction to view details." />
+          <EmptyState message="Select a history entry to view details." />
       ) : (
         <div className="interaction-detail-body">
           <div className="detail-heading">
             <div>
-              <h3>{item.subject || 'Interaction'}</h3>
+              <h3>{item.entry_type === 'command' ? 'Command' : item.subject || 'Interaction'}</h3>
               <InteractionStatusBadge status={item.status} />
             </div>
           </div>
           <dl className="detail-list">
             <div><dt>Agent</dt><dd>{item.agent_name || item.agent_id}</dd></div>
             <div><dt>Target</dt><dd>{item.target || 'Unassigned'}</dd></div>
-            <div><dt>Kind</dt><dd>{statusLabel(item.kind)}</dd></div>
-            <div><dt>Provider</dt><dd>{item.provider || item.interaction_instance_id}</dd></div>
+            <div><dt>Kind</dt><dd>{item.entry_type === 'command' ? 'Command' : statusLabel(item.kind || 'interaction')}</dd></div>
+            {item.entry_type === 'interaction' ? <div><dt>Provider</dt><dd>{item.provider || item.interaction_instance_id}</dd></div> : null}
           </dl>
           <div className="detail-section">
             <h4>Command</h4>
             <pre>{item.command}</pre>
           </div>
-          <div className="detail-section">
+          {item.entry_type === 'interaction' ? <div className="detail-section">
             <h4>Message</h4>
             <p>{item.message}</p>
-          </div>
+          </div> : null}
           {item.policy_justification ? (
             <div className="detail-section">
               <h4>LLM justification</h4>
@@ -1489,14 +1610,16 @@ function InteractionHistoryDetail({ item }: { item: InteractionHistoryItem | nul
             </div>
           ) : null}
           <dl className="detail-list">
-            <div><dt>Approved</dt><dd>{item.approved === undefined ? 'N/A' : item.approved ? 'Yes' : 'No'}</dd></div>
-            <div><dt>Responded by</dt><dd>{item.responded_by || 'No response'}</dd></div>
+            {item.entry_type === 'interaction' ? <>
+              <div><dt>Approved</dt><dd>{item.approved === undefined ? 'N/A' : item.approved ? 'Yes' : 'No'}</dd></div>
+              <div><dt>Responded by</dt><dd>{item.responded_by || 'No response'}</dd></div>
+            </> : <div><dt>Result</dt><dd>{resultLabel(item.result || item.status)}</dd></div>}
             <div><dt>Created</dt><dd>{formatDate(item.created_at)}</dd></div>
-            <div><dt>Responded</dt><dd>{item.responded_at ? formatDate(item.responded_at) : 'Not responded'}</dd></div>
+            {item.entry_type === 'interaction' ? <div><dt>Responded</dt><dd>{item.responded_at ? formatDate(item.responded_at) : 'Not responded'}</dd></div> : <div><dt>Completed</dt><dd>{item.completed_at ? formatDate(item.completed_at) : 'Not completed'}</dd></div>}
             <div><dt>Task ID</dt><dd><code>{item.task_id}</code></dd></div>
-            <div><dt>Interaction ID</dt><dd><code>{item.interaction_id}</code></dd></div>
+            {item.interaction_id ? <div><dt>Interaction ID</dt><dd><code>{item.interaction_id}</code></dd></div> : null}
           </dl>
-          {item.answer || item.cancel_reason ? (
+          {item.entry_type === 'interaction' && (item.answer || item.cancel_reason) ? (
             <div className="detail-section">
               <h4>Response</h4>
               <p>{item.answer || item.cancel_reason}</p>
@@ -1512,10 +1635,11 @@ function InteractionStatusBadge({ status }: { status: string }) {
   return <span className={`result-badge ${interactionStatusTone(status)}`}>{statusLabel(status)}</span>;
 }
 
-function interactionHistoryQueryFromFilters(filters: InteractionHistoryFilters, cursor: string): InteractionHistoryQuery {
+function historyQueryFromFilters(filters: HistoryFilters, cursor: string): HistoryQuery {
   return {
     limit: 50,
     cursor,
+    entry_type: filters.entry_type || undefined,
     agent_id: filters.agent_id || undefined,
     interaction_instance_id: filters.interaction_instance_id || undefined,
     interaction_instance_creator_user_id: filters.interaction_instance_creator_user_id || undefined,
@@ -1563,7 +1687,7 @@ function CommandHistorySection({
   onRefresh,
   onViewAll
 }: {
-  commands: CommandHistoryItem[];
+  commands: HistoryItem[];
   isLoading: boolean;
   error: Error | null;
   onRefresh: () => void;
@@ -1586,43 +1710,39 @@ function CommandHistorySection({
       error={error}
       icon={<History size={18} />}
       isLoading={isLoading}
-      title="Recent Command History"
+      title="Recent History"
     >
       {commands.length === 0 ? (
-        <EmptyState message="No recent commands are visible for this account." />
+        <EmptyState message="No recent history is visible for this account." />
       ) : (
-        <CommandHistoryTable commands={commands.slice(0, 5)} />
+        <HistoryPreviewTable entries={commands.slice(0, 5)} />
       )}
     </Panel>
   );
 }
 
-function CommandHistoryTable({ commands, includeStatus = false }: { commands: CommandHistoryItem[]; includeStatus?: boolean }) {
+function HistoryPreviewTable({ entries }: { entries: HistoryItem[] }) {
   return (
     <table>
       <thead>
         <tr>
+          <th>Type</th>
           <th>Agent</th>
           <th>Target</th>
           <th>Command</th>
-          {includeStatus ? <th>Status</th> : null}
-          <th>Result</th>
+          <th>Status</th>
           <th>Timestamp</th>
         </tr>
       </thead>
       <tbody>
-        {commands.map((command) => (
-          <tr key={command.task_id}>
-            <td>{command.agent_name || command.agent_id || 'Unknown agent'}</td>
-            <td>{command.target || 'Unassigned'}</td>
-            <td>
-              <code>{command.command}</code>
-            </td>
-            {includeStatus ? <td>{statusLabel(command.status)}</td> : null}
-            <td>
-              <ResultBadge result={command.result} />
-            </td>
-            <td>{formatDate(command.completed_at || command.created_at)}</td>
+        {entries.map((entry) => (
+          <tr key={entry.history_id}>
+            <td>{entry.entry_type === 'command' ? 'Command' : 'Interaction'}</td>
+            <td>{entry.agent_name || entry.agent_id || 'Unknown agent'}</td>
+            <td>{entry.target || 'Unassigned'}</td>
+            <td><code>{entry.command || entry.subject || entry.message || 'Interaction'}</code></td>
+            <td><InteractionStatusBadge status={entry.status} /></td>
+            <td>{formatDate(entry.completed_at || entry.created_at)}</td>
           </tr>
         ))}
       </tbody>
@@ -1801,7 +1921,7 @@ function AgentsSection({
                   {showOwners ? <td>{ownerLabels(agent.user_ids, managedUsers)}</td> : null}
                   <td>{linkedTarget(agent, targets)}</td>
                   <td>{latest ? <code>{latest.command}</code> : 'No commands yet'}</td>
-                  <td>{latest ? <ResultBadge result={latest.result} /> : <span className="muted">None</span>}</td>
+                  <td>{latest ? <ResultBadge result={latest.result || latest.status} /> : <span className="muted">None</span>}</td>
                   <td>{latest ? formatDate(latest.completed_at || latest.created_at) : 'Never'}</td>
                   <td className="actions-cell">
                     <RowActions onDelete={() => onDelete(agent)} onEdit={() => onEdit(agent)} targetName={agentLabel(agent)} />
@@ -3836,7 +3956,7 @@ function targetType(target: Target) {
 function latestCommandByAgent(commands: CommandHistoryItem[]) {
   const byAgent = new Map<string, CommandHistoryItem>();
   for (const command of commands) {
-    if (command.agent_id && !byAgent.has(command.agent_id)) {
+    if (command.entry_type === 'command' && command.agent_id && !byAgent.has(command.agent_id)) {
       byAgent.set(command.agent_id, command);
     }
   }
@@ -3850,7 +3970,7 @@ function linkedTarget(agent: Agent, targets: Target[]) {
 
 function lastSeenForTarget(target: Target, commands: CommandHistoryItem[]) {
   const label = targetLabel(target).toLowerCase();
-  const matched = commands.find((command) => command.target?.toLowerCase() === label);
+  const matched = commands.find((command) => command.entry_type === 'command' && command.target?.toLowerCase() === label);
   return matched ? formatDate(matched.completed_at || matched.created_at) : 'No recent activity';
 }
 
