@@ -82,3 +82,26 @@ func TestOpenAICompatibleReviewUsesJSONDecision(t *testing.T) {
 		t.Fatalf("debug log leaked secret or command: %s", logs.String())
 	}
 }
+
+func TestOpenRouterReviewDisablesReasoningAndLeavesRoomForJSON(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["reasoning_effort"] != "none" {
+			t.Fatalf("OpenRouter request used unexpected reasoning effort: %#v", body["reasoning_effort"])
+		}
+		if body["max_tokens"] != float64(256) {
+			t.Fatalf("OpenRouter request used unexpected token limit: %#v", body["max_tokens"])
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"decision\":\"approved\",\"justification\":\"The command is allowed by the policy.\"}"}}]}`))
+	}))
+	defer server.Close()
+	profile := Profile{ID: "profile-1", OwnerUserID: "owner-1", Name: "test", Provider: ProviderOpenRouter, Model: "moonshotai/kimi-k3.1-pro", BaseURL: server.URL, APIKey: "test-key", TimeoutSeconds: 5, Enabled: true}
+	catalog := &Catalog{profiles: map[string]Profile{profile.ID: profile}, client: server.Client()}
+	result, err := catalog.Review(context.Background(), profile.ID, ReviewRequest{Command: "ls", Prompt: "Use approved for this command."})
+	if err != nil || !result.Valid || result.Decision != DecisionApproved {
+		t.Fatalf("result = %#v err=%v", result, err)
+	}
+}

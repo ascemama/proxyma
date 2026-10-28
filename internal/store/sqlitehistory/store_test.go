@@ -116,6 +116,8 @@ create table history_entries (
 	expires_at text, responded_at text, task_created_at text, record_json text
 );
 create table history_entries_visible_users (history_id text not null, user_id text not null, primary key (history_id, user_id));
+create index history_entries_visible_user_created on history_entries_visible_users(user_id, history_id);
+create index history_entries_visible_source on history_entries_visible_users(user_id, history_id);
 create virtual table history_entries_fts using fts5(history_id unindexed, entry_type unindexed, subject, message, command, result, requested_by, target_hostname, target_ip);
 insert into history_entries(history_id, entry_type, task_id, agent_id, status, command, created_at)
 values ('command:v2', 'command', 'v2', 'agent-v2', 'completed', 'hostname', '2026-06-25T10:00:00Z');

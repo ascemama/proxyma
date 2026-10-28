@@ -261,6 +261,16 @@ func (s *Store) migrateV2ToV3(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, `alter table history_entries_visible_users rename to history_entries_visible_users_v2`); err != nil {
 		return err
 	}
+	// Renaming the v2 table preserves its index names. Drop those indexes
+	// before creating the equivalent indexes on the v3 visibility table.
+	for _, query := range []string{
+		`drop index if exists history_entries_visible_user_created`,
+		`drop index if exists history_entries_visible_source`,
+	} {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			return err
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `
 create table history_entries_visible_users (
 	history_id text not null,
