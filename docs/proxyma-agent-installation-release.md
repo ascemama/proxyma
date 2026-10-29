@@ -7,7 +7,7 @@ idempotent command submission, polling, and durable client task state.
 The Proxyma server and `proxyma-agent` normally run on different machines:
 
 - install the Proxyma server on the managed server host using one of the
-  [deployment guides](deployment.md); and
+  [server installation guides](proxyma-server-installation.md); and
 - install `proxyma-agent`, its matching harness, and the model adapter on the
   workstation where Codex or Claude Code runs.
 
@@ -40,9 +40,9 @@ current user and project.
 
 ### Install the latest stable release
 
-Run the installer from the root of the project where Codex will work. Download
-it as a file so it can be inspected before execution; do not pipe a remote
-script directly into a shell.
+Run the installer from the root of the project where Codex or Claude Code will
+work. Download it as a file so it can be inspected before execution; do not
+pipe a remote script directly into a shell.
 
 ### Linux or macOS
 
@@ -50,6 +50,7 @@ script directly into a shell.
 curl -fL -o install-proxyma-agent.sh \
   https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-agent.sh
 bash ./install-proxyma-agent.sh
+# Add --harness-type codex or --harness-type claude to install the project adapter.
 ```
 
 The default executable location is `$HOME/.local/bin/proxyma-agent`.
@@ -62,6 +63,7 @@ Invoke-WebRequest `
   -OutFile .\install-proxyma-agent.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\install-proxyma-agent.ps1
+# Add -HarnessType Codex or -HarnessType Claude to install the project adapter.
 ```
 
 The default executable location is
@@ -76,12 +78,13 @@ Both installers:
    verify both SHA-256 hashes.
 4. Reject unsafe archive paths, links, special files, and unsafe install
    destinations.
-5. Install the binary for the current user, create or refresh `./harness`, and
-   install the Codex adapter at `.agents/skills/proxyma-harness/SKILL.md`.
+5. Install the binary for the current user and create or refresh `./harness`.
+   If `--harness-type codex` or `--harness-type claude` is supplied, install
+   only that selected project adapter at the corresponding root skill path.
 
 The installers never request or create a signing key and never modify `PATH`.
 If the user-local binary directory is not already on `PATH`, follow the printed
-instruction and restart Codex so it inherits the new environment.
+instruction and restart Codex or Claude Code so it inherits the new environment.
 
 ### Install a pinned release or custom location
 
@@ -97,6 +100,7 @@ curl -fL -o install-proxyma-agent.sh \
   "https://github.com/ascemama/proxyma/releases/download/$version/install-proxyma-agent.sh"
 bash ./install-proxyma-agent.sh \
   --version "$version" \
+  --harness-type codex \
   --project-dir /path/to/project \
   --bin-dir "$HOME/.local/bin"
 ```
@@ -111,6 +115,7 @@ Invoke-WebRequest `
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\install-proxyma-agent.ps1 `
   -Version $version `
+  -HarnessType Codex `
   -ProjectDir C:\path\to\project `
   -BinDir "$env:LOCALAPPDATA\Programs\Proxyma\bin"
 ```
@@ -158,10 +163,10 @@ After a new installation, the project contains:
 
 ```text
 your-project/
-├── .agents/
-│   └── skills/
-│       └── proxyma-harness/
-│           └── SKILL.md
+├── .agents/                    Created when `codex` is selected
+│   └── skills/proxyma-harness/SKILL.md
+├── .claude/                    Created when `claude` is selected
+│   └── skills/proxyma-harness/SKILL.md
 └── harness/
     ├── .agents/                 Release copy of the Codex adapter
     ├── .claude/                 Claude Code adapter
@@ -175,9 +180,29 @@ your-project/
     └── RELEASE                  Harness release version and commit
 ```
 
-The `.agents/skills/proxyma-harness` copy at the project root is what Codex
-discovers. The `harness/` directory is the shared runtime root and can also be
-used by the included Claude Code adapter.
+The `harness/` directory is the shared runtime root. Codex discovers the
+project-root `.agents/skills/proxyma-harness/SKILL.md` adapter, while Claude
+Code discovers `.claude/skills/proxyma-harness/SKILL.md`. Only the adapter
+selected with `--harness-type` is installed automatically.
+
+If the option is omitted, copy the desired adapter from the shared harness
+after installation:
+
+```bash
+# Codex
+mkdir -p .agents/skills/proxyma-harness
+cp harness/.agents/skills/proxyma-harness/SKILL.md \
+  .agents/skills/proxyma-harness/SKILL.md
+
+# Claude Code
+mkdir -p .claude/skills/proxyma-harness
+cp harness/.claude/skills/proxyma-harness/SKILL.md \
+  .claude/skills/proxyma-harness/SKILL.md
+```
+
+On Windows PowerShell, create the corresponding directory and use
+`Copy-Item` for the same source and destination paths. Restart Codex or Claude
+Code after installing or copying the adapter.
 
 ## Update and rollback
 
@@ -191,7 +216,7 @@ potentially sensitive paths:
 - `harness/task-state/`.
 
 Instructions, schemas, examples, tests, bundled adapters, `RELEASE`, and the
-project Codex adapter are refreshed from the selected release. The installer
+selected project adapter is refreshed from the selected release. The installer
 refuses symbolic links or reparse points at managed destinations instead of
 following them.
 
@@ -236,8 +261,8 @@ backing up the preserved configuration, credentials, and task state.
 ## Remove the agent installation
 
 The release package does not install a system service or provide a separate
-uninstaller. Remove the binary, the project harness, and the project Codex
-adapter manually. First stop Codex or Claude Code and make sure no other
+uninstaller. Remove the binary, the project harness, and any project adapter
+manually. First stop Codex or Claude Code and make sure no other
 project still uses this harness. The following commands remove the local
 credentials and durable task state as well as the installed release files.
 
@@ -245,7 +270,7 @@ On Linux or macOS, run from the project directory used during installation:
 
 ```bash
 rm -f "$HOME/.local/bin/proxyma-agent"
-rm -rf ./harness ./.agents/skills/proxyma-harness
+rm -rf ./harness ./.agents/skills/proxyma-harness ./.claude/skills/proxyma-harness
 ```
 
 If a custom `--bin-dir` was used, remove `proxyma-agent` from that directory
@@ -261,7 +286,7 @@ On Windows, run from the installed project directory in PowerShell:
 
 ```powershell
 Remove-Item -LiteralPath "$env:LOCALAPPDATA\Programs\Proxyma\bin\proxyma-agent.exe" -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath ".\harness", ".\.agents\skills\proxyma-harness" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".\harness", ".\.agents\skills\proxyma-harness", ".\.claude\skills\proxyma-harness" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath ".\install-proxyma-agent.ps1" -Force -ErrorAction SilentlyContinue
 ```
 
@@ -392,7 +417,7 @@ Reuse that guidance for the target during the current harness session. Fetch it
 again after restarting the harness. Proxyma still evaluates every submitted
 command against the current server-side policy.
 
-Invoke the installed Codex skill explicitly on the first run:
+Invoke the installed project skill explicitly on the first run:
 
 ```text
 $proxyma-harness Run proxyma-agent doctor and resume, then inspect the Proxyma
@@ -413,9 +438,11 @@ The CLI selects configuration in this order:
 Common failures:
 
 - **`proxyma-agent` is not found:** add the printed user-local binary directory
-  to `PATH`, restart Codex, and open a new terminal.
-- **The skill is unavailable:** verify
-  `<project>/.agents/skills/proxyma-harness/SKILL.md`, then restart Codex.
+  to `PATH`, restart Codex or Claude Code, and open a new terminal.
+- **The skill is unavailable:** verify the selected adapter exists at
+  `<project>/.agents/skills/proxyma-harness/SKILL.md` for Codex or
+  `<project>/.claude/skills/proxyma-harness/SKILL.md` for Claude Code, then
+  restart that harness.
 - **Checksum or archive validation fails:** do not install the download. Remove
   it and retry from the same release; report persistent failures.
 - **The installer refuses an existing path:** remove the unexpected symlink,

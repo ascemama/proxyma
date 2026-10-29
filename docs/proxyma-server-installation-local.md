@@ -237,8 +237,10 @@ channel, then choose **Trust and retry**. Proxyma writes the key only after SSH
 authentication and the test command succeed. A changed key remains blocked and
 must not be accepted without investigating the server identity change.
 
-New targets, and existing targets whose connection or credential fields change,
-must pass the credential test before they can be saved. Metadata-only edits do
+Credential testing is recommended but optional. New targets and existing targets
+can be saved without a successful test when you are confident that the supplied
+credentials are correct. When editing an existing target, leave the password or
+private-key field blank to preserve the stored credential. Metadata-only edits do
 not require another test.
 
 ## Frontend Development Checks

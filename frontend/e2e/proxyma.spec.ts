@@ -815,9 +815,8 @@ test('user can manage targets from the target tab', async ({ page }) => {
   await addTargetDialog.getByLabel('Policy Name').selectOption({ label: 'Baseline Readonly Fixture' });
   await addTargetDialog.getByText('Select agents').click();
   await addTargetDialog.getByLabel('demo-web-agent').check();
-  await expect(addTargetDialog.getByRole('button', { name: 'Save Target' })).toBeDisabled();
-  await addTargetDialog.getByRole('button', { name: 'Test credentials' }).click();
-  await expect(addTargetDialog.getByText('SSH connection verified')).toBeVisible();
+  await expect(addTargetDialog.getByRole('button', { name: 'Save Target' })).toBeEnabled();
+  await expect(addTargetDialog.getByText(/Credentials have not been tested/)).toBeVisible();
   await addTargetDialog.getByRole('button', { name: 'Save Target' }).click();
   await expect(addTargetDialog).toBeHidden();
   await expect(page.getByRole('row', { name: /OPS-SRV-01 SSH password/ })).toBeVisible();
@@ -831,14 +830,20 @@ test('user can manage targets from the target tab', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Edit OPS-SRV-01' }).click();
   await expect(page.getByRole('dialog', { name: 'Edit OPS-SRV-01' })).toBeVisible();
+  await page.getByLabel('Username').fill('fixture-ops');
+  await page.getByRole('dialog', { name: 'Edit OPS-SRV-01' }).getByRole('textbox', { name: /^Password/ }).fill('fixture-ops-password');
+  await page.getByRole('button', { name: 'Test credentials' }).click();
+  await expect(page.getByText('SSH connection verified')).toBeVisible();
+  await page.getByRole('button', { name: 'Save Target' }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit OPS-SRV-01' })).toBeHidden();
+
+  await page.getByRole('button', { name: 'Edit OPS-SRV-01' }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit OPS-SRV-01' })).toBeVisible();
   await page.getByLabel('Hostname').fill('OPS-SRV-02');
   await page.getByLabel('IP address').fill('10.10.9.11');
   await page.getByLabel('Description').fill('Updated operations test target');
-  await page.getByLabel('Username').fill('fixture-ops');
-  await page.getByRole('dialog', { name: 'Edit OPS-SRV-01' }).getByRole('textbox', { name: /^Password/ }).fill('fixture-ops-password');
-  await expect(page.getByRole('button', { name: 'Save Target' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Test credentials' }).click();
-  await expect(page.getByText('SSH connection verified')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save Target' })).toBeEnabled();
+  await expect(page.getByText(/Credentials have not been tested/)).toBeVisible();
   await page.getByRole('button', { name: 'Save Target' }).click();
   await expect(page.getByRole('dialog', { name: 'Edit OPS-SRV-01' })).toBeHidden();
   await expect(page.getByRole('row', { name: /OPS-SRV-02 SSH password/ })).toBeVisible();

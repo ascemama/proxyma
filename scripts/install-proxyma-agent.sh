@@ -10,6 +10,7 @@ TARGET_ARCH="${PROXYMA_AGENT_ARCH:-}"
 ARCHIVE_NAME="proxyma-agent-harness.tar.gz"
 LOCAL_BINARY=""
 LOCAL_HARNESS=""
+HARNESS_TYPE=""
 
 usage() {
   cat <<'EOF'
@@ -25,6 +26,7 @@ Options:
   --bin-dir DIR        Install proxyma-agent in DIR (default: $HOME/.local/bin).
   --binary PATH        Install this locally built executable instead of downloading one.
   --harness PATH       Install this locally built harness archive instead of downloading one.
+  --harness-type TYPE  Install the project adapter for codex or claude (optional).
   -h, --help           Show this help text.
 
 The installer does not accept credentials and does not modify PATH.
@@ -87,10 +89,21 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --harness=*) LOCAL_HARNESS="${1#*=}"; shift ;;
+    --harness-type)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "--harness-type requires codex or claude." >&2; exit 2; }
+      HARNESS_TYPE="$2"
+      shift 2
+      ;;
+    --harness-type=*) HARNESS_TYPE="${1#*=}"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+case "$HARNESS_TYPE" in
+  ""|codex|claude) ;;
+  *) echo "Invalid harness type: $HARNESS_TYPE. Use codex or claude." >&2; exit 2 ;;
+esac
 
 if [[ -n "$LOCAL_BINARY" || -n "$LOCAL_HARNESS" ]]; then
   [[ -n "$LOCAL_BINARY" && -n "$LOCAL_HARNESS" ]] || {
@@ -263,7 +276,15 @@ replace_path() {
 
 INSTALLED_BINARY="$BIN_DIR/proxyma-agent"
 HARNESS_DIR="$PROJECT_DIR/harness"
-SKILLS_DIR="$PROJECT_DIR/.agents/skills"
+ROOT_ADAPTER_DIR=""
+ROOT_ADAPTER_PATH=""
+if [[ "$HARNESS_TYPE" == "codex" ]]; then
+  ROOT_ADAPTER_DIR="$PROJECT_DIR/.agents/skills"
+  ROOT_ADAPTER_PATH="$ROOT_ADAPTER_DIR/proxyma-harness"
+elif [[ "$HARNESS_TYPE" == "claude" ]]; then
+  ROOT_ADAPTER_DIR="$PROJECT_DIR/.claude/skills"
+  ROOT_ADAPTER_PATH="$ROOT_ADAPTER_DIR/proxyma-harness"
+fi
 if [[ -e "$INSTALLED_BINARY" && ( ! -f "$INSTALLED_BINARY" || -L "$INSTALLED_BINARY" ) ]]; then
   echo "Installed binary target must be a regular file and not a symbolic link: $INSTALLED_BINARY" >&2
   exit 1
@@ -306,20 +327,26 @@ for preserved_dir in \
     exit 1
   fi
 done
-for path_component in "$PROJECT_DIR/.agents" "$SKILLS_DIR"; do
-  if [[ -e "$path_component" && ( ! -d "$path_component" || -L "$path_component" ) ]]; then
-    echo "Skill directory must be a directory and not a symbolic link: $path_component" >&2
-    exit 1
-  fi
-done
-for owned_target in \
-  "$HARNESS_DIR/instruction-pack" \
-  "$HARNESS_DIR/examples" \
-  "$HARNESS_DIR/tests" \
-  "$HARNESS_DIR/.agents" \
-  "$HARNESS_DIR/.claude" \
-  "$HARNESS_DIR/RELEASE" \
-  "$SKILLS_DIR/proxyma-harness"; do
+if [[ -n "$ROOT_ADAPTER_DIR" ]]; then
+  for path_component in "${ROOT_ADAPTER_DIR%/skills}" "$ROOT_ADAPTER_DIR"; do
+    if [[ -e "$path_component" && ( ! -d "$path_component" || -L "$path_component" ) ]]; then
+      echo "Skill directory must be a directory and not a symbolic link: $path_component" >&2
+      exit 1
+    fi
+  done
+fi
+owned_destinations=(
+  "$HARNESS_DIR/instruction-pack"
+  "$HARNESS_DIR/examples"
+  "$HARNESS_DIR/tests"
+  "$HARNESS_DIR/.agents"
+  "$HARNESS_DIR/.claude"
+  "$HARNESS_DIR/RELEASE"
+)
+if [[ -n "$ROOT_ADAPTER_PATH" ]]; then
+  owned_destinations+=("$ROOT_ADAPTER_PATH")
+fi
+for owned_target in "${owned_destinations[@]}"; do
   if [[ -L "$owned_target" || -e "${owned_target}.proxyma-new.$$" || -e "${owned_target}.proxyma-backup.$$" ]]; then
     echo "Refusing unsafe or conflicting install destination: $owned_target" >&2
     exit 1
@@ -359,16 +386,32 @@ for owned in instruction-pack examples tests .agents .claude RELEASE; do
   replace_path "$PAYLOAD_DIR/$owned" "$HARNESS_DIR/$owned"
 done
 
-mkdir -p "$SKILLS_DIR"
-replace_path "$PAYLOAD_DIR/.agents/skills/proxyma-harness" "$SKILLS_DIR/proxyma-harness"
+if [[ "$HARNESS_TYPE" == "codex" ]]; then
+  mkdir -p "$ROOT_ADAPTER_DIR"
+  replace_path "$PAYLOAD_DIR/.agents/skills/proxyma-harness" "$ROOT_ADAPTER_PATH"
+elif [[ "$HARNESS_TYPE" == "claude" ]]; then
+  mkdir -p "$ROOT_ADAPTER_DIR"
+  replace_path "$PAYLOAD_DIR/.claude/skills/proxyma-harness" "$ROOT_ADAPTER_PATH"
+fi
 
 echo "Installed proxyma-agent at $INSTALLED_BINARY"
 echo "Installed the matching harness at $HARNESS_DIR"
-echo "Installed the Codex adapter at $SKILLS_DIR/proxyma-harness"
+if [[ "$HARNESS_TYPE" == "codex" ]]; then
+  echo "Installed the Codex adapter at $ROOT_ADAPTER_PATH"
+elif [[ "$HARNESS_TYPE" == "claude" ]]; then
+  echo "Installed the Claude adapter at $ROOT_ADAPTER_PATH"
+else
+  echo "No project adapter selected. To enable Codex, run:"
+  echo "  mkdir -p \"$PROJECT_DIR/.agents/skills/proxyma-harness\""
+  echo "  cp \"$HARNESS_DIR/.agents/skills/proxyma-harness/SKILL.md\" \"$PROJECT_DIR/.agents/skills/proxyma-harness/SKILL.md\""
+  echo "To enable Claude Code, run:"
+  echo "  mkdir -p \"$PROJECT_DIR/.claude/skills/proxyma-harness\""
+  echo "  cp \"$HARNESS_DIR/.claude/skills/proxyma-harness/SKILL.md\" \"$PROJECT_DIR/.claude/skills/proxyma-harness/SKILL.md\""
+fi
 case ":${PATH:-}:" in
   *":$BIN_DIR:"*) echo "$BIN_DIR is already on PATH." ;;
   *)
-    echo "$BIN_DIR is not on PATH. Add it to your shell profile, then restart Codex."
+    echo "$BIN_DIR is not on PATH. Add it to your shell profile, then restart Codex or Claude Code."
     echo "For example: export PATH=\"$BIN_DIR:\$PATH\""
     ;;
 esac

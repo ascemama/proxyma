@@ -2,10 +2,10 @@
 
 Use this path when the installed CLI must come from a local checkout or a
 specific source revision. Build and package the CLI and harness from the same
-checkout, then install both into the project where Codex will run.
+checkout, then install both into the project where Codex or Claude Code will run.
 
 The Proxyma server and `proxyma-agent` normally run on different machines. The
-server should be installed using one of the [deployment guides](deployment.md),
+server should be installed using one of the [server installation guides](proxyma-server-installation.md),
 while the Agent is installed on the workstation where Codex or Claude Code
 runs.
 
@@ -121,7 +121,7 @@ reproducible metadata is required.
 
 ## Install the built executable and harness
 
-Set `PROJECT_DIR` to the project where Codex will work. Use a separate project
+Set `PROJECT_DIR` to the project where Codex or Claude Code will work. Use a separate project
 directory if the source checkout is only a build checkout.
 
 Linux or macOS:
@@ -134,6 +134,7 @@ ASSET="dist/proxyma-agent-$(go env GOOS)-$(go env GOARCH)"
 bash ./scripts/install-proxyma-agent.sh \
   --binary "$ASSET" \
   --harness "$PWD/dist/proxyma-agent-harness.tar.gz" \
+  --harness-type codex \
   --project-dir "$PROJECT_DIR" \
   --bin-dir "$BIN_DIR"
 ```
@@ -148,13 +149,14 @@ $Asset = ".\dist\proxyma-agent-$(& go env GOOS)-$(& go env GOARCH).exe"
 & .\scripts\install-proxyma-agent.ps1 `
   -Binary $Asset `
   -Harness ".\dist\proxyma-agent-harness.tar.gz" `
+  -HarnessType Codex `
   -ProjectDir $ProjectDir `
   -BinDir $BinDir
 ```
 
 The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
 Linux or macOS, or `%LOCALAPPDATA%\Programs\Proxyma\bin` on Windows, to
-`PATH`, then open a new terminal and restart Codex.
+`PATH`, then open a new terminal and restart Codex or Claude Code.
 
 After installation, first edit `harness/proxyma-agent.json` and replace the
 example `proxyma_base_url` value with the URL of the running Proxyma server.

@@ -9,7 +9,7 @@ Go, Node.js, npm, Git, and a source checkout are **not required** on the target
 host.
 
 To compile the binaries yourself, use the
-[source-built Linux binary guide](deployment-linux-binary.md).
+[source-built Linux binary guide](proxyma-server-installation-linux-binary.md).
 
 ## Supported Hosts and Prerequisites
 

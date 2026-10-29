@@ -60,11 +60,12 @@ try {
     $project = Join-Path $TestRoot "project"
     $bin = Join-Path $TestRoot "bin"
     New-Item -ItemType Directory -Path $project | Out-Null
-    & $Installer -Version v1.2.3 -ProjectDir $project -BinDir $bin
+    & $Installer -Version v1.2.3 -HarnessType codex -ProjectDir $project -BinDir $bin
     if ($env:PATH -ne $originalPath) { Fail "installer changed PATH" }
     if ((Get-Content -LiteralPath (Join-Path $bin "proxyma-agent.exe") -Raw).Trim() -ne "first") { Fail "wrong binary was installed" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\instruction-pack\proxyma-harness.md") -Raw).Trim() -ne "first") { Fail "harness was not installed" }
     if (-not (Test-Path -LiteralPath (Join-Path $project ".agents\skills\proxyma-harness\SKILL.md"))) { Fail "Codex adapter was not installed" }
+    if (Test-Path -LiteralPath (Join-Path $project ".claude\skills\proxyma-harness")) { Fail "Claude adapter was installed during Codex install" }
     $examplePath = Join-Path $project "harness\agent-configuration\agent.example.json"
     if (-not (Test-Path -LiteralPath $examplePath -PathType Leaf)) { Fail "installer omitted credential example" }
     if ((Get-Content -LiteralPath $examplePath -Raw) -notlike '*TOBECHANGED*') { Fail "credential example is incorrect" }
@@ -74,7 +75,7 @@ try {
     Set-Content -LiteralPath $examplePath -Value "custom-example"
     Set-Content -LiteralPath (Join-Path $project "harness\task-state\active\task.json") -Value "preserved-state"
     New-Release $exact "amd64" "second"
-    & $Installer -Version v1.2.3 -ProjectDir $project -BinDir $bin
+    & $Installer -Version v1.2.3 -HarnessType codex -ProjectDir $project -BinDir $bin
     if ((Get-Content -LiteralPath (Join-Path $project "harness\proxyma-agent.json") -Raw).Trim() -ne "preserved-config") { Fail "configuration was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\agent-configuration\agent.json") -Raw).Trim() -ne "preserved-secret") { Fail "credential was overwritten" }
     if ((Get-Content -LiteralPath $examplePath -Raw).Trim() -ne "custom-example") { Fail "credential example was overwritten" }
@@ -88,6 +89,21 @@ try {
     New-Item -ItemType Directory -Path $latestProject | Out-Null
     & $Installer -ProjectDir $latestProject -BinDir (Join-Path $TestRoot "latest-bin")
     if ((Get-Content -LiteralPath (Join-Path $TestRoot "latest-bin\proxyma-agent.exe") -Raw).Trim() -ne "latest") { Fail "ARM64 latest asset was not selected" }
+    if (Test-Path -LiteralPath (Join-Path $latestProject ".agents\skills\proxyma-harness")) { Fail "Codex adapter was installed without selection" }
+    if (Test-Path -LiteralPath (Join-Path $latestProject ".claude\skills\proxyma-harness")) { Fail "Claude adapter was installed without selection" }
+    if (-not (Test-Path -LiteralPath (Join-Path $latestProject "harness\.agents\skills\proxyma-harness\SKILL.md"))) { Fail "manual Codex adapter source is missing" }
+    if (-not (Test-Path -LiteralPath (Join-Path $latestProject "harness\.claude\skills\proxyma-harness\SKILL.md"))) { Fail "manual Claude adapter source is missing" }
+
+    $claudeProject = Join-Path $TestRoot "claude-project"
+    $claudeBin = Join-Path $TestRoot "claude-bin"
+    New-Item -ItemType Directory -Path $claudeProject | Out-Null
+    & $Installer -HarnessType claude -ProjectDir $claudeProject -BinDir $claudeBin
+    if (-not (Test-Path -LiteralPath (Join-Path $claudeProject ".claude\skills\proxyma-harness\SKILL.md"))) { Fail "Claude adapter was not installed" }
+    if (Test-Path -LiteralPath (Join-Path $claudeProject ".agents\skills\proxyma-harness")) { Fail "Codex adapter was installed during Claude install" }
+
+    $invalidProject = Join-Path $TestRoot "invalid-project"
+    Invoke-ExpectedFailure { & $Installer -HarnessType invalid -ProjectDir $invalidProject -BinDir (Join-Path $TestRoot "invalid-bin") } "invalid harness type"
+    if (Test-Path -LiteralPath $invalidProject) { Fail "invalid harness type created an install directory" }
 
     $localRelease = Join-Path $TestRoot "local-artifacts"
     New-Release $localRelease "arm64" "local"
@@ -97,9 +113,11 @@ try {
     & $Installer `
         -Binary (Join-Path $localRelease "proxyma-agent-windows-arm64.exe") `
         -Harness (Join-Path $localRelease "proxyma-agent-harness.tar.gz") `
+        -HarnessType claude `
         -ProjectDir $localProject -BinDir $localBin
     if ((Get-Content -LiteralPath (Join-Path $localBin "proxyma-agent.exe") -Raw).Trim() -ne "local") { Fail "local binary was not installed" }
-    if (-not (Test-Path -LiteralPath (Join-Path $localProject ".agents\skills\proxyma-harness\SKILL.md"))) { Fail "local harness was not installed" }
+    if (-not (Test-Path -LiteralPath (Join-Path $localProject ".claude\skills\proxyma-harness\SKILL.md"))) { Fail "local Claude adapter was not installed" }
+    if (Test-Path -LiteralPath (Join-Path $localProject ".agents\skills\proxyma-harness")) { Fail "local install created the wrong adapter" }
     Invoke-ExpectedFailure { & $Installer -Binary (Join-Path $localRelease "proxyma-agent-windows-arm64.exe") -ProjectDir $localProject -BinDir $localBin } "local mode accepted only one artifact"
 
     $env:PROXYMA_AGENT_ARCH = "amd64"
@@ -141,13 +159,15 @@ try {
     New-Item -ItemType Directory -Path $unsafeProject | Out-Null
     Invoke-ExpectedFailure { & $Installer -Version v1.2.6 -ProjectDir $unsafeProject -BinDir (Join-Path $TestRoot "unsafe-bin") } "unsafe archive"
 
-    $linkProject = Join-Path $TestRoot "link-project"
-    $linkTarget = Join-Path $TestRoot "link-target"
-    $linkBin = Join-Path $TestRoot "link-bin"
-    New-Item -ItemType Directory -Path $linkProject, $linkTarget | Out-Null
-    New-Item -ItemType Junction -Path (Join-Path $linkProject "harness") -Target $linkTarget | Out-Null
-    Invoke-ExpectedFailure { & $Installer -Version v1.2.3 -ProjectDir $linkProject -BinDir $linkBin } "reparse-point harness target"
-    if (Test-Path -LiteralPath (Join-Path $linkBin "proxyma-agent.exe")) { Fail "binary was installed before reparse-point preflight failed" }
+    if ($IsWindows) {
+        $linkProject = Join-Path $TestRoot "link-project"
+        $linkTarget = Join-Path $TestRoot "link-target"
+        $linkBin = Join-Path $TestRoot "link-bin"
+        New-Item -ItemType Directory -Path $linkProject, $linkTarget | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $linkProject "harness") -Target $linkTarget | Out-Null
+        Invoke-ExpectedFailure { & $Installer -Version v1.2.3 -ProjectDir $linkProject -BinDir $linkBin } "reparse-point harness target"
+        if (Test-Path -LiteralPath (Join-Path $linkBin "proxyma-agent.exe")) { Fail "binary was installed before reparse-point preflight failed" }
+    }
 
     $env:PROXYMA_AGENT_OS = "freebsd"
     Invoke-ExpectedFailure { & $Installer -ProjectDir $project -BinDir $bin } "unsupported operating system"

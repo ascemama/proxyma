@@ -113,39 +113,3 @@ func sha256Hex(value []byte) string {
 	sum := sha256.Sum256(value)
 	return hex.EncodeToString(sum[:])
 }
-
-func targetCredentialChanged(existing *targets.Target, request UserTargetMutationRequest) bool {
-	if existing == nil {
-		return true
-	}
-	transport := strings.TrimSpace(request.Transport)
-	if transport == "" {
-		transport = existing.Transport
-	}
-	if transport != existing.Transport || strings.TrimSpace(request.Hostname) != existing.Hostname || strings.TrimSpace(request.IP) != existing.IP {
-		return true
-	}
-	if username := strings.TrimSpace(request.Username); username != "" && username != existing.Username {
-		return true
-	}
-	existingAuthType := ""
-	if existing.Auth != nil {
-		existingAuthType = existing.Auth.Type
-	}
-	if authType := strings.TrimSpace(request.AuthType); authType != "" && authType != existingAuthType {
-		return true
-	}
-	if request.Password != "" || len(request.PrivateKeyUpload) > 0 {
-		return true
-	}
-	if request.WinRM != nil {
-		if existing.WinRM == nil || strings.ToLower(strings.TrimSpace(request.WinRM.Scheme)) != existing.WinRM.Scheme || request.WinRM.Port != existing.WinRM.Port || request.WinRM.TLSInsecure != existing.WinRM.TLSInsecure {
-			return true
-		}
-	}
-	return false
-}
-
-func credentialTestRequiredError() error {
-	return requestError{status: 400, payload: ErrorResponse{Error: "a successful credential test is required", Code: "credential_test_required"}}
-}

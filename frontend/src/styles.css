@@ -1635,6 +1635,11 @@ code {
   overflow-wrap: anywhere;
 }
 
+.credential-test-status.warning {
+  color: var(--amber);
+  font-weight: 600;
+}
+
 .host-key-approval {
   border: 1px solid color-mix(in srgb, var(--amber) 55%, var(--line));
   border-radius: 12px;

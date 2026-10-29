@@ -56,8 +56,8 @@ $core = "harness/instruction-pack/proxyma-harness.md"
 $codex = "harness/.agents/skills/proxyma-harness/SKILL.md"
 $claude = "harness/.claude/skills/proxyma-harness/SKILL.md"
 Require-Text $core @("proxyma-agent resume", "task-complete", "Never directly use SSH", "Never read or edit", "uncertain submission", "Harness v1")
-Require-Text $codex @("proxyma-agent resume", 'requested_by: "codex"', "task-complete")
-Require-Text $claude @("proxyma-agent resume", 'requested_by: "claude-code"', "task-complete")
+Require-Text $codex @("harness/instruction-pack/proxyma-harness.md", "proxyma-agent resume", 'requested_by: "codex"', "task-complete")
+Require-Text $claude @("harness/instruction-pack/proxyma-harness.md", "proxyma-agent resume", 'requested_by: "claude-code"', "task-complete")
 
 foreach ($adapter in @($codex, $claude)) {
     $length = (Get-Content -LiteralPath (Join-Path $RepoRoot $adapter) -Raw).Length
