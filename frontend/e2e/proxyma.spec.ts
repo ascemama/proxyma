@@ -31,11 +31,13 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'License' })).toHaveCount(0);
   await expect(page.getByText('No warranty')).toHaveCount(0);
   await expect(page.getByText(/^Version (?:\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+\d+\.g[0-9a-f]{7}(?:\.dirty)?)?|dev(?:\+g[0-9a-f]{7}(?:\.dirty)?)?)$/)).toBeVisible();
-  await page.getByRole('button', { name: 'Collapse', exact: true }).click();
-  await expect(sourceLink).toBeHidden();
-  await expect(page.getByText(/^Version /)).toBeHidden();
-  await page.getByRole('button', { name: 'Toggle navigation' }).click();
-  await expect(sourceLink).toBeVisible();
+  const applicationNavigation = page.getByRole('navigation', { name: 'Application navigation' });
+  await expect(applicationNavigation).toBeVisible();
+  await expect(applicationNavigation.getByRole('button', { name: 'Dashboard', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(applicationNavigation.getByRole('button', { name: 'Targets', exact: true })).toBeEnabled();
+  await expect(applicationNavigation.getByRole('button', { name: 'Agents', exact: true })).toBeEnabled();
+  await expect(applicationNavigation.getByRole('button', { name: 'Users', exact: true })).toBeEnabled();
+  await expect(applicationNavigation.getByRole('button', { name: 'Logs', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Recent History' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Targets' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Agents' })).toBeVisible();
@@ -56,10 +58,11 @@ test('user can log in and load the dashboard', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Interactions', exact: true })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Interactions', exact: true }).click();
+  await expect(applicationNavigation.getByRole('button', { name: 'Interactions', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { level: 1, name: 'Interactions' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Name Creator Type Status Endpoint Agents Actions/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /Example ntfy.*NTFY.*Enabled/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Logs', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Logs', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'History', exact: true }).click();
   const providerInstanceFilter = page.getByLabel('Provider instance');
@@ -535,18 +538,48 @@ test('non-admin user can view shared policies and manage an owned policy', async
 
   await page.getByRole('button', { name: 'Policies', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Policies', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Policies', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'All policies', exact: true })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Policy Owner Blacklist Whitelist Targets Status/ })).toBeVisible();
   const baselineRow = page.locator('.policy-list-row').filter({ hasText: 'Baseline Readonly Fixture' });
   await expect(baselineRow).toBeVisible();
   await expect(baselineRow.getByLabel(/Delete/)).toHaveCount(0);
+
+  await baselineRow.click();
+  const sharedDetail = page.locator('.policy-detail-panel');
+  await expect(sharedDetail.getByRole('heading', { name: 'Command rules' })).toBeVisible();
+  await expect(sharedDetail.getByRole('heading', { name: 'Assigned targets' })).toBeVisible();
+  await expect(sharedDetail.getByRole('button', { name: 'Add rule' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Add policy' }).click();
   const detail = page.locator('.policy-detail-panel');
   await expect(detail.getByRole('heading', { name: 'New policy' })).toBeVisible();
   await detail.getByLabel('Name').fill('Temporary E2E Policy');
   await detail.getByLabel('Description').fill('Created by the policy tab e2e test');
-  await detail.getByRole('button', { name: 'Save policy' }).click();
+  await detail.locator('.policy-add-rule-menu summary').click();
+  await detail.getByRole('menuitem', { name: /Blacklist rule/ }).click();
+  await detail.getByLabel('Command template for blacklist rule').fill('rm -rf {path}');
+  await detail.locator('.policy-add-rule-menu summary').click();
+  await detail.getByRole('menuitem', { name: /Whitelist rule/ }).click();
+  await detail.getByLabel('Command template for whitelist rule').fill('hostname');
+  await expect(detail.getByRole('button', { name: 'Remove blacklist rule' })).toBeVisible();
+  await detail.getByRole('button', { name: 'Remove whitelist rule' }).click();
+  await expect(detail.getByRole('button', { name: 'Remove whitelist rule' })).toHaveCount(0);
+  await detail.getByRole('button', { name: 'Save policy', exact: true }).click();
   await expect(page.locator('.policy-list-row').filter({ hasText: 'Temporary E2E Policy' })).toBeVisible();
+
+  await page.locator('.policy-list-row').filter({ hasText: 'Temporary E2E Policy' }).click();
+  await page.locator('.policy-detail-panel').getByRole('button', { name: 'Import JSON' }).click();
+  const importDialog = page.getByRole('dialog', { name: 'Import rule lists' });
+  await expect(importDialog.getByText('JSON template', { exact: true })).toBeVisible();
+  await expect(importDialog.locator('pre[aria-label="JSON import template"]')).toContainText('"blacklist"');
+  const templateDownload = page.waitForEvent('download');
+  await importDialog.getByRole('button', { name: 'Download template' }).click();
+  await expect((await templateDownload).suggestedFilename()).toBe('proxyma-policy-rule-list.json');
+  await importDialog.locator('input[type="file"]').setInputFiles({ name: 'rules.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ version: 1, blacklist: [{ command_template: 'echo {hostname}', reason: 'Imported test rule' }], whitelist: [] })) });
+  await expect(importDialog.getByText('1 blacklist rules')).toBeVisible();
+  await importDialog.getByRole('button', { name: 'Append rules' }).click();
+  await expect(importDialog.getByText('Import complete')).toBeVisible();
+  await importDialog.getByRole('button', { name: 'Done' }).click();
 
   page.once('dialog', (dialog) => void dialog.accept());
   await page.locator('.policy-list-row').filter({ hasText: 'Temporary E2E Policy' }).getByLabel('Delete Temporary E2E Policy').click();

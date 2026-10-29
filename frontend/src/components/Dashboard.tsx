@@ -6,7 +6,6 @@ import {
   Calendar,
   CheckCircle2,
   ChevronDown,
-  ChevronsLeft,
   ClipboardList,
   Copy,
   Eye,
@@ -19,7 +18,6 @@ import {
   ListChecks,
   Loader2,
   LogOut,
-  Menu,
   MoreHorizontal,
   Network,
   Palette,
@@ -28,7 +26,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  ScrollText,
   ShieldCheck,
   Trash2,
   Upload,
@@ -167,12 +164,10 @@ const navItems: NavItem[] = [
   { label: 'Interactions', page: 'interaction', icon: ListChecks },
   { label: 'Policies', page: 'policy', icon: ShieldCheck },
   { label: 'History', page: 'history', icon: FileClock },
-  { label: 'Users', page: 'user', icon: Users, adminOnly: true },
-  { label: 'Logs', icon: ScrollText, disabled: true }
+  { label: 'Users', page: 'user', icon: Users, adminOnly: true }
 ];
 
 export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProps) {
-  const [collapsed, setCollapsed] = useState(false);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [targetDialog, setTargetDialog] = useState<TargetDialogState | null>(null);
   const [agentDialog, setAgentDialog] = useState<AgentDialogState | null>(null);
@@ -457,51 +452,46 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`} aria-label="Application navigation">
-        <div className="sidebar-brand">
-          <button className="icon-button" type="button" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle navigation">
-            <Menu size={22} />
-          </button>
+      <header className="workbench-topbar">
+        <div className="workbench-brand" aria-label="Proxyma">
           <div className="brand-mark" aria-hidden="true" />
-          {!collapsed ? <strong>Proxyma</strong> : null}
+          <strong>Proxyma</strong>
         </div>
 
-        <nav className="nav-list">
+        <nav className="workbench-nav" aria-label="Application navigation">
           {navItems
             .filter((item) => !item.adminOnly || session.user.admin)
             .map((item) => (
-            <NavButton key={item.label} activePage={activePage} collapsed={collapsed} item={item} onSelect={setActivePage} />
+            <NavButton key={item.label} activePage={activePage} item={item} onSelect={setActivePage} />
           ))}
         </nav>
 
-        <button className="collapse-button" type="button" onClick={() => setCollapsed((value) => !value)}>
-          <ChevronsLeft size={18} />
-          {!collapsed ? <span>Collapse</span> : null}
-        </button>
-        {!collapsed ? <ApplicationFooter version={session.build.version} /> : null}
-      </aside>
+        <div className="user-menu">
+          <button
+            aria-label={`Open settings for ${session.user.name || session.user.username}`}
+            className="user-settings-trigger"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <span className="avatar">{initials(session.user.name || session.user.username)}</span>
+            <span>
+              <strong>{session.user.name || session.user.username}</strong>
+              <small>{session.user.admin ? 'Administrator' : 'User'}</small>
+            </span>
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
+          <button className="ghost-button" type="button" onClick={handleLogout}>
+            <LogOut size={16} />
+            Logout
+          </button>
+        </div>
+      </header>
 
       <main className="workspace">
-        <header className="topbar">
-          <h1>{pageTitle}</h1>
-          <div className="user-menu">
-            <button
-              aria-label={`Open settings for ${session.user.name || session.user.username}`}
-              className="user-settings-trigger"
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <span className="avatar">{initials(session.user.name || session.user.username)}</span>
-              <span>
-                <strong>{session.user.name || session.user.username}</strong>
-                <small>{session.user.admin ? 'Administrator' : 'User'}</small>
-              </span>
-              <ChevronDown size={16} aria-hidden="true" />
-            </button>
-            <button className="ghost-button" type="button" onClick={handleLogout}>
-              <LogOut size={16} />
-              Logout
-            </button>
+        <header className="workspace-heading">
+          <div>
+            <span>Workspace</span>
+            <h1>{pageTitle}</h1>
           </div>
         </header>
 
@@ -616,6 +606,8 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
             targetsLoading={targetsQuery.isLoading}
           />
         )}
+
+        <ApplicationFooter version={session.build.version} />
       </main>
 
       {settingsOpen ? (
@@ -759,12 +751,10 @@ export function Dashboard({ session, onLoggedOut, onUserUpdated }: DashboardProp
 
 function NavButton({
   activePage,
-  collapsed,
   item,
   onSelect
 }: {
   activePage: PageKey;
-  collapsed: boolean;
   item: NavItem;
   onSelect: (page: PageKey) => void;
 }) {
@@ -773,6 +763,7 @@ function NavButton({
   return (
     <button
       aria-disabled={item.disabled ? 'true' : undefined}
+      aria-current={active ? 'page' : undefined}
       className={`nav-button ${active ? 'active' : ''}`}
       disabled={item.disabled}
       onClick={() => {
@@ -780,11 +771,10 @@ function NavButton({
           onSelect(item.page);
         }
       }}
-      title={collapsed ? item.label : undefined}
       type="button"
     >
       <Icon size={20} />
-      {!collapsed ? <span>{item.label}</span> : null}
+      <span>{item.label}</span>
     </button>
   );
 }
@@ -847,7 +837,7 @@ function DashboardPage({
   targetsLoading: boolean;
 }) {
   return (
-    <section className="dashboard-stack">
+    <section className="dashboard-stack dashboard-page">
       <CommandHistorySection
         commands={commands}
         error={historyError}
