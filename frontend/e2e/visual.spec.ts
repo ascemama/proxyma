@@ -20,7 +20,15 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   await expect(page.getByText('Recent History')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Targets', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Agents', exact: true })).toBeVisible();
+  const applicationNavigation = page.getByRole('navigation', { name: 'Application navigation' });
+  await expect(applicationNavigation).toBeVisible();
+  await expect(applicationNavigation.getByRole('button', { name: 'Users', exact: true })).toBeVisible();
+  await expect(applicationNavigation.getByRole('button', { name: 'Logs', exact: true })).toHaveCount(0);
   await page.screenshot({ fullPage: true, path: 'test-results/dashboard-desktop.png' });
+
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1180);
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.getByRole('button', { name: 'Open settings for Demo Admin' }).click();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
@@ -44,6 +52,19 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
   });
   await appearanceSettings.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await page.getByRole('button', { name: 'Policies', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Policies', exact: true })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Policy Owner Blacklist Whitelist Targets Status/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Command rules' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Assigned targets' })).toBeVisible();
+  await page.screenshot({ fullPage: true, path: 'test-results/policies-light-desktop.png' });
+  await page.locator('html').evaluate((element) => { element.dataset.theme = 'dark'; });
+  await page.screenshot({ fullPage: true, path: 'test-results/policies-dark-desktop.png' });
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1180);
+  await page.locator('html').evaluate((element) => { element.dataset.theme = 'light'; });
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.getByRole('button', { name: 'Targets', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Targets', exact: true })).toBeVisible();

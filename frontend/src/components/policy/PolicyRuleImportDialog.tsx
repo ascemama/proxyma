@@ -1,5 +1,17 @@
 import { useState } from 'react';
+import { FileDown } from 'lucide-react';
 import { APIError, type PolicyRuleImportResponse, type PolicyRuleListDocument } from '../../api/client';
+
+const RULE_LIST_TEMPLATE = JSON.stringify({
+  $schema: 'https://proxyma.local/schemas/proxyma.policy-rule-list.schema.json',
+  version: 1,
+  blacklist: [
+    { command_template: 'rm -rf {path}', reason: 'Destructive filesystem operation' }
+  ],
+  whitelist: [
+    { command_template: 'ping {ipv4}', reason: 'Network reachability check' }
+  ]
+}, null, 2);
 
 type PolicyRuleImportDialogProps = {
   error: Error | null;
@@ -36,6 +48,16 @@ export function PolicyRuleImportDialog({ error, isSaving, onClose, onImport }: P
     }
   }
 
+  function downloadTemplate() {
+    const blob = new Blob([`${RULE_LIST_TEMPLATE}\n`], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = 'proxyma-policy-rule-list.json';
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
+
   const conflicts = error instanceof APIError ? error.conflicts ?? [] : [];
 
   return (
@@ -47,6 +69,10 @@ export function PolicyRuleImportDialog({ error, isSaving, onClose, onImport }: P
         </div>
         {!result ? <>
           <label className="dialog-field wide"><span>JSON file</span><input type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void readFile(file); }} /></label>
+          <section className="policy-import-template" aria-labelledby="policy-import-template-title">
+            <div className="policy-import-template-header"><div><strong id="policy-import-template-title">JSON template</strong><small>Use this structure for blacklist and whitelist rule lists.</small></div><button className="ghost-button" type="button" onClick={downloadTemplate}><FileDown size={15} /> Download template</button></div>
+            <pre aria-label="JSON import template">{RULE_LIST_TEMPLATE}</pre>
+          </section>
           {document ? <div className="policy-import-preview"><strong>Preview</strong><span>{document.blacklist.length} blacklist rules</span><span>{document.whitelist.length} whitelist rules</span></div> : null}
           {fileError || error ? <div className="form-error compact">{fileError || error?.message}{conflicts.length > 0 ? <ul>{conflicts.map((entry) => <li key={`${entry.command_template}:${entry.reason ?? ''}`}>{entry.command_template}</li>)}</ul> : null}</div> : null}
           <div className="dialog-actions"><button className="ghost-button" type="button" onClick={onClose}>Cancel</button><button className="primary-action" type="button" disabled={!document || isSaving} onClick={() => void submit()}>{isSaving ? 'Importing…' : 'Append rules'}</button></div>
