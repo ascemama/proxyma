@@ -40,6 +40,7 @@ chmod 0755 "$INSTALLER"
 PROXYMA_RELEASE_BASE_URL="$RELEASE_BASE_URL" \
   bash "$INSTALLER" \
     --version "$VERSION" \
+    --harness-type codex \
     --project-dir "$PROJECT_DIR" \
     --bin-dir "$BIN_DIR"
 
@@ -57,6 +58,7 @@ printf 'preserved-state\n' >"$PROJECT_DIR/harness/task-state/active/task.json"
 PROXYMA_RELEASE_BASE_URL="$RELEASE_BASE_URL" \
   bash "$INSTALLER" \
     --version "$VERSION" \
+    --harness-type codex \
     --project-dir "$PROJECT_DIR" \
     --bin-dir "$BIN_DIR" >/dev/null
 

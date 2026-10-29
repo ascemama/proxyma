@@ -40,6 +40,7 @@ try {
     $env:PROXYMA_RELEASE_BASE_URL = $ReleaseBaseUrl
     & $Installer `
         -Version $Version `
+        -HarnessType codex `
         -ProjectDir $ProjectDir `
         -BinDir $BinDir
 
@@ -64,6 +65,7 @@ try {
 
     & $Installer `
         -Version $Version `
+        -HarnessType codex `
         -ProjectDir $ProjectDir `
         -BinDir $BinDir | Out-Null
 

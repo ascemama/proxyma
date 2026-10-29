@@ -36,6 +36,6 @@ The output has the form:
 Proxyma <version> (commit <commit>)
 ```
 
-See the [source-build deployment guide](deployment-linux-binary.md) for release
-build commands and the [local development guide](deployment-local.md) for
+See the [source-built server installation guide](proxyma-server-installation-linux-binary.md) for release
+build commands and the [local development guide](proxyma-server-installation-local.md) for
 development builds.

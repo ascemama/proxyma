@@ -1,4 +1,4 @@
-# First-time Configuration
+# First-time Proxyma Server Configuration
 
 This guide walks through the first browser-based Proxyma configuration in the
 order that resources depend on one another:
@@ -10,13 +10,14 @@ order that resources depend on one another:
 5. Create a target.
 
 The screenshots were captured from the local Proxyma server using the checked-in
-end-to-end fixture data. The forms intentionally leave credentials and signing
-keys blank; use your own secrets when configuring a real deployment.
+end-to-end fixture data. They use safe example values, and any credential or
+signing-key value shown in a generated configuration is redacted; use your own
+secrets when configuring a real deployment.
 
 ## Before you begin
 
 Start Proxyma and open its browser GUI. For local development, follow the
-[local deployment guide](deployment-local.md). For an installed server, open
+[local server installation guide](proxyma-server-installation-local.md). For an installed server, open
 the HTTPS URL shown by the service and make sure the administrator user has
 been created.
 
@@ -40,13 +41,14 @@ Open the Proxyma URL and sign in with your administrator username and password.
 ![Proxyma sign-in screen](images/first-time-login.jpg)
 
 After a successful sign-in, the dashboard shows the resources visible to the
-current user. The navigation on the left opens the Target, Agent, Interactions,
-and Policy pages.
+current user. The navigation on the left opens the Targets, Agents,
+Interactions, and Policies pages.
 
 ## 2. Create a policy
 
-Open **Policy** in the left navigation and select **Add Policy**. Give the
-policy a descriptive name, enable it, and add typed command templates to its
+Open **Policies** in the left navigation and select **Add policy**. The
+refactored GUI opens an in-page **New policy** editor. Give the policy a
+descriptive name, enable it, and add typed command templates to its
 **Blacklist** and **Whitelist** sections. For example, `ping {ipv4}` allows a
 ping to any IPv4 address while preserving the command structure.
 
@@ -64,7 +66,7 @@ uncertain LLM response still requires approval. A valid response must include
 both the decision and a short justification. The justification explains the
 result but never overrides the decision.
 
-![Add Policy form](images/first-time-policy.jpg)
+![Current Proxyma policy editor](images/first-time-policy.jpg)
 
 Policies can be edited in place. Changes affect every target currently assigned
 to the policy. Each target has exactly one policy; assigning a target to a
@@ -74,7 +76,7 @@ managed from the policy detail page or the target editor.
 ## 3. Create an ntfy communication
 
 Open **Interactions**, select **Add Interaction**, choose **NTFY**, and complete
-the form:
+the **Add NTFY Interaction** form:
 
 - **Display Name** identifies the notification channel in Proxyma.
 - **Base URL** is normally `https://ntfy.sh` or your self-hosted ntfy URL.
@@ -84,7 +86,7 @@ the form:
 - **Poll Interval** and **Poll Timeout** control response polling.
 - **Responded By** is the label recorded for the responder.
 
-![Add NTFY Interaction form](images/first-time-ntfy.jpg)
+![Current Proxyma NTFY interaction editor](images/first-time-ntfy.jpg)
 
 ### Why are there two topics?
 
@@ -116,21 +118,25 @@ instance is saved.
 
 ## 4. Create an agent
 
-Open **Agent** and select **Add Agent**. Enter a display name and generate or
+Open **Agents** and select **Add Agent**. Enter a display name and generate or
 paste a strong **Agent JWT Signing Key**. Select the ntfy interaction created in
 the previous step, or keep **Local console · built in** if approvals should be
-answered on the Proxyma server console.
+answered on the Proxyma server console. After saving, Proxyma opens an
+**Agent created** dialog with the generated Agent ID and the **Harness agent
+configuration**.
 
-![Add Agent form](images/first-time-agent.jpg)
+![Agent created dialog with the harness configuration](images/first-time-agent.jpg)
 
-Save the signing key in the agent's secret configuration at the same time. The
-key is write-only in the GUI and is used to sign short-lived HS256 JWTs; it is
-never sent as the bearer token itself. An agent must also be owned by the user
-who will operate it.
+Use **Copy configuration** in the dialog and paste the result into the harness
+agent configuration file described in the [first-time Proxyma agent
+configuration guide](first-time-configuration-proxyma-agent.md) before
+selecting **Done**. The signing key is write-only in the GUI and is used to
+sign short-lived HS256 JWTs; it is never sent as the bearer token itself. An
+agent must also be owned by the user who will operate it.
 
 ## 5. Create a target
 
-Open **Target** and select **Add Target**. Fill in the connection details:
+Open **Targets** and select **Add Target**. Fill in the connection details:
 
 - **Hostname** and/or **IP address** identify the remote machine.
 - **Username**, **Transport**, and **Operating system** describe the connection.
@@ -139,12 +145,15 @@ Open **Target** and select **Add Target**. Fill in the connection details:
 - Select the command **Policy Name**.
 - Select the **Agent Name** values that may use this target.
 
-![Add Target form](images/first-time-target.jpg)
+![Current Proxyma target editor with optional credential verification](images/first-time-target.jpg)
 
-New targets must pass **Test credentials** before they can be saved. For an
-unknown SSH host key, verify the displayed algorithm and SHA-256 fingerprint
-through a trusted channel, then choose **Trust and retry**. Proxyma stores the
-host key only after the authentication and test command succeed.
+**Test credentials** is recommended but optional; save the target without it if
+you are confident that the supplied credentials are correct. When editing an
+existing target, leave the password or private-key field blank to preserve the
+stored credential. For an unknown SSH host key, verify the displayed algorithm
+and SHA-256 fingerprint through a trusted channel, then choose **Trust and
+retry**. Proxyma stores the host key only after the authentication and test
+command succeed.
 
 After saving, repeat this step for any additional servers. A target refers to
 one policy and one or more agents; every referenced resource must exist and be

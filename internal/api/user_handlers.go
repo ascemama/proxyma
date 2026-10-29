@@ -783,10 +783,6 @@ func (s *Server) handleCreateUserTarget(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	if !s.targetCredentialProofs().consume(request.CredentialTestToken, user.ID, "", credentialRequestDigest(request)) {
-		writeTargetMutationError(w, credentialTestRequiredError())
-		return
-	}
 	if err := storeUploadedTargetPrivateKey(paths, &request); err != nil {
 		writeTargetMutationError(w, err)
 		return
@@ -839,10 +835,6 @@ func (s *Server) handleUpdateUserTarget(w http.ResponseWriter, r *http.Request, 
 	}
 	request, ok := decodeTargetMutationRequest(w, r)
 	if !ok {
-		return
-	}
-	if targetCredentialChanged(&existing, request) && !s.targetCredentialProofs().consume(request.CredentialTestToken, user.ID, id, credentialRequestDigest(request)) {
-		writeTargetMutationError(w, credentialTestRequiredError())
 		return
 	}
 	if err := storeUploadedTargetPrivateKey(paths, &request); err != nil {

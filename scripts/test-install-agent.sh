@@ -71,13 +71,14 @@ OUTPUT="$(
   PROXYMA_AGENT_OS=linux \
   PROXYMA_AGENT_ARCH=x86_64 \
     bash "$ROOT/scripts/install-proxyma-agent.sh" \
-      --version v1.2.3 --project-dir "$PROJECT_DIR" --bin-dir "$BIN_DIR"
+      --version v1.2.3 --harness-type codex --project-dir "$PROJECT_DIR" --bin-dir "$BIN_DIR"
 )"
 
 [[ "$PATH" == "$ORIGINAL_PATH" ]] || fail "installer changed PATH"
 grep -Fx 'first' "$BIN_DIR/proxyma-agent" >/dev/null || fail "wrong binary was installed"
 grep -Fx 'first' "$PROJECT_DIR/harness/instruction-pack/proxyma-harness.md" >/dev/null || fail "harness was not installed"
 grep -Fx 'first' "$PROJECT_DIR/.agents/skills/proxyma-harness/SKILL.md" >/dev/null || fail "Codex adapter was not installed"
+[[ ! -e "$PROJECT_DIR/.claude/skills/proxyma-harness" ]] || fail "Claude adapter was installed during Codex install"
 grep -F 'is not on PATH' <<<"$OUTPUT" >/dev/null || fail "missing PATH guidance"
 find "$PROJECT_DIR/harness/agent-configuration" -type f ! -name .gitkeep ! -name agent.example.json -print -quit | grep -q . && fail "installer created credentials"
 test -f "$PROJECT_DIR/harness/agent-configuration/agent.example.json" || fail "installer omitted credential example"
@@ -92,7 +93,7 @@ PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
 PROXYMA_AGENT_OS=linux \
 PROXYMA_AGENT_ARCH=amd64 \
   bash "$ROOT/scripts/install-proxyma-agent.sh" \
-    --version v1.2.3 --project-dir "$PROJECT_DIR" --bin-dir "$BIN_DIR" >/dev/null
+    --version v1.2.3 --harness-type codex --project-dir "$PROJECT_DIR" --bin-dir "$BIN_DIR" >/dev/null
 grep -Fx 'preserved-config' "$PROJECT_DIR/harness/proxyma-agent.json" >/dev/null || fail "configuration was overwritten"
 grep -Fx 'preserved-secret' "$PROJECT_DIR/harness/agent-configuration/agent.json" >/dev/null || fail "credential was overwritten"
 grep -Fx 'custom-example' "$PROJECT_DIR/harness/agent-configuration/agent.example.json" >/dev/null || fail "credential example was overwritten"
@@ -109,6 +110,43 @@ PROXYMA_AGENT_ARCH=aarch64 \
     --project-dir "$TEST_ROOT/latest-project" --bin-dir "$TEST_ROOT/latest-bin" >/dev/null
 grep -Fx latest "$TEST_ROOT/latest-bin/proxyma-agent" >/dev/null || fail "latest Darwin ARM64 asset was not selected"
 
+CLAUDE_PROJECT="$TEST_ROOT/claude-project"
+mkdir -p "$CLAUDE_PROJECT"
+CLAUDE_OUTPUT="$(
+  PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
+  PROXYMA_AGENT_OS=darwin \
+  PROXYMA_AGENT_ARCH=arm64 \
+    bash "$ROOT/scripts/install-proxyma-agent.sh" \
+      --harness-type claude --project-dir "$CLAUDE_PROJECT" --bin-dir "$TEST_ROOT/claude-bin"
+)"
+grep -F "Installed the Claude adapter" <<<"$CLAUDE_OUTPUT" >/dev/null || fail "Claude adapter was not reported"
+grep -Fx latest "$TEST_ROOT/claude-bin/proxyma-agent" >/dev/null || fail "Claude install selected the wrong binary"
+grep -Fx latest "$CLAUDE_PROJECT/.claude/skills/proxyma-harness/SKILL.md" >/dev/null || fail "Claude adapter was not installed"
+[[ ! -e "$CLAUDE_PROJECT/.agents/skills/proxyma-harness" ]] || fail "Codex adapter was installed during Claude install"
+
+DEFAULT_PROJECT="$TEST_ROOT/default-project"
+mkdir -p "$DEFAULT_PROJECT"
+DEFAULT_OUTPUT="$(
+  PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
+  PROXYMA_AGENT_OS=darwin \
+  PROXYMA_AGENT_ARCH=arm64 \
+    bash "$ROOT/scripts/install-proxyma-agent.sh" \
+      --project-dir "$DEFAULT_PROJECT" --bin-dir "$TEST_ROOT/default-bin"
+)"
+grep -F "No project adapter selected" <<<"$DEFAULT_OUTPUT" >/dev/null || fail "missing adapter guidance"
+[[ ! -e "$DEFAULT_PROJECT/.agents/skills/proxyma-harness" ]] || fail "Codex adapter was installed without selection"
+[[ ! -e "$DEFAULT_PROJECT/.claude/skills/proxyma-harness" ]] || fail "Claude adapter was installed without selection"
+test -f "$DEFAULT_PROJECT/harness/.agents/skills/proxyma-harness/SKILL.md" || fail "manual Codex adapter source is missing"
+test -f "$DEFAULT_PROJECT/harness/.claude/skills/proxyma-harness/SKILL.md" || fail "manual Claude adapter source is missing"
+
+INVALID_PROJECT="$TEST_ROOT/invalid-project"
+if PROXYMA_AGENT_OS=linux PROXYMA_AGENT_ARCH=amd64 \
+  bash "$ROOT/scripts/install-proxyma-agent.sh" --harness-type invalid \
+    --project-dir "$INVALID_PROJECT" --bin-dir "$TEST_ROOT/invalid-bin" >/dev/null 2>&1; then
+  fail "invalid harness type was accepted"
+fi
+[[ ! -e "$INVALID_PROJECT" ]] || fail "invalid harness type created an install directory"
+
 LOCAL_PROJECT="$TEST_ROOT/local-project"
 LOCAL_BIN="$TEST_ROOT/local-bin"
 mkdir -p "$LOCAL_PROJECT"
@@ -116,10 +154,12 @@ PROXYMA_AGENT_OS=linux PROXYMA_AGENT_ARCH=amd64 \
   bash "$ROOT/scripts/install-proxyma-agent.sh" \
   --binary "$EXACT_DIR/proxyma-agent-linux-amd64" \
   --harness "$EXACT_DIR/proxyma-agent-harness.tar.gz" \
+  --harness-type claude \
   --project-dir "$LOCAL_PROJECT" \
   --bin-dir "$LOCAL_BIN" >/dev/null
 grep -Fx second "$LOCAL_BIN/proxyma-agent" >/dev/null || fail "local binary was not installed"
-grep -Fx second "$LOCAL_PROJECT/.agents/skills/proxyma-harness/SKILL.md" >/dev/null || fail "local harness was not installed"
+grep -Fx second "$LOCAL_PROJECT/.claude/skills/proxyma-harness/SKILL.md" >/dev/null || fail "local Claude adapter was not installed"
+[[ ! -e "$LOCAL_PROJECT/.agents/skills/proxyma-harness" ]] || fail "local install created the wrong adapter"
 
 if PROXYMA_AGENT_OS=linux PROXYMA_AGENT_ARCH=amd64 \
   bash "$ROOT/scripts/install-proxyma-agent.sh" \

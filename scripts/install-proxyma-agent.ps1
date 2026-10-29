@@ -4,10 +4,15 @@ param(
     [string]$ProjectDir = (Get-Location).Path,
     [string]$BinDir = "",
     [string]$Binary = "",
-    [string]$Harness = ""
+    [string]$Harness = "",
+    [string]$HarnessType = ""
 )
 
 $ErrorActionPreference = "Stop"
+$HarnessType = $HarnessType.ToLowerInvariant()
+if ($HarnessType -notin @("", "codex", "claude")) {
+    throw "Invalid harness type '$HarnessType'. Use codex or claude."
+}
 $RepositoryUrl = if ($env:PROXYMA_RELEASE_BASE_URL) { $env:PROXYMA_RELEASE_BASE_URL.TrimEnd('/') } else { "https://github.com/ascemama/proxyma" }
 $ArchiveName = "proxyma-agent-harness.tar.gz"
 
@@ -28,7 +33,7 @@ function Test-Version([string]$Value) {
 function Assert-NotReparsePoint([string]$Path, [string]$Label) {
     if (Test-Path -LiteralPath $Path) {
         $item = Get-Item -Force -LiteralPath $Path
-        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $item.LinkType) {
             throw "$Label must not be a symbolic link or reparse point: $Path"
         }
     }
@@ -183,8 +188,19 @@ try {
 
     $installedBinary = Join-Path $BinDir "proxyma-agent.exe"
     $harnessDir = Join-Path $ProjectDir "harness"
-    $agentsDir = Join-Path $ProjectDir ".agents"
-    $skillsDir = Join-Path $agentsDir "skills"
+    $rootAdapterDir = ""
+    $rootAdapterPath = ""
+    $rootAdapterSource = ""
+    if ($HarnessType -eq "codex") {
+        $rootAdapterDir = Join-Path $ProjectDir ".agents\skills"
+        $rootAdapterPath = Join-Path $rootAdapterDir "proxyma-harness"
+        $rootAdapterSource = Join-Path $payloadDir ".agents\skills\proxyma-harness"
+    }
+    elseif ($HarnessType -eq "claude") {
+        $rootAdapterDir = Join-Path $ProjectDir ".claude\skills"
+        $rootAdapterPath = Join-Path $rootAdapterDir "proxyma-harness"
+        $rootAdapterSource = Join-Path $payloadDir ".claude\skills\proxyma-harness"
+    }
     Assert-NotReparsePoint $installedBinary "Installed binary"
     if ((Test-Path -LiteralPath $installedBinary) -and -not (Test-Path -LiteralPath $installedBinary -PathType Leaf)) {
         throw "Installed binary target must be a regular file: $installedBinary"
@@ -219,10 +235,13 @@ try {
             throw "Preserved harness path must be a directory: $path"
         }
     }
-    foreach ($directory in @($agentsDir, $skillsDir)) {
-        Assert-NotReparsePoint $directory "Skill directory"
-        if ((Test-Path -LiteralPath $directory) -and -not (Test-Path -LiteralPath $directory -PathType Container)) {
-            throw "Skill directory must be a directory: $directory"
+    if ($HarnessType) {
+        $rootAdapterParent = Split-Path -Parent $rootAdapterDir
+        foreach ($directory in @($rootAdapterParent, $rootAdapterDir)) {
+            Assert-NotReparsePoint $directory "Skill directory"
+            if ((Test-Path -LiteralPath $directory) -and -not (Test-Path -LiteralPath $directory -PathType Container)) {
+                throw "Skill directory must be a directory: $directory"
+            }
         }
     }
     $ownedDestinations = @(
@@ -232,9 +251,9 @@ try {
         (Join-Path $harnessDir ".agents"),
         (Join-Path $harnessDir ".claude"),
         (Join-Path $harnessDir "RELEASE"),
-        (Join-Path $skillsDir "proxyma-harness"),
         $installedBinary
     )
+    if ($HarnessType) { $ownedDestinations += $rootAdapterPath }
     foreach ($destination in $ownedDestinations) {
         Assert-NotReparsePoint $destination "Install destination"
         if ((Test-Path -LiteralPath "$destination.proxyma-new.$PID") -or (Test-Path -LiteralPath "$destination.proxyma-backup.$PID")) {
@@ -256,20 +275,37 @@ try {
     foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "RELEASE")) {
         Replace-InstalledPath (Join-Path $payloadDir $owned) (Join-Path $harnessDir $owned)
     }
-    foreach ($directory in @($agentsDir, $skillsDir)) {
-        New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    if ($HarnessType) {
+        New-Item -ItemType Directory -Force -Path $rootAdapterDir | Out-Null
+        Replace-InstalledPath $rootAdapterSource $rootAdapterPath
     }
-    Replace-InstalledPath (Join-Path $payloadDir ".agents\skills\proxyma-harness") (Join-Path $skillsDir "proxyma-harness")
 
     Write-Host "Installed proxyma-agent at $installedBinary"
     Write-Host "Installed the matching harness at $harnessDir"
-    Write-Host "Installed the Codex adapter at $(Join-Path $skillsDir 'proxyma-harness')"
+    if ($HarnessType -eq "codex") {
+        Write-Host "Installed the Codex adapter at $rootAdapterPath"
+    }
+    elseif ($HarnessType -eq "claude") {
+        Write-Host "Installed the Claude adapter at $rootAdapterPath"
+    }
+    else {
+        $codexSkill = Join-Path $harnessDir ".agents\skills\proxyma-harness\SKILL.md"
+        $claudeSkill = Join-Path $harnessDir ".claude\skills\proxyma-harness\SKILL.md"
+        $codexDestination = Join-Path $ProjectDir ".agents\skills\proxyma-harness\SKILL.md"
+        $claudeDestination = Join-Path $ProjectDir ".claude\skills\proxyma-harness\SKILL.md"
+        Write-Host "No project adapter selected. To enable Codex, run:"
+        Write-Host "  New-Item -ItemType Directory -Force '$(Split-Path -Parent $codexDestination)'"
+        Write-Host "  Copy-Item -LiteralPath '$codexSkill' -Destination '$codexDestination' -Force"
+        Write-Host "To enable Claude Code, run:"
+        Write-Host "  New-Item -ItemType Directory -Force '$(Split-Path -Parent $claudeDestination)'"
+        Write-Host "  Copy-Item -LiteralPath '$claudeSkill' -Destination '$claudeDestination' -Force"
+    }
     $pathEntries = @($env:PATH -split ';' | ForEach-Object { $_.TrimEnd('\') })
     if ($pathEntries -contains $BinDir.TrimEnd('\')) {
         Write-Host "$BinDir is already on PATH."
     }
     else {
-        Write-Host "$BinDir is not on PATH. Add it to the user Path in Windows Environment Variables, then restart Codex."
+        Write-Host "$BinDir is not on PATH. Add it to the user Path in Windows Environment Variables, then restart Codex or Claude Code."
     }
 }
 finally {

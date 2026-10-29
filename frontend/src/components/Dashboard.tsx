@@ -3158,22 +3158,8 @@ function TargetFormModal({
 	const credentialEndpointReady = transport === 'ssh' ? ip.trim() !== '' : (hostname.trim() !== '' || ip.trim() !== '');
   const credentialReady =
 	credentialEndpointReady && username.trim() !== '' && (transport === 'ssh' && authType === 'private_key' ? privateKeyFile !== null : password !== '');
-	const credentialTestRequired =
-		mode === 'create' ||
-		!!target && (
-			transport !== target.transport ||
-			hostname.trim() !== (target.hostname ?? '') ||
-			ip.trim() !== (target.ip ?? '') ||
-			username.trim() !== '' ||
-			authType !== (target.auth_type || 'password') ||
-			password !== '' ||
-			privateKeyFile !== null ||
-			(transport === 'winrm' && (
-				winrmScheme !== (target.winrm?.scheme ?? 'https') ||
-				Number(winrmPort) !== (target.winrm?.port ?? 5986) ||
-				winrmTLSInsecure !== (target.winrm?.tls_insecure ?? false)
-			))
-		);
+	const canSaveTarget = canSaveTargetSelections && (mode === 'edit' || credentialReady);
+	const showCredentialWarning = credentialTestStatus !== 'success' && (mode === 'edit' || credentialReady);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3484,6 +3470,11 @@ function TargetFormModal({
               {credentialTestStatus === 'error' ? (
                 <span className="credential-test-status error">{credentialTestError || 'SSH credential test failed'}</span>
               ) : null}
+			  {showCredentialWarning ? (
+				<span className="credential-test-status warning" role="status">
+					Credentials have not been tested. Testing is optional; save only if you are confident they are correct.
+				</span>
+			  ) : null}
             </div>
 			{pendingHostKey ? (
 				<div className="host-key-approval wide" role="alertdialog" aria-labelledby="host-key-approval-title">
@@ -3551,7 +3542,7 @@ function TargetFormModal({
             <button className="ghost-button" type="button" onClick={onClose}>
               Cancel
             </button>
-            <button className="primary-action" type="submit" disabled={isSaving || !canSaveTargetSelections || (credentialTestRequired && !credentialTestToken)}>
+            <button className="primary-action" type="submit" disabled={isSaving || !canSaveTarget}>
               {isSaving ? 'Saving...' : 'Save Target'}
             </button>
           </div>

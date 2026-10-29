@@ -31,7 +31,7 @@ credentials, command policy, audit state, and approval channel.
   - [Feature Capabilities](#feature-capabilities)
   - [Technical Capabilities](#technical-capabilities)
 - [Installation](#installation)
-  - [Proxyma Server installation options](docs/deployment.md)
+  - [Proxyma Server installation options](docs/proxyma-server-installation.md)
   - [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
   - [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md)
 - [Repository Layout](#repository-layout)
@@ -51,7 +51,10 @@ credentials, command policy, audit state, and approval channel.
 The complete command workflow is:
 
 1. The harness decides that it needs to run a specific command on a target.
-2. During proxyma-agent installation, a harness skill is deployed which provide information on when and how to use proxyma-agent CLI to get command run on target server.
+2. During proxyma-agent installation, select the Codex or Claude Code adapter
+   so the harness knows when and how to use the `proxyma-agent` CLI. If no
+   adapter is selected, copy the matching skill from `harness/` into the
+   project-root discovery directory.
 3. Before the first command for a target in the current session, the harness
    requests that target's blacklist and whitelist guidance with
    `proxyma-agent policy --target`. It reuses the guidance for that target until
@@ -95,7 +98,7 @@ See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) for the comple
 
 > [!WARNING]
 > **Early-stage project** 
-Proxyma is currently at version **0.1** and has limited freature such as limited policy set and communication channels (currently only NTFY) 
+Proxyma is currently at version **0.1** and has limited freature such as limited policy set and communication channels (currently only NTFY). Installation was tested mainly on Linux. Version provided for Windows or Mac were currently not tested.
  
 
 ## Proxyma Dashboard
@@ -143,27 +146,26 @@ rule list to an existing policy.
 | Persistence | JSON-backed records and tasks, plus a unified SQLite command and interaction history search index. |
 | Agent platforms | Windows, Linux, and macOS installers for the cross-platform `proxyma-agent` CLI. |
 
-Proxyma does not currently support target-side certificate authentication.
-HTTPS certificates protect the Proxyma service; target authentication uses a
-password or SSH private key.
 
 ## Installation
 
-Choose the deployment model that matches the environment. Each linked guide
-covers prerequisites, installation, verification, updates, rollback, backup,
-troubleshooting, and removal.
+Choose the Proxyma Server installation guide that matches the environment. Each
+linked guide covers prerequisites, installation, verification, updates,
+rollback, backup, troubleshooting, and removal.
 
 | Installation type | Component | Intended use | Documentation |
 | --- | --- | --- | --- |
-| Local development | `proxyma-server` | Change or test the Go server and React frontend | [Proxyma Server — local development](docs/deployment-local.md) |
-| Precompiled Linux binary | `proxyma-server` | Recommended host-level Linux server installation without a compiler or source checkout | [Proxyma Server — precompiled Linux](docs/deployment-linux-precompiled.md) |
-| Source-built Linux binary | `proxyma-server` | Build and install a selected server source revision on Linux | [Proxyma Server — source-built Linux](docs/deployment-linux-binary.md) |
-| Docker | `proxyma-server` | Run the server and embedded frontend in a container | [Proxyma Server — Docker](docs/deployment-docker.md) |
+| Local development | `proxyma-server` | Change or test the Go server and React frontend | [Proxyma Server — local development](docs/proxyma-server-installation-local.md) |
+| Precompiled Linux binary | `proxyma-server` | Recommended host-level Linux server installation without a compiler or source checkout | [Proxyma Server — precompiled Linux](docs/proxyma-server-installation-linux-precompiled.md) |
+| Source-built Linux binary | `proxyma-server` | Build and install a selected source revision on Linux | [Proxyma Server — source-built Linux](docs/proxyma-server-installation-linux-binary.md) |
+| Docker | `proxyma-server` | Run the server and embedded frontend in a container | [Proxyma Server — Docker](docs/proxyma-server-installation-docker.md) |
 | Release installation | `proxyma-agent` | Install the official cross-platform agent CLI, matching harness, and model adapter | [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md) |
 | Source installation | `proxyma-agent` | Build and install the agent CLI and matching harness from a selected source revision | [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md) |
 
-After installation, follow the [first-time configuration guide](docs/first-time-configuration.md)
-to create the initial policy, interaction, agent, and target resources.
+After installation, follow the [Proxyma Server first-time configuration guide](docs/first-time-configuration-proxyma-server.md)
+to create the initial policy, interaction, agent, and target resources, then
+follow the [Proxyma Agent first-time configuration guide](docs/first-time-configuration-proxyma-agent.md)
+to configure the workstation harness and signing key.
 
 ## Repository Layout
 
@@ -173,7 +175,7 @@ cmd/proxyma/               Proxyma server entry point
 cmd/proxyma-agent/         Cross-platform deterministic agent harness CLI
 cmd/proxymactl/            Administrator CLI entry point
 deploy/systemd/            Linux systemd service definition
-docs/                      Deployment, operation, API, and architecture guides
+docs/                      Proxyma Server installation, operation, API, and architecture guides
 frontend/                  React/Vite GUI, shared logo, and browser tests
 harness/                   Agent instruction pack, adapters, schemas, and examples
 internal/                  Go implementation packages
@@ -253,7 +255,7 @@ submission, polling, duplicate prevention, and durable client task state. Agents
 
 GitHub releases include verified user-local installers for Windows, Linux, and
 macOS. They select the native executable and install the matching sanitized
-harness package and Codex adapter from the same release; see the
+harness package and selected adapter from the same release; see the
 [`proxyma-agent` release installation guide](docs/proxyma-agent-installation-release.md).
 
 Start with the
@@ -264,13 +266,19 @@ and [CLI authentication guide](harness/instruction-pack/auth/proxyma-auth.md). T
 [examples](harness/examples/), and
 [validation instructions](harness/tests/README.md) support integrations. A
 [Codex project skill](harness/.agents/skills/proxyma-harness/SKILL.md) and a
-Claude Code project skill under `harness/.claude/skills/` are included. Harness v1 state and run
-configuration are intentionally unsupported.
+[Claude Code project skill](harness/.claude/skills/proxyma-harness/SKILL.md) are
+included in the shared harness. Pass `--harness-type codex` or
+`--harness-type claude` to the agent installer to place the selected skill at
+the project-root discovery path. If the option is omitted, copy the desired
+skill into `.agents/skills/proxyma-harness/` for Codex or
+`.claude/skills/proxyma-harness/` for Claude Code, then restart the harness.
+Harness v1 state and run configuration are intentionally unsupported.
 
 ## Documentation
 
-- [First-time configuration](docs/first-time-configuration.md)
-- [Deployment overview](docs/deployment.md)
+- [First-time Proxyma Server configuration](docs/first-time-configuration-proxyma-server.md)
+- [First-time Proxyma Agent configuration](docs/first-time-configuration-proxyma-agent.md)
+- [Proxyma Server installation overview](docs/proxyma-server-installation.md)
 - [`proxymactl` command reference](docs/proxymactl-command-reference.md)
 - [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
 - [Release artifact testing](docs/release-testing.md)

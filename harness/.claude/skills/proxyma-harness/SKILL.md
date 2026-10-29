@@ -5,8 +5,10 @@ description: Use Proxyma for commands on managed target machines and resume dura
 
 # Proxyma Harness for Claude Code
 
-Read `instruction-pack/proxyma-harness.md` in this harness root and follow it as the
-authoritative policy. Use `proxyma-agent` for authentication, target resolution, submission,
+Read `harness/instruction-pack/proxyma-harness.md` from the project root and follow it
+as the authoritative policy. The shared `harness/` directory is a sibling of this
+`.claude/` adapter; do not look for `instruction-pack/` inside `.claude/`. Use
+`proxyma-agent` for authentication, target resolution, submission,
 polling, duplicate prevention, and task-state changes.
 
 Start relevant work with `proxyma-agent resume` and continue actionable saved tasks

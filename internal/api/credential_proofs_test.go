@@ -62,7 +62,7 @@ func TestCredentialTestReturnsHostKeyChallenge(t *testing.T) {
 	}
 }
 
-func TestTargetCreateRequiresAndConsumesCredentialProof(t *testing.T) {
+func TestTargetMutationsAllowOptionalCredentialProof(t *testing.T) {
 	server, _ := testTargetMutationServer(t, nil)
 	server.SSHClient = &fakeSSHClient{result: sshclient.Result{}}
 	cookie, session := loginSession(t, server)
@@ -72,30 +72,35 @@ func TestTargetCreateRequiresAndConsumesCredentialProof(t *testing.T) {
 		AuthType: targets.AuthTypePassword, Password: "secret",
 	}
 
-	missing := rawTargetRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, request)
-	if missing.Code != http.StatusBadRequest || !bytes.Contains(missing.Body.Bytes(), []byte("credential_test_required")) {
-		t.Fatalf("missing proof status=%d body=%s", missing.Code, missing.Body.String())
-	}
-
-	testRec := rawTargetRequest(t, server, http.MethodPost, "/v1/user/targets/test-credentials", cookie, session.CSRFToken, request)
-	if testRec.Code != http.StatusOK {
-		t.Fatalf("test status=%d body=%s", testRec.Code, testRec.Body.String())
-	}
-	var tested UserTargetCredentialTestResponse
-	if err := json.Unmarshal(testRec.Body.Bytes(), &tested); err != nil {
-		t.Fatal(err)
-	}
-	if tested.CredentialTestToken == "" {
-		t.Fatal("missing credential test token")
-	}
-	request.CredentialTestToken = tested.CredentialTestToken
 	created := rawTargetRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, request)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create status=%d body=%s", created.Code, created.Body.String())
 	}
-	reused := rawTargetRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, request)
-	if reused.Code != http.StatusBadRequest || !bytes.Contains(reused.Body.Bytes(), []byte("credential_test_required")) {
-		t.Fatalf("reused proof status=%d body=%s", reused.Code, reused.Body.String())
+	var createdTarget UserTargetResponse
+	if err := json.Unmarshal(created.Body.Bytes(), &createdTarget); err != nil {
+		t.Fatal(err)
+	}
+	if createdTarget.ID == "" {
+		t.Fatal("create response did not contain an id")
+	}
+
+	request = UserTargetMutationRequest{
+		Transport: targets.TransportSSH, OS: targets.OSLinux, Hostname: "updated.example", IP: "10.0.0.9",
+		Description: "Updated without testing", PolicyID: request.PolicyID, AgentIDs: request.AgentIDs,
+		AuthType: targets.AuthTypePassword,
+	}
+	updated := rawTargetRequest(t, server, http.MethodPut, "/v1/user/targets/"+createdTarget.ID, cookie, session.CSRFToken, request)
+	if updated.Code != http.StatusOK {
+		t.Fatalf("update status=%d body=%s", updated.Code, updated.Body.String())
+	}
+
+	invalid := UserTargetMutationRequest{
+		Transport: targets.TransportSSH, OS: targets.OSLinux, Hostname: "invalid.example", IP: "10.0.0.10",
+		Username: "demo", PolicyID: request.PolicyID, AgentIDs: request.AgentIDs, AuthType: targets.AuthTypePassword,
+	}
+	invalidRec := rawTargetRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, invalid)
+	if invalidRec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid credential status=%d body=%s", invalidRec.Code, invalidRec.Body.String())
 	}
 }
 
@@ -125,20 +130,5 @@ func TestCredentialProofExpires(t *testing.T) {
 	now = now.Add(credentialProofTTL + time.Second)
 	if store.consume(token, "user", "", "digest") {
 		t.Fatal("expired proof accepted")
-	}
-}
-
-func TestTargetCredentialChangedIgnoresMetadataOnlyEdits(t *testing.T) {
-	existing := targets.Target{Transport: targets.TransportSSH, Hostname: "host", IP: "10.0.0.1", Username: "demo", Auth: targets.PasswordAuth("secret")}
-	request := UserTargetMutationRequest{
-		Transport: existing.Transport, Hostname: existing.Hostname, IP: existing.IP,
-		AuthType: existing.Auth.Type, Description: "new description",
-	}
-	if targetCredentialChanged(&existing, request) {
-		t.Fatal("metadata-only edit requires credential test")
-	}
-	request.IP = "10.0.0.99"
-	if !targetCredentialChanged(&existing, request) {
-		t.Fatal("connection change did not require credential test")
 	}
 }
