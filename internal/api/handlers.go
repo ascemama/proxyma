@@ -87,6 +87,11 @@ func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		var maxBodyErr *http.MaxBytesError
+		if errors.As(err, &maxBodyErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "invalid JSON command request")
 		return
 	}

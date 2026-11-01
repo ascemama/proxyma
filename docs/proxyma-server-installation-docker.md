@@ -83,8 +83,15 @@ The installer:
    when no user exists.
 8. Starts Proxyma and waits for the container health check.
 
-Fresh installations use self-signed HTTPS on `0.0.0.0:8080`. Select a different
-host endpoint and include the client-facing name in the generated certificate:
+Fresh installations use self-signed HTTPS on `0.0.0.0:8080`. This publishes
+Proxyma on every host network interface; it is not a local-only binding. For a
+production deployment, explicitly select the intended host interface with
+`--bind-address`, restrict access with host or upstream firewall rules, and use
+a CA-issued certificate. `--host-port` selects the host-side port; changing it
+does not replace firewall or authentication controls.
+
+For example, select a specific host endpoint and include the client-facing name
+in a generated certificate:
 
 ```bash
 sudo bash ./install-proxyma-server-docker.sh \

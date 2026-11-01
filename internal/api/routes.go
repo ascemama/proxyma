@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const maxRequestBodyBytes int64 = 1 << 20
+
 // Routes returns the Proxyma HTTP router.
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
@@ -36,11 +38,18 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("/v1/agent/interactions/", s.authenticateAgent(http.HandlerFunc(s.handleAgentInteractions)))
 	mux.Handle("/v1/agent/tasks/", s.authenticateAgent(http.HandlerFunc(s.handleTaskStatus)))
 	mux.Handle("/v1/health", s.authenticateAgent(http.HandlerFunc(s.handleHealth)))
-	handler := http.Handler(mux)
+	handler := withRequestBodyLimit(mux)
 	if s.Debug {
 		return s.debugRequests(handler)
 	}
 	return handler
+}
+
+func withRequestBodyLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) debugRequests(next http.Handler) http.Handler {

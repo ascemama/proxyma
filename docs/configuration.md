@@ -251,6 +251,14 @@ and references
 for validation and editor completion. Copy it to the ignored
 `proxyma.config.json` for machine-specific configuration.
 
+The HTTP server also applies fixed resource safeguards that are not configurable:
+10 seconds to read request headers, 30 seconds to read a request, 180 seconds
+to write a response, 120 seconds for idle keep-alive connections, and a 64 KiB
+maximum header size. Request bodies are capped at 1 MiB globally; individual
+endpoints may impose smaller limits. The 180-second write timeout accommodates
+the maximum 120-second LLM profile test timeout while still bounding stuck
+responses.
+
 The supported environment variables are:
 
 ```text
