@@ -113,6 +113,7 @@ func newApprovalHarness(t *testing.T) (*api.Server, *approvalProvider) {
 		case <-time.After(time.Second):
 			t.Fatal("scheduler did not stop")
 		}
+		manager.Wait()
 	})
 	return &api.Server{
 		Agents:         agents.NewRegistry([]agents.Agent{testAgent}),
