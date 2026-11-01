@@ -101,7 +101,7 @@ See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) for the comple
 Proxyma is currently at version **0.1** and has limited freature such as limited policy set and communication channels (currently only NTFY). Installation was tested mainly on Linux. Version provided for Windows or Mac were currently not tested.
  
 
-## Proxyma Dashboard
+## Proxyma Dashboard and Demo Video
 
 The browser dashboard is used to manage users, agents, targets, policies, and
 human-interaction instances.
@@ -109,6 +109,9 @@ human-interaction instances.
 <p align="center">
   <img src="docs/images/dashboard.jpg" alt="Proxyma dashboard showing configured targets and agents" width="960">
 </p>
+
+### Demo Video
+[Watch the Proxyma demo](https://github.com/ascemama/proxyma/issues/47)
 
 ## Supported Capabilities
 
