@@ -36,6 +36,17 @@ func TestAuthenticationRequiredForAllEndpoints(t *testing.T) {
 	}
 }
 
+func TestLoginEndpointBodyLimitRemainsEnforced(t *testing.T) {
+	server := testServer(t)
+	body := strings.NewReader(`{"username":"` + strings.Repeat("a", maxLoginBodyBytes) + `","password":"x"}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/user/login", body)
+	rec := httptest.NewRecorder()
+	server.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
 func TestOldFlatRoutesAreNotWired(t *testing.T) {
 	server := testServer(t)
 	cases := []struct {

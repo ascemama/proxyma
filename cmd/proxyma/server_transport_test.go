@@ -60,6 +60,28 @@ func TestServeConfiguredHTTPSAndHTTP(t *testing.T) {
 	}
 }
 
+func TestNewHTTPServerResourceLimits(t *testing.T) {
+	cfg := config.Default()
+	cfg.ListenAddress = "127.0.0.1:8080"
+	server := newHTTPServer(cfg, http.NotFoundHandler())
+
+	if server.ReadHeaderTimeout != httpReadHeaderTimeout {
+		t.Fatalf("ReadHeaderTimeout = %s, want %s", server.ReadHeaderTimeout, httpReadHeaderTimeout)
+	}
+	if server.ReadTimeout != httpReadTimeout {
+		t.Fatalf("ReadTimeout = %s, want %s", server.ReadTimeout, httpReadTimeout)
+	}
+	if server.WriteTimeout != httpWriteTimeout {
+		t.Fatalf("WriteTimeout = %s, want %s", server.WriteTimeout, httpWriteTimeout)
+	}
+	if server.IdleTimeout != httpIdleTimeout {
+		t.Fatalf("IdleTimeout = %s, want %s", server.IdleTimeout, httpIdleTimeout)
+	}
+	if server.MaxHeaderBytes != httpMaxHeaderBytes {
+		t.Fatalf("MaxHeaderBytes = %d, want %d", server.MaxHeaderBytes, httpMaxHeaderBytes)
+	}
+}
+
 func TestCookieModeDerivedOnlyFromScheme(t *testing.T) {
 	if usesDevelopmentCookies(config.SchemeHTTPS) {
 		t.Fatal("HTTPS unexpectedly selected development cookies")

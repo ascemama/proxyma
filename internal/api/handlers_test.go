@@ -70,6 +70,17 @@ func TestSubmitCommandValidation(t *testing.T) {
 	}
 }
 
+func TestSubmitCommandRejectsOversizedRequestBody(t *testing.T) {
+	server := testServer(t)
+	body := strings.NewReader(strings.Repeat("x", int(maxRequestBodyBytes)+1))
+	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", body)
+	rec := httptest.NewRecorder()
+	server.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
+	}
+}
+
 func TestResolveTarget(t *testing.T) {
 	registry := targets.NewRegistry([]targets.Target{
 		{Transport: targets.TransportSSH, OS: targets.OSLinux, Hostname: "linux.example", IP: "10.0.0.10", Username: "linux", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p")},

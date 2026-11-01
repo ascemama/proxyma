@@ -32,6 +32,14 @@ import (
 	"proxyma/internal/winrmclient"
 )
 
+const (
+	httpReadHeaderTimeout = 10 * time.Second
+	httpReadTimeout       = 30 * time.Second
+	httpWriteTimeout      = 180 * time.Second
+	httpIdleTimeout       = 120 * time.Second
+	httpMaxHeaderBytes    = 64 << 10
+)
+
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
 		info := buildinfo.Current()
@@ -270,11 +278,7 @@ func main() {
 		Debug:  cfg.Debug,
 		Logger: logger,
 	}
-	httpServer := &http.Server{
-		Addr:      cfg.ListenAddress,
-		Handler:   web.Wrap(server.Routes()),
-		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-	}
+	httpServer := newHTTPServer(cfg, web.Wrap(server.Routes()))
 	log.Printf("Proxyma listening on %s://%s", cfg.Scheme, cfg.ListenAddress)
 	listener, err := net.Listen("tcp", cfg.ListenAddress)
 	if err != nil {
@@ -282,6 +286,19 @@ func main() {
 	}
 	if serveErr := serveConfigured(httpServer, listener, cfg, logger); serveErr != nil {
 		log.Fatalf("serve Proxyma: %v", serveErr)
+	}
+}
+
+func newHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              cfg.ListenAddress,
+		Handler:           handler,
+		TLSConfig:         &tls.Config{MinVersion: tls.VersionTLS12},
+		ReadHeaderTimeout: httpReadHeaderTimeout,
+		ReadTimeout:       httpReadTimeout,
+		WriteTimeout:      httpWriteTimeout,
+		IdleTimeout:       httpIdleTimeout,
+		MaxHeaderBytes:    httpMaxHeaderBytes,
 	}
 }
 
