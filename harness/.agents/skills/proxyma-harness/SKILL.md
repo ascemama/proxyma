@@ -5,9 +5,18 @@ description: Use Proxyma for commands on managed target machines and resume dura
 
 # Proxyma Harness for Codex
 
-Read `harness/instruction-pack/proxyma-harness.md` from the project root and follow it
-as the authoritative policy. The shared `harness/` directory is a sibling of this
-`.agents/` adapter; do not look for `instruction-pack/` inside `.agents/`. Use
+From the project root, read the authoritative policy using the first applicable
+exact path below:
+
+1. `harness/instruction-pack/proxyma-harness.md` when `harness/` is a sibling of
+   this `.agents/` adapter.
+2. `instruction-pack/proxyma-harness.md` when this `harness/` directory is the
+   project root.
+
+Resolve the selected path relative to the project root, not relative to this
+`SKILL.md` file; do not search for the file by basename alone. If neither exact
+path can be read, stop and report the problem before running any Proxyma commands.
+Do not look for `instruction-pack/` inside `.agents`. Use
 `proxyma-agent` for authentication, target resolution,
 submission, polling, duplicate prevention, and task-state changes.
 

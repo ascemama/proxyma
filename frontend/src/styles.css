@@ -1681,6 +1681,7 @@ code {
 }
 
 .multi-select {
+  margin-top: 7px;
   position: relative;
 }
 
