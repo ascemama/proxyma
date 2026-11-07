@@ -42,9 +42,8 @@ flowchart LR
         Policy -- "allow" --> Execute["Execute task"]
         Policy -- "approval required" --> Flow["taskflow.Flow"]
         Flow -- "Request with instance ID" --> Service["interaction.Service<br/>Communicator + Responder"]
-        Service -- "save pending record" --> InteractionStore["Indexing Interaction Store<br/>JSON first, SQLite projection second"]
-        InteractionStore --> InteractionJSON["Interaction JSON<br/>durable source of truth"]
-        InteractionStore --> HistoryIndex["SQLite history_entries<br/>interaction projection + visibility + FTS"]
+        Service -- "save pending record" --> InteractionStore["SQLite InteractionStore<br/>canonical interaction state"]
+        InteractionStore --> Database["SQLite database.db<br/>interactions + FTS5"]
         Service -- "Provider.Send" --> Router
         Router -- "local" --> LocalProvider
         Router -- "UUID" --> NtfyProvider
@@ -80,13 +79,12 @@ flowchart LR
     end
 
     subgraph CommandHistory["Command history indexing"]
-        TaskManager --> TaskHistoryStore["Indexing task store"]
-        TaskHistoryStore --> TaskJSON["Task JSON<br/>durable source of truth"]
-        TaskHistoryStore --> TaskHistoryIndex["SQLite history_entries<br/>command projection + visibility + FTS"]
+        TaskManager --> TaskHistoryStore["SQLite CommandStore"]
+        TaskHistoryStore --> TaskDatabase["SQLite database.db<br/>commands + FTS5"]
     end
 
-    HistoryIndex --> HistoryAPI["GET /v1/user/history"]
-    TaskHistoryIndex --> HistoryAPI
+    Database --> HistoryAPI["HistoryStore<br/>GET /v1/user/history"]
+    TaskDatabase --> HistoryAPI
     HistoryAPI --> HistoryGUI["Unified History GUI tab"]
 ```
 
@@ -101,7 +99,7 @@ flowchart LR
 | `local.Provider` | Prompts on the Proxyma console and returns the operator response directly to `interaction.Service`. |
 | `ntfy.Provider` | Publishes an approval message and polls the configured response topic only while it has pending interactions. Recovered pending interactions restart polling automatically. |
 | `taskflow.Flow` | Requests approval when required, waits on the durable interaction status, then executes or blocks the task. |
-| User management API | Manages user-owned policies, target assignments, and interaction configuration. Agent/target ownership changes synchronize only affected SQLite history visibility rows; policy changes refresh the evaluator; interaction changes rebuild the provider map. |
+| User management API | Manages user-owned policies, target assignments, and interaction configuration. Agent and target ownership are resolved at query time; policy changes refresh the evaluator; interaction changes rebuild the provider map. |
 
 Agent-authenticated HTTP clients can read interaction status but cannot answer an
 interaction. Providers run inside Proxyma and return authenticated human responses through
@@ -111,7 +109,7 @@ the internal `Responder` interface, keeping command requesters separate from app
 
 1. The authenticated agent's `interaction_instance_id` is copied into the submitted task. Missing agent configuration normalizes to `local`.
 2. When policy requires approval, taskflow passes that instance ID to `interaction.Service.Request`.
-3. The service persists the pending interaction before asking `InteractionRouter` to deliver it.
+3. The service persists the pending interaction in SQLite before asking `InteractionRouter` to deliver it.
 4. The service tracks the durable pending lifecycle with providers; answered, canceled, and expired interactions are untracked immediately.
 5. The router uses the same provider generation for delivery and cancellation, including while an older configuration drains after a reload.
 6. Providers return responses through the `Responder` interface; they do not approve tasks directly.

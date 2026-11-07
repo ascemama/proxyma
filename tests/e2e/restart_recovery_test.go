@@ -9,14 +9,13 @@ import (
 	"proxyma/internal/api"
 	"proxyma/internal/executor"
 	"proxyma/internal/sshclient"
-	"proxyma/internal/store"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/targets"
 	"proxyma/internal/tasks"
 )
 
 func TestCompletedTaskSurvivesRestart(t *testing.T) {
-	server, taskDir := newHarness(t)
+	server, databasePath := newHarness(t)
 	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"diagnostic"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("submit code = %d", code)
@@ -24,8 +23,13 @@ func TestCompletedTaskSurvivesRestart(t *testing.T) {
 	_ = waitFinal(t, server, response.TaskID)
 
 	registry := targets.NewRegistry([]targets.Target{{Transport: targets.TransportSSH, Hostname: "127.0.0.1", IP: "127.0.0.1", Username: "demo", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("demo-password")}})
+	database, err := sqlite.Open(databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
 	manager := tasks.NewManagerWithOptions(
-		jsonfile.NewTaskStore(taskDir),
+		database.NewCommandStore(),
 		executor.Executor{Timeout: time.Second, OutputLimit: 1 << 20},
 		tasks.ManagerOptions{SSHClient: &fakeE2ESSHClient{result: sshclient.Result{Stdout: "test-host\n"}}},
 	)
@@ -43,8 +47,12 @@ func TestCompletedTaskSurvivesRestart(t *testing.T) {
 }
 
 func TestNonFinalTasksBecomeAbandonedAfterRestart(t *testing.T) {
-	_, taskDir := newHarness(t)
-	fileStore := store.New(taskDir)
+	_, databasePath := newHarness(t)
+	database, err := sqlite.Open(databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
 	now := time.Now().UTC()
 	task := tasks.Task{
 		TaskID:    "created-task",
@@ -55,13 +63,13 @@ func TestNonFinalTasksBecomeAbandonedAfterRestart(t *testing.T) {
 		CreatedAt: now,
 		History:   []tasks.LifecycleEvent{{Status: tasks.StatusCreated, At: now, Message: "task created"}},
 	}
-	if err := fileStore.WriteJSON(task.TaskID, task); err != nil {
+	if err := database.NewCommandStore().Save(task); err != nil {
 		t.Fatal(err)
 	}
 
 	registry := targets.NewRegistry([]targets.Target{{Transport: targets.TransportSSH, Hostname: "127.0.0.1", IP: "127.0.0.1", Username: "demo", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("demo-password")}})
 	manager := tasks.NewManagerWithOptions(
-		jsonfile.WrapTaskStore(fileStore),
+		database.NewCommandStore(),
 		executor.Executor{Timeout: time.Second, OutputLimit: 1 << 20},
 		tasks.ManagerOptions{SSHClient: &fakeE2ESSHClient{result: sshclient.Result{Stdout: "test-host\n"}}},
 	)

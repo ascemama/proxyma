@@ -1,9 +1,10 @@
 # Store Interface Cleanup Implementation Notes
 
-Status: implemented.
+Status: superseded historical notes.
 
-This document records the source cleanup that made Proxyma storage replacement a
-constructor wiring choice, not a task or interaction lifecycle change.
+This document records the earlier source cleanup that made Proxyma storage replacement
+a constructor wiring choice. The subsequent SQLite canonical-storage implementation
+removed the JSON task/interaction backend and the directory flags described below.
 
 ## Goal
 
@@ -62,23 +63,15 @@ after each lifecycle change.
 
 ## Implemented Phases
 
-### Phase 1: Add Interfaces and JSON Adapters
+### Phase 1: Add Interfaces and Storage Adapters
 
 - Added `tasks.Store` and `interaction.Store`.
-- Created JSON-file adapters that wrap the current `store.FileStore`.
-- Kept the existing file layout and JSON shape unchanged.
-- Added adapter tests for load/save round trips.
+- Added SQLite-backed command and interaction repositories.
+- Kept configuration resources on the generic JSON filesystem helpers.
+- Added repository and backend contract tests for load/save round trips.
 
-Implemented package shape:
-
-```text
-internal/store/jsonfile/
-|-- task_store.go
-|-- interaction_store.go
-`-- store_test.go
-```
-
-The adapters hide `ListJSONFiles`, `ReadJSONFile`, and `WriteJSON` from callers.
+The SQLite repositories hide SQL details from callers and share one database handle
+while keeping command, interaction, and history responsibilities separate.
 
 ### Phase 2: Update Domain Constructors
 
@@ -117,31 +110,27 @@ In `save` methods:
 - Clone the record into the in-memory map.
 - Call the typed store's `Save` method with the complete record.
 
-### Phase 4: Update Wiring
+### Phase 4: Update Wiring (superseded)
 
 In `cmd/proxyma/main.go`:
 
 - Construct JSON-file task and interaction stores through the new adapter package.
 - Pass those typed stores into `tasks.NewManagerWithOptions` and `interaction.New`.
 
-The CLI flags can stay unchanged in this cleanup:
-
-- `--task-dir`
-- `--interaction-dir`
-
-Database and object-storage flags were not added in this phase. The purpose was to make
-the interface clean first.
+This historical phase predated the canonical SQLite database. Its old
+`--task-dir` and `--interaction-dir` flags have since been replaced by
+`--database-path`; see `docs/database-operations.md` for the current runtime.
 
 ### Phase 5: Test the Contract
 
-Added JSON-file adapter coverage for:
+Added storage adapter coverage for:
 
 - Empty backend loads as no records.
 - Saving one record makes it visible in `LoadAll`.
 - Saving the same ID twice replaces the record.
 - Multiple records round-trip independently.
-- Malformed persisted data returns a clear error for JSON-backed stores.
-- IDs cannot escape the configured file prefix.
+- Database migrations are applied and recorded exactly once.
+- IDs and values are persisted through parameterized SQL statements.
 
 Existing manager and interaction service tests now use small in-memory stores where that
 makes the test simpler.

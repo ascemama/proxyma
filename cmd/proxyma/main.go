@@ -16,12 +16,10 @@ import (
 	"proxyma/internal/config"
 	"proxyma/internal/executor"
 	"proxyma/internal/interaction"
-	"proxyma/internal/interaction/history"
 	interactioninstances "proxyma/internal/interaction/instances"
 	"proxyma/internal/llm"
 	"proxyma/internal/sshclient"
-	"proxyma/internal/store/jsonfile"
-	"proxyma/internal/store/sqlitehistory"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/targets"
 	"proxyma/internal/taskflow"
 	"proxyma/internal/taskflow/policy"
@@ -162,16 +160,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("configure interaction provider: %v", err)
 	}
-	rawTaskStore := jsonfile.NewTaskStore(cfg.TaskDir)
-	historyStore, err := sqlitehistory.Open(cfg.InteractionHistoryDB)
+	database, err := sqlite.OpenWithOptions(cfg.DatabasePath, sqlite.Options{Logger: logger, Debug: cfg.Debug})
 	if err != nil {
-		log.Fatalf("open history db: %v", err)
+		log.Fatalf("open database: %v", err)
 	}
-	defer historyStore.Close()
-	taskStore := history.NewIndexingTaskStore(rawTaskStore, historyStore, agentRegistry, registry, logger.Printf)
-	interactionStore := jsonfile.NewInteractionStore(cfg.InteractionDir)
-	indexingInteractionStore := history.NewIndexingInteractionStore(interactionStore, historyStore, agentRegistry, registry, interactionRegistry, logger.Printf)
-	interactionService := interaction.New(indexingInteractionStore, interaction.Options{
+	defer database.Close()
+	taskStore := database.NewCommandStore()
+	interactionStore := database.NewInteractionStoreWithRegistry(interactionRegistry)
+	historyStore := database.NewHistoryStore()
+	interactionService := interaction.New(interactionStore, interaction.Options{
 		Provider: provider,
 		Timeout:  cfg.InteractionTimeout,
 	})
@@ -201,27 +198,8 @@ func main() {
 		SSHClient:    sshRunner,
 		WinRMClient:  winrmRunner,
 	})
-	indexingInteractionStore.SetTaskFinder(manager.Get)
 	if err := manager.Recover(); err != nil {
 		log.Fatalf("recover tasks: %v", err)
-	}
-	if cfg.RebuildInteractionHistory {
-		interactionRecords, err := interactionStore.LoadAll()
-		if err != nil {
-			log.Fatalf("load interactions for history rebuild: %v", err)
-		}
-		taskRecords, err := taskStore.LoadAll()
-		if err != nil {
-			log.Fatalf("load tasks for history rebuild: %v", err)
-		}
-		diagnostics, err := history.Rebuild(context.Background(), historyStore, interactionRecords, taskRecords, agentRegistry, registry, interactionRegistry)
-		if err != nil {
-			log.Fatalf("rebuild interaction history: %v", err)
-		}
-		for _, diagnostic := range diagnostics {
-			log.Printf("interaction history rebuild diagnostic: interaction_id=%s task_id=%s: %s", diagnostic.InteractionID, diagnostic.TaskID, diagnostic.Message)
-		}
-		log.Printf("interaction history rebuild completed interactions=%d diagnostics=%d", len(interactionRecords), len(diagnostics))
 	}
 	policyEvaluator := policy.NewMutableEvaluator(policies)
 	flow := taskflow.New(manager, interactionService, taskflow.Options{
@@ -237,20 +215,15 @@ func main() {
 		logger.Printf("debug logging enabled")
 	}
 	server := &api.Server{
-		Agents:                agentRegistry,
-		Users:                 userRegistry,
-		UserSessions:          userSessionStore,
-		CredentialTokens:      credentialTokenStore,
-		Targets:               registry,
-		Policies:              policyEvaluator,
-		Tasks:                 manager,
-		Interactions:          interactionService,
-		InteractionHistory:    historyStore,
-		HistoryVisibilitySync: historyStore,
-		HistoryRegistryUpdate: func(updatedAgents agents.Registry, updatedTargets targets.Registry) {
-			taskStore.SetRegistries(updatedAgents, updatedTargets)
-			indexingInteractionStore.SetRegistries(updatedAgents, updatedTargets)
-		},
+		Agents:              agentRegistry,
+		Users:               userRegistry,
+		UserSessions:        userSessionStore,
+		CredentialTokens:    credentialTokenStore,
+		Targets:             registry,
+		Policies:            policyEvaluator,
+		Tasks:               manager,
+		Interactions:        interactionService,
+		InteractionHistory:  historyStore,
 		InteractionProvider: provider,
 		SSHClient:           sshRunner,
 		WinRMClient:         winrmRunner,

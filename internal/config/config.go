@@ -25,9 +25,7 @@ const (
 	DefaultPolicyDir            = "var/proxyma/policies"
 	DefaultAgentDir             = "var/proxyma/agents"
 	DefaultUserDir              = "var/proxyma/users"
-	DefaultTaskDir              = "var/proxyma/tasks"
-	DefaultInteractionDir       = "var/proxyma/interactions"
-	DefaultInteractionHistoryDB = "var/proxyma/interaction-history.db"
+	DefaultDatabasePath         = "var/proxyma/database.db"
 	DefaultInteractionConfigDir = "var/proxyma/interaction_instances"
 	DefaultUserSessionDir       = "var/proxyma/user_sessions"
 	DefaultCredentialTokenDir   = "var/proxyma/credential_tokens"
@@ -61,9 +59,7 @@ type Config struct {
 	PolicyDir                 string
 	AgentDir                  string
 	UserDir                   string
-	TaskDir                   string
-	InteractionDir            string
-	InteractionHistoryDB      string
+	DatabasePath              string
 	InteractionConfigDir      string
 	UserSessionDir            string
 	CredentialTokenDir        string
@@ -77,7 +73,6 @@ type Config struct {
 	OutputLimit               int64
 	RequireCommandApproval    bool
 	Debug                     bool
-	RebuildInteractionHistory bool
 }
 
 type loadOptions struct {
@@ -97,9 +92,7 @@ type configOverride struct {
 	PolicyDir                 *string
 	AgentDir                  *string
 	UserDir                   *string
-	TaskDir                   *string
-	InteractionDir            *string
-	InteractionHistoryDB      *string
+	DatabasePath              *string
 	InteractionConfigDir      *string
 	UserSessionDir            *string
 	CredentialTokenDir        *string
@@ -113,7 +106,6 @@ type configOverride struct {
 	OutputLimit               *int64
 	RequireCommandApproval    *bool
 	Debug                     *bool
-	RebuildInteractionHistory *bool
 }
 
 type fileConfig struct {
@@ -143,9 +135,7 @@ type pathsConfig struct {
 	PolicyDir            *string `json:"policy_dir"`
 	AgentDir             *string `json:"agent_dir"`
 	UserDir              *string `json:"user_dir"`
-	TaskDir              *string `json:"task_dir"`
-	InteractionDir       *string `json:"interaction_dir"`
-	InteractionHistoryDB *string `json:"interaction_history_db"`
+	DatabasePath         *string `json:"database_path"`
 	InteractionConfigDir *string `json:"interaction_config_dir"`
 	UserSessionDir       *string `json:"user_session_dir"`
 	CredentialTokenDir   *string `json:"credential_token_dir"`
@@ -186,9 +176,7 @@ func Default() Config {
 		PolicyDir:                 DefaultPolicyDir,
 		AgentDir:                  DefaultAgentDir,
 		UserDir:                   DefaultUserDir,
-		TaskDir:                   DefaultTaskDir,
-		InteractionDir:            DefaultInteractionDir,
-		InteractionHistoryDB:      DefaultInteractionHistoryDB,
+		DatabasePath:              DefaultDatabasePath,
 		InteractionConfigDir:      DefaultInteractionConfigDir,
 		UserSessionDir:            DefaultUserSessionDir,
 		CredentialTokenDir:        DefaultCredentialTokenDir,
@@ -297,9 +285,7 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 		policyDir                 string
 		agentDir                  string
 		userDir                   string
-		taskDir                   string
-		interactionDir            string
-		interactionHistoryDB      string
+		databasePath              string
 		interactionConfigDir      string
 		userSessionDir            string
 		credentialTokenDir        string
@@ -313,7 +299,6 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 		outputLimit               int64
 		requireCommandApproval    bool
 		debug                     bool
-		rebuildInteractionHistory bool
 	}
 	fs := flag.NewFlagSet("Proxyma", flag.ContinueOnError)
 	fs.StringVar(&raw.configPath, "config", "", "Proxyma JSON config file path")
@@ -328,9 +313,7 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 	fs.StringVar(&raw.policyDir, "policy-dir", "", "directory containing policy JSON files")
 	fs.StringVar(&raw.agentDir, "agent-dir", "", "directory containing Proxyma agent JSON files")
 	fs.StringVar(&raw.userDir, "user-dir", "", "directory containing Proxyma user JSON files")
-	fs.StringVar(&raw.taskDir, "task-dir", "", "directory containing persisted task JSON records")
-	fs.StringVar(&raw.interactionDir, "interaction-dir", "", "directory containing persisted interaction JSON records")
-	fs.StringVar(&raw.interactionHistoryDB, "interaction-history-db", "", "SQLite database path for the unified command and interaction history search index")
+	fs.StringVar(&raw.databasePath, "database-path", "", "SQLite database path for canonical commands, interactions, and history")
 	fs.StringVar(&raw.interactionConfigDir, "interaction-config-dir", "", "directory containing interaction instance JSON configuration")
 	fs.StringVar(&raw.userSessionDir, "user-session-dir", "", "directory containing persisted user session JSON records")
 	fs.StringVar(&raw.credentialTokenDir, "credential-token-dir", "", "directory containing persisted activation and password-reset token records")
@@ -344,7 +327,6 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 	fs.Int64Var(&raw.outputLimit, "output-limit", 0, "maximum captured stdout or stderr bytes before truncation")
 	fs.BoolVar(&raw.requireCommandApproval, "require-command-approval", false, "require local approval before command execution")
 	fs.BoolVar(&raw.debug, "debug", false, "log HTTP requests, POST bodies, and command execution details")
-	fs.BoolVar(&raw.rebuildInteractionHistory, "rebuild-interaction-history", false, "rebuild the SQLite command and interaction history index from JSON stores before serving")
 	if err := fs.Parse(args); err != nil {
 		return loadOptions{}, err
 	}
@@ -375,12 +357,8 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 			opts.cli.AgentDir = &raw.agentDir
 		case "user-dir":
 			opts.cli.UserDir = &raw.userDir
-		case "task-dir":
-			opts.cli.TaskDir = &raw.taskDir
-		case "interaction-dir":
-			opts.cli.InteractionDir = &raw.interactionDir
-		case "interaction-history-db":
-			opts.cli.InteractionHistoryDB = &raw.interactionHistoryDB
+		case "database-path":
+			opts.cli.DatabasePath = &raw.databasePath
 		case "interaction-config-dir":
 			opts.cli.InteractionConfigDir = &raw.interactionConfigDir
 		case "user-session-dir":
@@ -407,8 +385,6 @@ func parseLoadOptions(args []string) (loadOptions, error) {
 			opts.cli.RequireCommandApproval = &raw.requireCommandApproval
 		case "debug":
 			opts.cli.Debug = &raw.debug
-		case "rebuild-interaction-history":
-			opts.cli.RebuildInteractionHistory = &raw.rebuildInteractionHistory
 		}
 	})
 	return opts, nil
@@ -453,9 +429,7 @@ func decodeFileOverride(reader io.Reader) (configOverride, error) {
 		override.PolicyDir = raw.Paths.PolicyDir
 		override.AgentDir = raw.Paths.AgentDir
 		override.UserDir = raw.Paths.UserDir
-		override.TaskDir = raw.Paths.TaskDir
-		override.InteractionDir = raw.Paths.InteractionDir
-		override.InteractionHistoryDB = raw.Paths.InteractionHistoryDB
+		override.DatabasePath = raw.Paths.DatabasePath
 		override.InteractionConfigDir = raw.Paths.InteractionConfigDir
 		override.UserSessionDir = raw.Paths.UserSessionDir
 		override.CredentialTokenDir = raw.Paths.CredentialTokenDir
@@ -526,9 +500,7 @@ func envOverride(lookupEnv func(string) (string, bool)) (configOverride, error) 
 		{"PROXYMA_POLICY_DIR", func(v string) error { override.PolicyDir = &v; return nil }},
 		{"PROXYMA_AGENT_DIR", func(v string) error { override.AgentDir = &v; return nil }},
 		{"PROXYMA_USER_DIR", func(v string) error { override.UserDir = &v; return nil }},
-		{"PROXYMA_TASK_DIR", func(v string) error { override.TaskDir = &v; return nil }},
-		{"PROXYMA_INTERACTION_DIR", func(v string) error { override.InteractionDir = &v; return nil }},
-		{"PROXYMA_INTERACTION_HISTORY_DB", func(v string) error { override.InteractionHistoryDB = &v; return nil }},
+		{"PROXYMA_DATABASE_PATH", func(v string) error { override.DatabasePath = &v; return nil }},
 		{"PROXYMA_INTERACTION_CONFIG_DIR", func(v string) error { override.InteractionConfigDir = &v; return nil }},
 		{"PROXYMA_USER_SESSION_DIR", func(v string) error { override.UserSessionDir = &v; return nil }},
 		{"PROXYMA_CREDENTIAL_TOKEN_DIR", func(v string) error { override.CredentialTokenDir = &v; return nil }},
@@ -641,14 +613,8 @@ func applyOverride(cfg *Config, override configOverride) error {
 	if override.UserDir != nil {
 		cfg.UserDir = *override.UserDir
 	}
-	if override.TaskDir != nil {
-		cfg.TaskDir = *override.TaskDir
-	}
-	if override.InteractionDir != nil {
-		cfg.InteractionDir = *override.InteractionDir
-	}
-	if override.InteractionHistoryDB != nil {
-		cfg.InteractionHistoryDB = *override.InteractionHistoryDB
+	if override.DatabasePath != nil {
+		cfg.DatabasePath = *override.DatabasePath
 	}
 	if override.InteractionConfigDir != nil {
 		cfg.InteractionConfigDir = *override.InteractionConfigDir
@@ -689,15 +655,12 @@ func applyOverride(cfg *Config, override configOverride) error {
 	if override.Debug != nil {
 		cfg.Debug = *override.Debug
 	}
-	if override.RebuildInteractionHistory != nil {
-		cfg.RebuildInteractionHistory = *override.RebuildInteractionHistory
-	}
 	return nil
 }
 
 func normalize(cfg *Config) {
 	cfg.KnownHostsPath = expandHomePath(cfg.KnownHostsPath)
-	cfg.InteractionHistoryDB = expandHomePath(cfg.InteractionHistoryDB)
+	cfg.DatabasePath = expandHomePath(cfg.DatabasePath)
 	cfg.TLSCertificateFile = expandHomePath(strings.TrimSpace(cfg.TLSCertificateFile))
 	cfg.TLSPrivateKeyFile = expandHomePath(strings.TrimSpace(cfg.TLSPrivateKeyFile))
 	cfg.Scheme = strings.ToLower(strings.TrimSpace(cfg.Scheme))
@@ -763,8 +726,8 @@ func validate(cfg Config) error {
 	if strings.TrimSpace(cfg.InteractionConfigDir) == "" {
 		return fmt.Errorf("interaction config dir is required")
 	}
-	if strings.TrimSpace(cfg.InteractionHistoryDB) == "" {
-		return fmt.Errorf("interaction history db is required")
+	if strings.TrimSpace(cfg.DatabasePath) == "" {
+		return fmt.Errorf("database path is required")
 	}
 	return nil
 }

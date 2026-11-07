@@ -273,8 +273,7 @@ To start the fixture backend manually from the repository root on Windows:
   --policy-dir .\frontend\e2e\fixtures\policies `
   --agent-dir .\frontend\e2e\fixtures\agents `
   --user-dir .\frontend\e2e\fixtures\users `
-  --task-dir .\frontend\e2e\fixtures\tasks `
-  --interaction-dir .\frontend\e2e\fixtures\interactions `
+  --database-path .\frontend\e2e\fixtures\database.db `
   --user-session-dir .\frontend\e2e\fixtures\user_sessions `
   --require-command-approval=false
 ```

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"proxyma/internal/api"
 	"proxyma/internal/executor"
 	"proxyma/internal/sshclient"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/targets"
 	"proxyma/internal/taskflow"
 	"proxyma/internal/tasks"
@@ -38,10 +39,14 @@ func (f *fakeE2ESSHClient) Run(_ context.Context, _ sshclient.Request) sshclient
 
 func newHarness(t *testing.T) (*api.Server, string) {
 	t.Helper()
-	taskDir := t.TempDir()
+	databasePath := filepath.Join(t.TempDir(), "database.db")
+	database, err := sqlite.Open(databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	registry := targets.NewRegistry([]targets.Target{{Transport: targets.TransportSSH, Hostname: "127.0.0.1", IP: "127.0.0.1", Username: "demo", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("demo-password")}})
 	manager := tasks.NewManagerWithOptions(
-		jsonfile.NewTaskStore(taskDir),
+		database.NewCommandStore(),
 		executor.Executor{Timeout: time.Second, OutputLimit: 1 << 20},
 		tasks.ManagerOptions{SSHClient: &fakeE2ESSHClient{result: sshclient.Result{Stdout: "test-host\n"}}},
 	)
@@ -56,8 +61,9 @@ func newHarness(t *testing.T) (*api.Server, string) {
 			t.Fatal("scheduler did not stop")
 		}
 		manager.Wait()
+		_ = database.Close()
 	})
-	return &api.Server{Agents: agents.NewRegistry([]agents.Agent{testAgent}), Targets: registry, Tasks: manager, CommandTimeout: time.Second, OutputLimit: 1 << 20, KnownHostsPath: "known_hosts"}, taskDir
+	return &api.Server{Agents: agents.NewRegistry([]agents.Agent{testAgent}), Targets: registry, Tasks: manager, CommandTimeout: time.Second, OutputLimit: 1 << 20, KnownHostsPath: "known_hosts"}, databasePath
 }
 
 func submitCommand(t *testing.T, server *api.Server, body string) (api.CommandCreatedResponse, int, time.Duration) {

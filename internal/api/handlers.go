@@ -44,8 +44,6 @@ type Server struct {
 	Tasks                     *tasks.Manager
 	Interactions              interaction.Communicator
 	InteractionHistory        history.QueryStore
-	HistoryVisibilitySync     history.VisibilitySynchronizer
-	HistoryRegistryUpdate     func(agents.Registry, targets.Registry)
 	InteractionProvider       *interactioninstances.InteractionRouter
 	SSHClient                 sshclient.Client
 	WinRMClient               winrmclient.Client
@@ -255,7 +253,8 @@ func (s *Server) prepareCommand(request *tasks.CommandContext, agent agents.Agen
 	if err := tasks.ValidateCommandPolicy(request.Command, matchedTarget); err != nil {
 		return validationError(err.Error())
 	}
-	request.Target = &tasks.Target{Transport: matchedTarget.Transport, OS: matchedTarget.OS, Hostname: matchedTarget.Hostname, IP: matchedTarget.IP, PolicyID: matchedTarget.PolicyID}
+	request.AgentName = agent.DisplayName
+	request.Target = &tasks.Target{ID: matchedTarget.ID, Transport: matchedTarget.Transport, OS: matchedTarget.OS, Hostname: matchedTarget.Hostname, IP: matchedTarget.IP, PolicyID: matchedTarget.PolicyID}
 	request.InteractionInstanceID = agent.InteractionInstanceID
 	request.Transcription = &plan.Transcription
 	request.ExecutionPlan = plan

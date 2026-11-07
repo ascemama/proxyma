@@ -55,7 +55,7 @@
     "paths": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["target_dir", "policy_dir", "agent_dir", "user_dir", "task_dir", "interaction_dir", "interaction_history_db", "interaction_config_dir", "user_session_dir", "credential_token_dir", "llm_profile_dir", "known_hosts_path"],
+      "required": ["target_dir", "policy_dir", "agent_dir", "user_dir", "database_path", "interaction_config_dir", "user_session_dir", "credential_token_dir", "llm_profile_dir", "known_hosts_path"],
       "properties": {
         "target_dir": {
           "type": "string",
@@ -77,20 +77,10 @@
           "default": "var/proxyma/users",
           "description": "Directory containing Proxyma user JSON files."
         },
-        "task_dir": {
+        "database_path": {
           "type": "string",
-          "default": "var/proxyma/tasks",
-          "description": "Directory containing persisted task JSON records."
-        },
-        "interaction_dir": {
-          "type": "string",
-          "default": "var/proxyma/interactions",
-          "description": "Directory containing persisted human interaction JSON records."
-        },
-        "interaction_history_db": {
-          "type": "string",
-          "default": "var/proxyma/interaction-history.db",
-          "description": "SQLite database path for the query-optimized interaction history index."
+          "default": "var/proxyma/database.db",
+          "description": "SQLite database path for canonical commands, interactions, and history."
         },
         "interaction_config_dir": {
           "type": "string",

@@ -16,7 +16,7 @@ import (
 	"proxyma/internal/interaction"
 	interactionntfy "proxyma/internal/interaction/ntfy"
 	"proxyma/internal/sshclient"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/targets"
 	"proxyma/internal/taskflow"
 	"proxyma/internal/tasks"
@@ -145,10 +145,15 @@ func newNtfyHarness(t *testing.T) (*api.Server, *fakeNtfy) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	communicator := interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{Provider: provider, Timeout: time.Hour})
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	communicator := interaction.New(database.NewInteractionStore(), interaction.Options{Provider: provider, Timeout: time.Hour})
 	registry := targets.NewRegistry([]targets.Target{{Transport: targets.TransportSSH, Hostname: "127.0.0.1", IP: "127.0.0.1", Username: "demo", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("demo-password")}})
 	manager := tasks.NewManagerWithOptions(
-		jsonfile.NewTaskStore(t.TempDir()),
+		database.NewCommandStore(),
 		executor.Executor{Timeout: time.Second, OutputLimit: 1 << 20},
 		tasks.ManagerOptions{SSHClient: &fakeE2ESSHClient{result: sshclient.Result{Stdout: "test-host\n"}}},
 	)

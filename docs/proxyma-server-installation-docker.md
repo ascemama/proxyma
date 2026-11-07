@@ -14,6 +14,11 @@ This guide defines two installation methods:
 
 Both methods create a managed deployment under `/opt/proxyma`.
 
+The deployment data directory contains the canonical SQLite database at
+`var/proxyma/database.db` plus JSON configuration resources. Include that
+database in host backups; see [database operations](database-operations.md) for
+online backup, restore, and safe reset procedures.
+
 ## Prerequisites and Image Versions
 
 The installer requires a Linux host with root access, a standard rootful Docker

@@ -88,7 +88,7 @@ flowchart TD
     end
 
     subgraph TaskStore["internal/store: task records"]
-        TS1[("Task JSON<br/>canonical command, target, policy decision, status, history, safe metadata")]
+        TS1[("SQLite commands<br/>canonical command, target, policy decision, status, history, safe metadata")]
     end
 
     subgraph Policy["internal/taskflow/policy"]
@@ -127,10 +127,10 @@ flowchart TD
         IS1[("Interaction JSON<br/>status, response, delivery metadata")]
     end
 
-    subgraph HistoryIndex["internal/interaction/history + internal/store/sqlitehistory"]
-        HI1["Indexing task store<br/>save JSON first, then command projection"]
-        HI2["Indexing interaction store<br/>save JSON first, then interaction projection"]
-        HI3[("SQLite history_entries<br/>commands, interactions, visibility, FTS")]
+    subgraph HistoryIndex["internal/store/sqlite"]
+        HI1["CommandStore<br/>canonical command row"]
+        HI2["InteractionStore<br/>canonical interaction row"]
+        HI3[("SQLite database.db<br/>commands, interactions, FTS5")]
         HI4["GET /v1/user/history<br/>unified History tab"]
     end
 
@@ -155,7 +155,7 @@ flowchart TD
     TR2 -->|"execution plan + transcription metadata"| A4
     A4 --> T1
     T1 -->|"write task"| TS1
-    T1 -->|"index command projection"| HI1
+    T1 -->|"write canonical command"| HI1
     T1 --> A5
     A5 -->|"202 + task_id"| H2
 
@@ -178,8 +178,8 @@ flowchart TD
     T0A --> TF3
     TF3 --> I1
     I1 --> I2
-    I2 -->|"write interaction"| IS1
-    I2 -->|"index interaction projection"| HI1
+        I2 -->|"write canonical interaction"| IS1
+        I2 -->|"update interaction search row"| HI2
     I1 --> L1
     L1 --> L2
     TF3 --> T2
@@ -199,7 +199,7 @@ flowchart TD
     E1 --> E2
     E2 --> T5
     T5 -->|"write final task"| TS1
-    T5 -->|"update command projection"| HI1
+    T5 -->|"update canonical command"| HI1
     TF6 -->|"no"| TF8
     TF8 --> T5
 
@@ -221,8 +221,8 @@ flowchart TD
 - `internal/transcriptor` creates the internal execution plan, but task status and stored JSON expose only safe transcription metadata.
 - `internal/interaction/local` displays only safe prompt fields on the Proxyma console.
 - Task records and interaction records are persisted separately through `internal/store`.
-- Task and interaction JSON saves are decorated with best-effort indexing into the
-  shared SQLite `history_entries` read model. The JSON records remain authoritative.
+- Commands and interactions are saved directly to the shared SQLite `commands` and
+  `interactions` tables. JSON remains for configuration resources only.
 - The GUI reads both record types through `/v1/user/history`; cursor pagination and FTS
   prevent the GUI from scanning the JSON directories.
 - `internal/taskflow` reads task and interaction state to choose lifecycle

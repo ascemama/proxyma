@@ -32,11 +32,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.UserDir != "var/proxyma/users" {
 		t.Fatalf("UserDir = %q", cfg.UserDir)
 	}
-	if cfg.TaskDir != "var/proxyma/tasks" {
-		t.Fatalf("TaskDir = %q", cfg.TaskDir)
-	}
-	if cfg.InteractionDir != "var/proxyma/interactions" {
-		t.Fatalf("InteractionDir = %q", cfg.InteractionDir)
+	if cfg.DatabasePath != "var/proxyma/database.db" {
+		t.Fatalf("DatabasePath = %q", cfg.DatabasePath)
 	}
 	if cfg.InteractionConfigDir != "var/proxyma/interaction_instances" {
 		t.Fatalf("InteractionConfigDir = %q", cfg.InteractionConfigDir)
@@ -87,8 +84,7 @@ func TestFromArgs(t *testing.T) {
 		"--policy-dir", "policies-test",
 		"--agent-dir", "agents-test",
 		"--user-dir", "users-test",
-		"--task-dir", "tasks-test",
-		"--interaction-dir", "interactions-test",
+		"--database-path", "database-test.db",
 		"--interaction-config-dir", "interaction-configs-test",
 		"--user-session-dir", "sessions-test",
 		"--credential-token-dir", "credential-tokens-test",
@@ -104,7 +100,7 @@ func TestFromArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ListenAddress != "127.0.0.1:0" || cfg.TargetDir != "targets-test" || cfg.PolicyDir != "policies-test" || cfg.AgentDir != "agents-test" || cfg.UserDir != "users-test" || cfg.TaskDir != "tasks-test" || cfg.InteractionDir != "interactions-test" || cfg.InteractionConfigDir != "interaction-configs-test" || cfg.UserSessionDir != "sessions-test" || cfg.CredentialTokenDir != "credential-tokens-test" || cfg.LLMProfileDir != "llm-profiles-test" {
+	if cfg.ListenAddress != "127.0.0.1:0" || cfg.TargetDir != "targets-test" || cfg.PolicyDir != "policies-test" || cfg.AgentDir != "agents-test" || cfg.UserDir != "users-test" || cfg.DatabasePath != "database-test.db" || cfg.InteractionConfigDir != "interaction-configs-test" || cfg.UserSessionDir != "sessions-test" || cfg.CredentialTokenDir != "credential-tokens-test" || cfg.LLMProfileDir != "llm-profiles-test" {
 		t.Fatalf("unexpected config: %#v", cfg)
 	}
 	if cfg.Scheme != SchemeHTTP || cfg.TLSMode != TLSModeProvided || cfg.TLSCertificateFile != "provided.crt" || cfg.TLSPrivateKeyFile != "provided.key" {
@@ -204,8 +200,7 @@ func TestLoadReadsDefaultConfigFile(t *testing.T) {
     "policy_dir": "policies-from-file",
     "agent_dir": "agents-from-file",
     "user_dir": "users-from-file",
-    "task_dir": "tasks-from-file",
-    "interaction_dir": "interactions-from-file",
+    "database_path": "database-from-file.db",
     "interaction_config_dir": "interaction-configs-from-file",
     "user_session_dir": "sessions-from-file",
     "credential_token_dir": "credential-tokens-from-file",
@@ -224,7 +219,7 @@ func TestLoadReadsDefaultConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ListenAddress != "127.0.0.1:9090" || cfg.TargetDir != "targets-from-file" || cfg.PolicyDir != "policies-from-file" || cfg.AgentDir != "agents-from-file" || cfg.UserDir != "users-from-file" || cfg.InteractionConfigDir != "interaction-configs-from-file" || cfg.UserSessionDir != "sessions-from-file" || cfg.CredentialTokenDir != "credential-tokens-from-file" {
+	if cfg.ListenAddress != "127.0.0.1:9090" || cfg.TargetDir != "targets-from-file" || cfg.PolicyDir != "policies-from-file" || cfg.AgentDir != "agents-from-file" || cfg.UserDir != "users-from-file" || cfg.DatabasePath != "database-from-file.db" || cfg.InteractionConfigDir != "interaction-configs-from-file" || cfg.UserSessionDir != "sessions-from-file" || cfg.CredentialTokenDir != "credential-tokens-from-file" {
 		t.Fatalf("unexpected file config paths: %#v", cfg)
 	}
 	if cfg.CommandTimeout != 7*time.Second || cfg.InteractionTimeout != 9*time.Second || cfg.UserSessionTTL != 11*time.Hour || cfg.OutputLimit != 256 {
@@ -266,8 +261,7 @@ func TestLoadPrecedenceDefaultsConfigEnvCLI(t *testing.T) {
     "policy_dir": "policy-file",
     "agent_dir": "agent-file",
     "user_dir": "user-file",
-    "task_dir": "task-file",
-    "interaction_dir": "interaction-file",
+    "database_path": "database-file.db",
     "interaction_config_dir": "interaction-config-file",
     "user_session_dir": "session-file",
     "credential_token_dir": "credential-token-file",
@@ -291,6 +285,7 @@ func TestLoadPrecedenceDefaultsConfigEnvCLI(t *testing.T) {
 		"PROXYMA_TARGET_DIR":               "target-env",
 		"PROXYMA_POLICY_DIR":               "policy-env",
 		"PROXYMA_USER_DIR":                 "user-env",
+		"PROXYMA_DATABASE_PATH":            "database-env.db",
 		"PROXYMA_INTERACTION_CONFIG_DIR":   "interaction-config-env",
 		"PROXYMA_USER_SESSION_DIR":         "session-env",
 		"PROXYMA_CREDENTIAL_TOKEN_DIR":     "credential-token-env",
@@ -329,6 +324,9 @@ func TestLoadPrecedenceDefaultsConfigEnvCLI(t *testing.T) {
 	}
 	if cfg.UserDir != "user-env" {
 		t.Fatalf("UserDir = %q", cfg.UserDir)
+	}
+	if cfg.DatabasePath != "database-env.db" {
+		t.Fatalf("DatabasePath = %q", cfg.DatabasePath)
 	}
 	if cfg.InteractionConfigDir != "interaction-config-env" {
 		t.Fatalf("InteractionConfigDir = %q", cfg.InteractionConfigDir)
@@ -469,8 +467,7 @@ func TestExampleConfigAndSchemaCoverRuntimeFields(t *testing.T) {
 		"policy_dir",
 		"agent_dir",
 		"user_dir",
-		"task_dir",
-		"interaction_dir",
+		"database_path",
 		"interaction_config_dir",
 		"user_session_dir",
 		"credential_token_dir",

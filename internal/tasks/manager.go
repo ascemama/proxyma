@@ -152,6 +152,7 @@ func (m *Manager) SubmitIdempotent(_ context.Context, command CommandContext) (*
 		ClientOperationID:     command.ClientOperationID,
 		ClientRequestHash:     command.ClientRequestHash,
 		AgentID:               command.AgentID,
+		AgentName:             command.AgentName,
 		Target:                cloneTarget(command.Target),
 		Command:               command.Command,
 		Reasoning:             command.Reasoning,

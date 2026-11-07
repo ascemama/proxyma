@@ -14,7 +14,7 @@ import (
 	"proxyma/internal/executor"
 	"proxyma/internal/interaction"
 	"proxyma/internal/sshclient"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/targets"
 	"proxyma/internal/tasks"
 	"proxyma/internal/users"
@@ -179,7 +179,12 @@ func TestResolveTargetHidesUnauthorizedTargetsAndRejectsDuplicates(t *testing.T)
 
 func TestAgentReadOnlyEndpointsRejectMutationMethods(t *testing.T) {
 	server := testServer(t)
-	server.Interactions = interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{})
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	server.Interactions = interaction.New(database.NewInteractionStore(), interaction.Options{})
 	paths := []string{
 		"/v1/agent/targets/resolve?ip=127.0.0.1",
 		"/v1/agent/targets/policy?ip=127.0.0.1",
@@ -623,20 +628,26 @@ func testServer(t *testing.T) *Server {
 func testServerWithRegistry(t *testing.T, registry targets.Registry) *Server {
 	t.Helper()
 	fake := &fakeSSHClient{result: sshclient.Result{Stdout: "ok\n"}}
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
 	manager := tasks.NewManagerWithOptions(
-		jsonfile.NewTaskStore(t.TempDir()),
+		database.NewCommandStore(),
 		executor.Executor{Timeout: time.Second, OutputLimit: 1024},
 		tasks.ManagerOptions{SSHClient: fake},
 	)
 	return &Server{
-		Agents:         testAgentRegistry(),
-		Users:          testUserRegistry(),
-		UserSessions:   users.NewSessionStore(t.TempDir()),
-		BuildInfo:      BuildInfoResponse{Version: "1.2.3+4.gabcdef0", Commit: "abcdef0"},
-		Targets:        registry,
-		Tasks:          manager,
-		CommandTimeout: time.Second,
-		OutputLimit:    1024,
-		KnownHostsPath: "known_hosts",
+		Agents:             testAgentRegistry(),
+		Users:              testUserRegistry(),
+		UserSessions:       users.NewSessionStore(t.TempDir()),
+		BuildInfo:          BuildInfoResponse{Version: "1.2.3+4.gabcdef0", Commit: "abcdef0"},
+		Targets:            registry,
+		Tasks:              manager,
+		CommandTimeout:     time.Second,
+		OutputLimit:        1024,
+		KnownHostsPath:     "known_hosts",
+		InteractionHistory: database.NewHistoryStore(),
 	}
 }

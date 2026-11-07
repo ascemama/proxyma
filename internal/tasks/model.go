@@ -38,6 +38,7 @@ const (
 type CommandContext struct {
 	ClientOperationID     string                 `json:"-"`
 	ClientRequestHash     string                 `json:"-"`
+	AgentName             string                 `json:"-"`
 	Command               string                 `json:"command"`
 	Reasoning             string                 `json:"reasoning"`
 	RequestedBy           string                 `json:"requested_by,omitempty"`
@@ -53,6 +54,7 @@ type CommandContext struct {
 
 // Target identifies the matched remote system without exposing credentials.
 type Target struct {
+	ID        string `json:"-"`
 	Transport string `json:"transport"`
 	OS        string `json:"os"`
 	Hostname  string `json:"hostname,omitempty"`
@@ -66,6 +68,7 @@ type Task struct {
 	ClientOperationID     string                 `json:"client_operation_id,omitempty"`
 	ClientRequestHash     string                 `json:"client_request_hash,omitempty"`
 	AgentID               string                 `json:"agent_id,omitempty"`
+	AgentName             string                 `json:"-"`
 	Target                *Target                `json:"target,omitempty"`
 	Command               string                 `json:"command"`
 	Reasoning             string                 `json:"reasoning"`

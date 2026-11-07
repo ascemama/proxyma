@@ -10,7 +10,7 @@ import (
 
 	"proxyma/internal/executor"
 	"proxyma/internal/interaction"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/taskflow/policy"
 	"proxyma/internal/tasks"
 )
@@ -345,8 +345,13 @@ func newFlowHarness(t *testing.T, providerEnabled bool) (*tasks.Manager, *intera
 	if providerEnabled {
 		configured = provider
 	}
-	communicator := interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{Provider: configured, Timeout: time.Hour})
-	manager := tasks.NewManager(jsonfile.NewTaskStore(t.TempDir()), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	communicator := interaction.New(database.NewInteractionStore(), interaction.Options{Provider: configured, Timeout: time.Hour})
+	manager := tasks.NewManager(database.NewCommandStore(), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
 	return manager, communicator, provider
 }
 

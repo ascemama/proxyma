@@ -138,7 +138,11 @@ directory and passes a routed provider to `interaction.Service`:
 ```go
 interactionRegistry, _, err := instances.LoadDir(cfg.InteractionConfigDir)
 provider, err := interactionProvider(interactionRegistry)
-interactionService := interaction.New(jsonfile.NewInteractionStore(cfg.InteractionDir), interaction.Options{
+database, err := sqlite.Open(cfg.DatabasePath)
+if err != nil {
+	panic(err)
+}
+interactionService := interaction.New(database.NewInteractionStoreWithRegistry(interactionRegistry), interaction.Options{
 	Provider: provider,
 	Timeout:  cfg.InteractionTimeout,
 })
@@ -163,8 +167,9 @@ may be referenced by zero or more agents. In the agent GUI, a user may newly sel
 `local` or an enabled instance whose `creator_user_id` matches the authenticated user.
 An unchanged historical assignment owned by another user is preserved until the user
 replaces it. Referenced interaction instances cannot be disabled or deleted. Provider
-configuration files are separate from durable approval records under
-`var/proxyma/interactions/`.
+configuration files are separate from durable approval records in the SQLite
+`interactions` table. See [database operations](database-operations.md) for
+backup and reset procedures.
 
 ## Tests
 

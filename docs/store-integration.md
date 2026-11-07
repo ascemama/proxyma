@@ -35,43 +35,27 @@ record after each lifecycle change.
 This keeps backend concerns out of taskflow, API handlers, schedulers, and interaction
 response handling.
 
-## Default JSON File Backend
+## Default SQLite Backend
 
-The default backend remains JSON files.
-
-The low-level JSON helper is `internal/store.FileStore`. It handles file paths, JSON
-encoding, atomic file writes, and listing JSON files in a directory.
-
-Typed adapters live in `internal/store/jsonfile`:
+The default backend is `internal/store/sqlite`. One `Database` handle is shared by
+three separate repositories:
 
 ```go
-jsonfile.NewTaskStore(dir)
-jsonfile.NewInteractionStore(dir)
+database, _ := sqlite.Open(cfg.DatabasePath)
+commandStore := database.NewCommandStore()
+interactionStore := database.NewInteractionStoreWithRegistry(interactionRegistry)
+historyStore := database.NewHistoryStore()
 ```
 
-The binary wires those adapters in `cmd/proxyma/main.go`:
+`CommandStore` implements `tasks.Store`, `InteractionStore` implements
+`interaction.Store`, and `HistoryStore` implements `history.QueryStore`. The command
+and interaction tables are canonical; the history repository queries those tables
+directly and does not maintain a projection table. See
+`docs/interaction-history-search-architecture.md` for the schema and query model.
 
-```go
-taskStore := jsonfile.NewTaskStore(cfg.TaskDir)
-interactionStore := jsonfile.NewInteractionStore(cfg.InteractionDir)
-```
-
-Task state is stored under `--task-dir`, which defaults to `var/proxyma/tasks`.
-Interaction state is stored under `--interaction-dir`, which defaults to
-`var/proxyma/interactions`.
-
-JSON record filenames use the UTC creation timestamp plus the durable record ID:
-
-```text
-YYYYMMDD-HHMMSS-<task_id>.json
-YYYYMMDD-HHMMSS-<interaction_id>.json
-```
-
-The timestamp prefix makes files sortable and easier to inspect manually. The random
-task or interaction ID remains unchanged inside the record and in API responses.
-
-The JSON record shape and directory defaults did not change when the typed interface was
-introduced.
+JSON filesystem helpers remain available for configuration resources such as users,
+agents, targets, policies, sessions, LLM profiles, and interaction-instance provider
+definitions. They are not the runtime source of truth for commands or interactions.
 
 ## Backend Responsibilities
 
@@ -136,11 +120,12 @@ For SQL or document databases:
 - Store the full public JSON record in one JSON column initially, or map fields into
   typed columns when querying by status becomes necessary.
 - Use transactions or atomic upserts for `Save`.
-- Add migrations if the schema is not self-creating.
-- Add indexes for status only if Proxyma later needs database-side querying.
+- Add numbered migrations for schema changes.
+- Use prepared statements and parameter binding for every runtime value.
+- Add indexes for fields used by GUI filters and cursor pagination.
 
-The current manager keeps an in-memory map and only needs `LoadAll` plus `Save`, so a
-simple upsert-backed implementation is enough for a first database integration.
+The current manager keeps an in-memory map and only needs `LoadAll` plus `Save`, so the
+SQLite repositories use complete-record JSON columns alongside typed query columns.
 
 ## Object Storage Backend
 
@@ -160,11 +145,10 @@ Object storage is close to the JSON file model, but it should still expose typed
 
 ## Wiring
 
-The current CLI exposes JSON-file storage flags:
+The current CLI exposes one canonical database path:
 
 ```text
---task-dir=var/proxyma/tasks
---interaction-dir=var/proxyma/interactions
+--database-path=var/proxyma/database.db
 ```
 
 A new backend should add backend-specific configuration in `internal/config`. Example
@@ -195,8 +179,8 @@ Add or reuse backend contract tests for each typed store:
 - IDs are used as keys and path or object traversal is impossible for file-like stores.
 
 Domain tests for `tasks.Manager` and `interaction.Service` should use in-memory stores
-unless they specifically verify JSON-file behavior. JSON-file behavior belongs in
-`internal/store/jsonfile` tests.
+unless they specifically verify storage behavior. SQLite behavior belongs in
+`internal/store/sqlite` tests.
 
 ## Future Improvements
 
@@ -206,7 +190,8 @@ depend on the selected backend:
 - Add backend selection flags only when a second backend is implemented.
 - Add optimistic concurrency if multiple Proxyma processes will write to the same backend.
 - Add schema migrations for SQL-style backends.
-- The SQLite-backed unified command and interaction history index is implemented for
-  GUI browsing and filtering. See `docs/interaction-history-search-architecture.md`
-  for its schema, decorators, migration, and rebuild flow.
+- SQLite is the canonical command and interaction store, and its history queries read
+  directly from the `commands` and `interactions` tables. See
+  `docs/interaction-history-search-architecture.md` and
+  `docs/database-operations.md` for the schema, migrations, backup, and reset flow.
 - Add quarantine or repair tooling if object stores may contain malformed records.

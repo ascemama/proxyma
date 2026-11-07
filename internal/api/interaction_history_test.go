@@ -56,7 +56,7 @@ func TestUserInteractionHistoryEndpointUsesAgentVisibility(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
-	if store.query.CurrentUserID != user.ID || store.query.CurrentUserIsAdmin || store.query.AgentID != agent.ID {
+	if store.query.Visibility.Admin || len(store.query.Visibility.AgentIDs) != 1 || store.query.Visibility.AgentIDs[0] != agent.ID || store.query.AgentID != agent.ID {
 		t.Fatalf("query = %#v", store.query)
 	}
 	var response UserHistoryResponse

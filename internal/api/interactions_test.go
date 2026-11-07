@@ -12,13 +12,18 @@ import (
 	"proxyma/internal/agents"
 	"proxyma/internal/executor"
 	"proxyma/internal/interaction"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/tasks"
 )
 
 func TestInteractionStatusAndAgentResponseRemoval(t *testing.T) {
-	interactionService := interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{Timeout: time.Hour})
-	manager := tasks.NewManager(jsonfile.NewTaskStore(t.TempDir()), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	interactionService := interaction.New(database.NewInteractionStore(), interaction.Options{Timeout: time.Hour})
+	manager := tasks.NewManager(database.NewCommandStore(), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
 	server := &Server{
 		Agents:       testAgentRegistry(),
 		Tasks:        manager,
@@ -79,8 +84,13 @@ func TestInteractionStatusAndAgentResponseRemoval(t *testing.T) {
 
 func TestInteractionRejectsOtherAgent(t *testing.T) {
 	otherAgent := agents.Agent{ID: "7937dd2d-0b8a-4880-8afa-0ea60fd65a43", AgentJWTSigningKey: "automation-signing-key", Enabled: true}
-	interactionService := interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{Timeout: time.Hour})
-	manager := tasks.NewManager(jsonfile.NewTaskStore(t.TempDir()), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	interactionService := interaction.New(database.NewInteractionStore(), interaction.Options{Timeout: time.Hour})
+	manager := tasks.NewManager(database.NewCommandStore(), executor.Executor{Timeout: time.Second, OutputLimit: 1024})
 	server := &Server{
 		Agents:       agents.NewRegistry([]agents.Agent{testAgent, otherAgent}),
 		Tasks:        manager,
@@ -108,7 +118,12 @@ func TestInteractionRejectsOtherAgent(t *testing.T) {
 }
 
 func TestInteractionNotFound(t *testing.T) {
-	server := &Server{Agents: testAgentRegistry(), Interactions: interaction.New(jsonfile.NewInteractionStore(t.TempDir()), interaction.Options{})}
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	server := &Server{Agents: testAgentRegistry(), Interactions: interaction.New(database.NewInteractionStore(), interaction.Options{})}
 	req := newAuthenticatedRequest(t, http.MethodGet, "/v1/agent/interactions/missing", nil)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)

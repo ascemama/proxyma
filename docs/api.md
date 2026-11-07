@@ -43,7 +43,7 @@ State-changing authenticated user requests require the current CSRF token.
 
 ## Unified History
 
-Authenticated users query the SQLite-backed history index with:
+Authenticated users query the canonical SQLite command and interaction history with:
 
 ```http
 GET /v1/user/history?limit=50&entry_type=command&q=systemctl
@@ -53,7 +53,7 @@ The response contains a cursor-paginated `items` array combining command tasks a
 human interactions. Use `entry_type`, `agent_id`, `status`, `kind`, provider instance,
 target, RFC3339 date range, full-text `q`, and command-pattern filters to narrow the
 results. Administrators may also filter by interaction-instance creator. History rows
-contain safe command projections and never expose raw command stdout or stderr.
+contain safe command fields and never expose raw command stdout or stderr.
 
 ## Policy Management
 

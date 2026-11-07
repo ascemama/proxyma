@@ -272,9 +272,7 @@ PROXYMA_TARGET_DIR
 PROXYMA_POLICY_DIR
 PROXYMA_AGENT_DIR
 PROXYMA_USER_DIR
-PROXYMA_TASK_DIR
-PROXYMA_INTERACTION_DIR
-PROXYMA_INTERACTION_HISTORY_DB
+PROXYMA_DATABASE_PATH
 PROXYMA_INTERACTION_CONFIG_DIR
 PROXYMA_USER_SESSION_DIR
 PROXYMA_CREDENTIAL_TOKEN_DIR
@@ -290,10 +288,9 @@ PROXYMA_DEBUG
 ```
 
 Duration values use Go syntax such as `30s`, `2m`, or `1h`. Boolean values use
-Go boolean syntax. `--config`, `--no-config`, and
-`--rebuild-interaction-history` are CLI-only controls. Despite its historical name, the
-rebuild flag imports both command tasks and human interactions into the unified SQLite
-history index.
+Go boolean syntax. `--config` and `--no-config` are CLI-only controls. SQLite migrations
+run automatically when Proxyma starts; commands and interactions are stored directly in
+the canonical database rather than imported from JSON files.
 
 The complete CLI argument table is in the
 [project README](../README.md#runtime-configuration).

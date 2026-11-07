@@ -9,7 +9,7 @@ import (
 	"proxyma/internal/agents"
 	"proxyma/internal/api"
 	"proxyma/internal/executor"
-	"proxyma/internal/store/jsonfile"
+	"proxyma/internal/store/sqlite"
 	"proxyma/internal/targets"
 	"proxyma/internal/taskflow"
 	"proxyma/internal/tasks"
@@ -33,7 +33,12 @@ func TestSubmitAndPollWinRMCommand(t *testing.T) {
 		AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("secret"),
 		WinRM: &targets.WinRM{Scheme: "https", Port: 5986},
 	}
-	manager := tasks.NewManagerWithOptions(jsonfile.NewTaskStore(t.TempDir()), executor.Executor{}, tasks.ManagerOptions{WinRMClient: fake})
+	database, err := sqlite.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	manager := tasks.NewManagerWithOptions(database.NewCommandStore(), executor.Executor{}, tasks.ManagerOptions{WinRMClient: fake})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := taskflow.NewScheduler(taskflow.New(manager, nil, taskflow.Options{RequireCommandApproval: false}), 10*time.Millisecond).Start(ctx)
 	t.Cleanup(func() {
