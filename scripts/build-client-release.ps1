@@ -13,14 +13,14 @@ if ([string]::IsNullOrWhiteSpace($OutDir)) { $OutDir = Join-Path $Root "dist" }
 if ([string]::IsNullOrWhiteSpace($Version)) { $Version = & git -C $Root describe --tags --long --always --dirty }
 if ([string]::IsNullOrWhiteSpace($Commit)) { $Commit = & git -C $Root rev-parse --short=7 HEAD }
 $extension = if ($TargetOS -eq "windows") { ".exe" } else { "" }
-$output = Join-Path $OutDir "proxyma-agent-$TargetOS-$TargetArch$extension"
+$output = Join-Path $OutDir "proxyma-client-$TargetOS-$TargetArch$extension"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $oldOS, $oldArch, $oldCGO = $env:GOOS, $env:GOARCH, $env:CGO_ENABLED
 try {
     $env:GOOS = $TargetOS
     $env:GOARCH = $TargetArch
     $env:CGO_ENABLED = "0"
-    & go build -trimpath -ldflags "-s -w -X proxyma/internal/buildinfo.rawVersion=$Version -X proxyma/internal/buildinfo.rawCommit=$Commit" -o $output ./cmd/proxyma-agent
+    & go build -trimpath -ldflags "-s -w -X proxyma/internal/buildinfo.rawVersion=$Version -X proxyma/internal/buildinfo.rawCommit=$Commit" -o $output ./cmd/proxyma-client
     if ($LASTEXITCODE -ne 0) { throw "go build failed" }
 } finally {
     $env:GOOS = $oldOS

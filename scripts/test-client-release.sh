@@ -17,7 +17,7 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 
 PROJECT_DIR="$TEST_ROOT/project"
 BIN_DIR="$TEST_ROOT/bin"
-INSTALLER="$TEST_ROOT/install-proxyma-agent.sh"
+INSTALLER="$TEST_ROOT/install-proxyma-client.sh"
 mkdir -p "$PROJECT_DIR"
 
 download_with_retry() {
@@ -34,7 +34,7 @@ download_with_retry() {
   return 1
 }
 
-download_with_retry "$RELEASE_URL/install-proxyma-agent.sh" "$INSTALLER"
+download_with_retry "$RELEASE_URL/install-proxyma-client.sh" "$INSTALLER"
 chmod 0755 "$INSTALLER"
 
 PROXYMA_RELEASE_BASE_URL="$RELEASE_BASE_URL" \
@@ -44,15 +44,15 @@ PROXYMA_RELEASE_BASE_URL="$RELEASE_BASE_URL" \
     --project-dir "$PROJECT_DIR" \
     --bin-dir "$BIN_DIR"
 
-INSTALLED_BINARY="$BIN_DIR/proxyma-agent"
+INSTALLED_BINARY="$BIN_DIR/proxyma-client"
 test -x "$INSTALLED_BINARY"
 test -f "$PROJECT_DIR/harness/RELEASE"
-test -f "$PROJECT_DIR/harness/proxyma-agent.json"
+test -f "$PROJECT_DIR/harness/proxyma-client.json"
 test -f "$PROJECT_DIR/.agents/skills/proxyma-harness/SKILL.md"
 grep -F '"version":"'"$CLI_VERSION"'"' <("$INSTALLED_BINARY" version) >/dev/null
 grep -Fx "version=$VERSION" "$PROJECT_DIR/harness/RELEASE" >/dev/null
 
-printf 'preserved-config\n' >"$PROJECT_DIR/harness/proxyma-agent.json"
+printf 'preserved-config\n' >"$PROJECT_DIR/harness/proxyma-client.json"
 printf 'preserved-state\n' >"$PROJECT_DIR/harness/task-state/active/task.json"
 
 PROXYMA_RELEASE_BASE_URL="$RELEASE_BASE_URL" \
@@ -62,7 +62,7 @@ PROXYMA_RELEASE_BASE_URL="$RELEASE_BASE_URL" \
     --project-dir "$PROJECT_DIR" \
     --bin-dir "$BIN_DIR" >/dev/null
 
-grep -Fx 'preserved-config' "$PROJECT_DIR/harness/proxyma-agent.json" >/dev/null
+grep -Fx 'preserved-config' "$PROJECT_DIR/harness/proxyma-client.json" >/dev/null
 grep -Fx 'preserved-state' "$PROJECT_DIR/harness/task-state/active/task.json" >/dev/null
 
-echo "Agent release smoke test passed for $VERSION on $(uname -s)/$(uname -m)."
+echo "Client release smoke test passed for $VERSION on $(uname -s)/$(uname -m)."

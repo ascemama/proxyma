@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"bytes"
@@ -445,7 +445,7 @@ func TestLoadConfigResolvesPathsAndEnvironmentKey(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "agent-configuration", "agent.json"), []byte(`{"agent_id":"df9ec8bb-1a22-4181-a7c8-126ad553221d","agent_jwt_signing_key":"file-key"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	configPath := filepath.Join(dir, "proxyma-agent.json")
+	configPath := filepath.Join(dir, "proxyma-client.json")
 	if err := os.WriteFile(configPath, []byte(`{"schema_version":"2","proxyma_base_url":"https://proxyma.example/","agent_config":"agent-configuration/agent.json","state_dir":"task-state"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -478,7 +478,7 @@ func TestConfigDiscoveryPrecedenceAndUpwardSearch(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	want := filepath.Join(harnessDir, "proxyma-agent.json")
+	want := filepath.Join(harnessDir, "proxyma-client.json")
 	if err := os.WriteFile(want, []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}

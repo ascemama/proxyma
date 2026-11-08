@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"bytes"
@@ -146,7 +146,7 @@ func discoverConfig(explicit string) (string, error) {
 		return "", err
 	}
 	for {
-		candidate := filepath.Join(dir, "harness", "proxyma-agent.json")
+		candidate := filepath.Join(dir, "harness", "proxyma-client.json")
 		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
 			return candidate, nil
 		}
@@ -156,7 +156,7 @@ func discoverConfig(explicit string) (string, error) {
 		}
 		dir = parent
 	}
-	return "", fmt.Errorf("harness/proxyma-agent.json was not found")
+	return "", fmt.Errorf("harness/proxyma-client.json was not found")
 }
 
 func resolveRelative(base, path string) string {

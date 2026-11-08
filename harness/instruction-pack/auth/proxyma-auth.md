@@ -1,8 +1,8 @@
 # Proxyma Agent Authentication
 
-`proxyma-agent` owns bearer-token creation and refresh. It reads `agent_id` (or `id`
+`proxyma-client` owns bearer-token creation and refresh. It reads `agent_id` (or `id`
 from a Proxyma server agent record) and the HS256 signing key from the `agent_config`
-referenced by `proxyma-agent.json`.
+referenced by `proxyma-client.json`.
 `PROXYMA_AGENT_JWT_SIGNING_KEY` overrides the file value for deployments that inject
 the secret through the environment.
 

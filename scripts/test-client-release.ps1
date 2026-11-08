@@ -9,10 +9,10 @@ $ErrorActionPreference = "Stop"
 $ReleaseBaseUrl = $ReleaseBaseUrl.TrimEnd('/')
 $ReleaseUrl = "$ReleaseBaseUrl/releases/download/$Version"
 $CliVersion = $Version.TrimStart('v')
-$TestRoot = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-agent-release-" + [Guid]::NewGuid().ToString("N"))
+$TestRoot = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-client-release-" + [Guid]::NewGuid().ToString("N"))
 $ProjectDir = Join-Path $TestRoot "project"
 $BinDir = Join-Path $TestRoot "bin"
-$Installer = Join-Path $TestRoot "install-proxyma-agent.ps1"
+$Installer = Join-Path $TestRoot "install-proxyma-client.ps1"
 $oldBaseUrl = $env:PROXYMA_RELEASE_BASE_URL
 
 function Copy-ReleaseFile([string]$Source, [string]$Destination) {
@@ -35,7 +35,7 @@ function Copy-ReleaseFile([string]$Source, [string]$Destination) {
 
 try {
     New-Item -ItemType Directory -Force -Path $ProjectDir | Out-Null
-    Copy-ReleaseFile "$ReleaseUrl/install-proxyma-agent.ps1" $Installer
+    Copy-ReleaseFile "$ReleaseUrl/install-proxyma-client.ps1" $Installer
 
     $env:PROXYMA_RELEASE_BASE_URL = $ReleaseBaseUrl
     & $Installer `
@@ -44,9 +44,9 @@ try {
         -ProjectDir $ProjectDir `
         -BinDir $BinDir
 
-    $installedBinary = Join-Path $BinDir "proxyma-agent.exe"
+    $installedBinary = Join-Path $BinDir "proxyma-client.exe"
     $releaseFile = Join-Path $ProjectDir "harness\RELEASE"
-    $configFile = Join-Path $ProjectDir "harness\proxyma-agent.json"
+    $configFile = Join-Path $ProjectDir "harness\proxyma-client.json"
     $stateFile = Join-Path $ProjectDir "harness\task-state\active\task.json"
     $skillFile = Join-Path $ProjectDir ".agents\skills\proxyma-harness\SKILL.md"
     if (-not (Test-Path -LiteralPath $installedBinary -PathType Leaf)) { throw "Installed binary is missing." }
@@ -71,7 +71,7 @@ try {
 
     if ((Get-Content -LiteralPath $configFile -Raw).Trim() -ne "preserved-config") { throw "Configuration was not preserved." }
     if ((Get-Content -LiteralPath $stateFile -Raw).Trim() -ne "preserved-state") { throw "Task state was not preserved." }
-    Write-Host "Agent release smoke test passed for $Version on Windows."
+    Write-Host "Client release smoke test passed for $Version on Windows."
 }
 finally {
     if ($null -eq $oldBaseUrl) { Remove-Item Env:PROXYMA_RELEASE_BASE_URL -ErrorAction SilentlyContinue }

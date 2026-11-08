@@ -36,15 +36,15 @@ version=$version
 commit=deadbeef
 deployment=docker
 EOF
-  tar -C "$payload_root" -czf "$release_dir/proxyma_docker.tar.gz" proxyma
+  tar -C "$payload_root" -czf "$release_dir/proxyma-server-docker.tar.gz" proxyma
 
   if [[ "$checksum_mode" == "valid" ]]; then
     (
       cd "$release_dir"
-      sha256sum proxyma_docker.tar.gz >SHA256SUMS
+      sha256sum proxyma-server-docker.tar.gz >SHA256SUMS
     )
   else
-    printf '%064d  proxyma_docker.tar.gz\n' 0 >"$release_dir/SHA256SUMS"
+    printf '%064d  proxyma-server-docker.tar.gz\n' 0 >"$release_dir/SHA256SUMS"
   fi
 }
 
@@ -94,11 +94,11 @@ fi
 UNSAFE_DIR="$TEST_ROOT/releases/download/v1.2.7"
 mkdir -p "$UNSAFE_DIR" "$TEST_ROOT/unsafe-source"
 printf 'unsafe\n' >"$TEST_ROOT/unsafe-source/payload"
-tar -C "$TEST_ROOT/unsafe-source" -czf "$UNSAFE_DIR/proxyma_docker.tar.gz" \
+tar -C "$TEST_ROOT/unsafe-source" -czf "$UNSAFE_DIR/proxyma-server-docker.tar.gz" \
   --transform='s#^payload#proxyma/../escape#' payload
 (
   cd "$UNSAFE_DIR"
-  sha256sum proxyma_docker.tar.gz >SHA256SUMS
+  sha256sum proxyma-server-docker.tar.gz >SHA256SUMS
 )
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_ALLOW_NON_LINUX_TEST=1 \
   PROXYMA_TEST_RESULT="$RESULT_FILE" \
@@ -112,13 +112,13 @@ SOURCE_DATE_EPOCH=1700000000 bash "$ROOT/scripts/package-server-release-docker.s
   v1.2.3 deadbeef "$PACKAGE_ONE" >/dev/null
 SOURCE_DATE_EPOCH=1700000000 bash "$ROOT/scripts/package-server-release-docker.sh" \
   v1.2.3 deadbeef "$PACKAGE_TWO" >/dev/null
-cmp "$PACKAGE_ONE/proxyma_docker.tar.gz" "$PACKAGE_TWO/proxyma_docker.tar.gz" \
+cmp "$PACKAGE_ONE/proxyma-server-docker.tar.gz" "$PACKAGE_TWO/proxyma-server-docker.tar.gz" \
   || fail "Docker release archive is not reproducible"
 
 EXPECTED_CONTENTS=$'proxyma/\nproxyma/LICENSE\nproxyma/RELEASE\nproxyma/docker-compose.example.yml\nproxyma/scripts/\nproxyma/scripts/deployment-endpoint.sh\nproxyma/scripts/install-proxyma-server-docker.sh\nproxyma/scripts/uninstall-proxyma-server-docker.sh'
-ACTUAL_CONTENTS="$(tar -tzf "$PACKAGE_ONE/proxyma_docker.tar.gz")"
+ACTUAL_CONTENTS="$(tar -tzf "$PACKAGE_ONE/proxyma-server-docker.tar.gz")"
 [[ "$ACTUAL_CONTENTS" == "$EXPECTED_CONTENTS" ]] || fail "Docker release archive contents differ"
-tar -xOf "$PACKAGE_ONE/proxyma_docker.tar.gz" proxyma/RELEASE \
+tar -xOf "$PACKAGE_ONE/proxyma-server-docker.tar.gz" proxyma/RELEASE \
   | grep -Fx 'image=ghcr.io/ascemama/proxyma:1.2.3' >/dev/null \
   || fail "Docker release metadata has the wrong image"
 

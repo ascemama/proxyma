@@ -17,7 +17,7 @@ Reproducible build jobs may set:
 | Build type | Version input | Commit input |
 | --- | --- | --- |
 | Server binary | `PROXYMA_VERSION` | `PROXYMA_COMMIT` |
-| Agent harness CLI | `PROXYMA_VERSION` | `PROXYMA_COMMIT` |
+| Client CLI | `PROXYMA_VERSION` | `PROXYMA_COMMIT` |
 | Container image | `BUILD_VERSION` | `BUILD_COMMIT` |
 
 Both values are compiled into the Proxyma server. The production GUI build is

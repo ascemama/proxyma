@@ -14,7 +14,7 @@ if ($HarnessType -notin @("", "codex", "claude")) {
     throw "Invalid harness type '$HarnessType'. Use codex or claude."
 }
 $RepositoryUrl = if ($env:PROXYMA_RELEASE_BASE_URL) { $env:PROXYMA_RELEASE_BASE_URL.TrimEnd('/') } else { "https://github.com/ascemama/proxyma" }
-$ArchiveName = "proxyma-agent-harness.tar.gz"
+$ArchiveName = "proxyma-client-harness.tar.gz"
 
 function Test-Version([string]$Value) {
     if ($Value -eq "latest") { return }
@@ -111,9 +111,9 @@ if ([string]::IsNullOrWhiteSpace($BinDir)) {
     $BinDir = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin"
 }
 
-$targetOS = if ($env:PROXYMA_AGENT_OS) { $env:PROXYMA_AGENT_OS } else { "windows" }
+$targetOS = if ($env:PROXYMA_CLIENT_OS) { $env:PROXYMA_CLIENT_OS } else { "windows" }
 if ($targetOS -ne "windows") { throw "Unsupported operating system: $targetOS" }
-$targetArch = if ($env:PROXYMA_AGENT_ARCH) { $env:PROXYMA_AGENT_ARCH } else { [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant() }
+$targetArch = if ($env:PROXYMA_CLIENT_ARCH) { $env:PROXYMA_CLIENT_ARCH } else { [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant() }
 switch ($targetArch.ToLowerInvariant()) {
     { $_ -in @("x64", "x86_64", "amd64") } { $targetArch = "amd64"; break }
     { $_ -in @("arm64", "aarch64") } { $targetArch = "arm64"; break }
@@ -133,8 +133,8 @@ if ((Test-Path -LiteralPath $BinDir) -and -not (Test-Path -LiteralPath $BinDir -
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 $BinDir = (Resolve-Path -LiteralPath $BinDir).Path
 
-$binaryName = "proxyma-agent-windows-$targetArch.exe"
-$tempDir = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-agent-" + [Guid]::NewGuid().ToString("N"))
+$binaryName = "proxyma-client-windows-$targetArch.exe"
+$tempDir = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-client-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 try {
     $binaryPath = Join-Path $tempDir $binaryName
@@ -143,11 +143,11 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($Binary)) {
         Copy-Item -LiteralPath $Binary -Destination $binaryPath
         Copy-Item -LiteralPath $Harness -Destination $archivePath
-        Write-Host "Installing local proxyma-agent artifacts for windows/$targetArch..."
+        Write-Host "Installing local proxyma-client artifacts for windows/$targetArch..."
     }
     else {
         $releaseUrl = if ($Version -eq "latest") { "$RepositoryUrl/releases/latest/download" } else { "$RepositoryUrl/releases/download/$Version" }
-        Write-Host "Downloading proxyma-agent $Version for windows/$targetArch..."
+        Write-Host "Downloading proxyma-client $Version for windows/$targetArch..."
         foreach ($assetName in @($binaryName, $ArchiveName, "SHA256SUMS")) {
             Copy-ReleaseAsset "$releaseUrl/$assetName" (Join-Path $tempDir $assetName)
         }
@@ -176,7 +176,7 @@ try {
     $payloadDir = Join-Path $tempDir "harness"
     foreach ($relative in @(
         "RELEASE",
-        "proxyma-agent.json",
+        "proxyma-client.json",
         "instruction-pack\proxyma-harness.md",
         ".agents\skills\proxyma-harness\SKILL.md",
         ".claude\skills\proxyma-harness\SKILL.md"
@@ -186,7 +186,7 @@ try {
         Assert-NotReparsePoint $required "Harness payload file"
     }
 
-    $installedBinary = Join-Path $BinDir "proxyma-agent.exe"
+    $installedBinary = Join-Path $BinDir "proxyma-client.exe"
     $harnessDir = Join-Path $ProjectDir "harness"
     $rootAdapterDir = ""
     $rootAdapterPath = ""
@@ -209,7 +209,7 @@ try {
     if ((Test-Path -LiteralPath $harnessDir) -and -not (Test-Path -LiteralPath $harnessDir -PathType Container)) {
         throw "Harness target must be a directory: $harnessDir"
     }
-    $configPath = Join-Path $harnessDir "proxyma-agent.json"
+    $configPath = Join-Path $harnessDir "proxyma-client.json"
     foreach ($preserved in @(
         $configPath,
         (Join-Path $harnessDir "agent-configuration"),
@@ -264,7 +264,7 @@ try {
     Replace-InstalledPath $binaryPath $installedBinary
     New-Item -ItemType Directory -Force -Path $harnessDir | Out-Null
     if (-not (Test-Path -LiteralPath $configPath)) {
-        Copy-Item -LiteralPath (Join-Path $payloadDir "proxyma-agent.json") -Destination $configPath
+        Copy-Item -LiteralPath (Join-Path $payloadDir "proxyma-client.json") -Destination $configPath
     }
     foreach ($relativeDir in @("agent-configuration", "task-state", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries")) {
         New-Item -ItemType Directory -Force -Path (Join-Path $harnessDir $relativeDir) | Out-Null
@@ -280,7 +280,7 @@ try {
         Replace-InstalledPath $rootAdapterSource $rootAdapterPath
     }
 
-    Write-Host "Installed proxyma-agent at $installedBinary"
+    Write-Host "Installed proxyma-client at $installedBinary"
     Write-Host "Installed the matching harness at $harnessDir"
     if ($HarnessType -eq "codex") {
         Write-Host "Installed the Codex adapter at $rootAdapterPath"

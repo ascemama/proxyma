@@ -12,10 +12,10 @@ extension=""
 if [[ "$GOOS_VALUE" == "windows" ]]; then extension=".exe"; fi
 
 mkdir -p "$OUT_DIR"
-output="$OUT_DIR/proxyma-agent-$GOOS_VALUE-$GOARCH_VALUE$extension"
+output="$OUT_DIR/proxyma-client-$GOOS_VALUE-$GOARCH_VALUE$extension"
 cd "$ROOT"
 GOOS="$GOOS_VALUE" GOARCH="$GOARCH_VALUE" CGO_ENABLED="$CGO_ENABLED_VALUE" \
   go build -trimpath \
   -ldflags="-s -w -X proxyma/internal/buildinfo.rawVersion=$VERSION_VALUE -X proxyma/internal/buildinfo.rawCommit=$COMMIT_VALUE" \
-  -o "$output" ./cmd/proxyma-agent
+  -o "$output" ./cmd/proxyma-client
 echo "Built $output"

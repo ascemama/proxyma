@@ -59,7 +59,7 @@ harness/task-state/blocked/*.json
 harness/task-state/closed/*.json
 harness/task-state/summaries/*.md
 harness/task-state/.journal/*.json
-harness/task-state/.proxyma-agent.lock
+harness/task-state/.proxyma-client.lock
 harness/agent-configuration/*.json
 !harness/agent-configuration/agent.example.json
 !harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json

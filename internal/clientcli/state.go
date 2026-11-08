@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"encoding/json"
@@ -54,7 +54,7 @@ func (s *StateStore) Lock(timeout time.Duration) (*stateLock, error) {
 	if err := os.MkdirAll(s.root, 0o700); err != nil {
 		return nil, err
 	}
-	path := filepath.Join(s.root, ".proxyma-agent.lock")
+	path := filepath.Join(s.root, ".proxyma-client.lock")
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (s *StateStore) Lock(timeout time.Duration) (*stateLock, error) {
 		}
 		if time.Now().After(deadline) {
 			_ = file.Close()
-			return nil, &commandError{code: "state_locked", message: "another proxyma-agent process holds the state lock", retryable: true, exitCode: 3}
+			return nil, &commandError{code: "state_locked", message: "another proxyma-client process holds the state lock", retryable: true, exitCode: 3}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

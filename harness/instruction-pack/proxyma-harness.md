@@ -1,15 +1,15 @@
 # Proxyma Agent Harness v2
 
-Use `proxyma-agent` whenever work requires commands on a Proxyma-managed target.
+Use `proxyma-client` whenever work requires commands on a Proxyma-managed target.
 The CLI owns authentication, target resolution, canonical SSH/WinRM construction,
 submission, polling, duplicate prevention, and durable state. Do not reproduce those
 operations with shell scripts or raw HTTP.
 
 ## Required lifecycle
 
-1. At the start of relevant work, run `proxyma-agent resume`.
+1. At the start of relevant work, run `proxyma-client resume`.
 2. Before the first command for a target in the current harness session, run
-   `proxyma-agent policy --target=<hostname-or-ip>`. Keep the returned policy
+   `proxyma-client policy --target=<hostname-or-ip>`. Keep the returned policy
    guidance in session context and repeat this once for each additional target.
    The purpose is to let the harness choose the exact command form that the user
    has pre-approved, and to avoid command forms that the user has explicitly
@@ -25,7 +25,7 @@ operations with shell scripts or raw HTTP.
 6. For `action: blocked`, report the reason and required next action. Never bypass
    Proxyma to make progress.
 7. Submit remote work with one JSON object through
-   `proxyma-agent submit --input <file-or->`. Supply the user goal, target hostname or
+   `proxyma-client submit --input <file-or->`. Supply the user goal, target hostname or
    IP, remote payload, reasoning, and your harness name in `requested_by`.
 8. Use the returned `client_task_id` and `revision` for later `poll`, `task-update`,
    `submit`, or `task-complete` calls. Existing-task mutations require the latest
@@ -38,15 +38,15 @@ operations with shell scripts or raw HTTP.
 Use only these command forms:
 
 ```text
-proxyma-agent resume
-proxyma-agent poll --task=<client_task_id>
-proxyma-agent inspect --task=<client_task_id>
-proxyma-agent inspect --target=<hostname-or-ip>
-proxyma-agent policy --target=<hostname-or-ip>
-proxyma-agent submit --input=<file-or->
-proxyma-agent task-update --input=<file-or->
-proxyma-agent task-complete --input=<file-or->
-proxyma-agent doctor
+proxyma-client resume
+proxyma-client poll --task=<client_task_id>
+proxyma-client inspect --task=<client_task_id>
+proxyma-client inspect --target=<hostname-or-ip>
+proxyma-client policy --target=<hostname-or-ip>
+proxyma-client submit --input=<file-or->
+proxyma-client task-update --input=<file-or->
+proxyma-client task-complete --input=<file-or->
+proxyma-client doctor
 ```
 
 `poll` accepts `--task` only; it does not accept a revision. Use the CLI's logical
@@ -83,7 +83,7 @@ For completion, use:
 The CLI output field is `revision`; copy its latest value into the next mutation's
 `expected_revision`. Never send an input field named `revision`. When syntax is
 uncertain or the CLI returns `invalid_usage` or `invalid_input`, run
-`proxyma-agent <command> --help` before retrying.
+`proxyma-client <command> --help` before retrying.
 
 ## Safety boundary
 
@@ -101,5 +101,5 @@ uncertain or the CLI returns `invalid_usage` or `invalid_input`, run
 - Proxyma owns authorization, credentials, approval policy, and execution. The agent
   owns user-intent reasoning, payload choice, result interpretation, and completion.
 
-Run `proxyma-agent doctor` for configuration, state, authentication, capability, or
+Run `proxyma-client doctor` for configuration, state, authentication, capability, or
 connectivity problems. Harness v1 run and state files are unsupported.

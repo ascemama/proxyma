@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 )
 
 func Run(args []string, stdout, stderr io.Writer) int {
-	global := flag.NewFlagSet("proxyma-agent", flag.ContinueOnError)
+	global := flag.NewFlagSet("proxyma-client", flag.ContinueOnError)
 	global.SetOutput(io.Discard)
 	configPath := global.String("config", "", "path to harness v2 configuration")
 	pretty := global.Bool("pretty", false, "indent JSON output")
@@ -244,9 +244,9 @@ func isHelpRequest(args []string) bool {
 }
 
 func usageError(command, message string) *commandError {
-	hint := "Run \"proxyma-agent --help\" for usage."
+	hint := "Run \"proxyma-client --help\" for usage."
 	if command != "" {
-		hint = fmt.Sprintf("Run \"proxyma-agent %s --help\" for usage and examples.", command)
+		hint = fmt.Sprintf("Run \"proxyma-client %s --help\" for usage and examples.", command)
 	}
 	return &commandError{code: "invalid_usage", message: message, hint: hint, exitCode: 2}
 }
@@ -255,7 +255,7 @@ func inputError(command, message string) *commandError {
 	return &commandError{
 		code:     "invalid_input",
 		message:  message,
-		hint:     fmt.Sprintf("Run \"proxyma-agent %s --help\" for the accepted JSON fields and an example.", command),
+		hint:     fmt.Sprintf("Run \"proxyma-client %s --help\" for the accepted JSON fields and an example.", command),
 		exitCode: 2,
 	}
 }

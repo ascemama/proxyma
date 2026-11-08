@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"context"
@@ -304,7 +304,7 @@ func (s *Service) applyProxymaStatus(task *TaskState, index int, response taskRe
 		operation.Phase = "blocked"
 		task.Status = "blocked"
 		task.BlockedReason = "Proxyma returned unknown status " + response.Status
-		task.RequiredNextAction = "upgrade proxyma-agent or inspect the server response"
+		task.RequiredNextAction = "upgrade proxyma-client or inspect the server response"
 		action = "blocked"
 	}
 	touch(task, now)

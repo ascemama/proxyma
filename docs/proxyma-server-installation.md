@@ -1,11 +1,11 @@
 # Proxyma Server Deployment
 
 This page covers deployment of the `proxyma-server` component and its embedded
-browser frontend. It does not describe installation of `proxyma-agent`, which
+browser frontend. It does not describe installation of `proxyma-client`, which
 runs on the workstation where Codex, Claude Code, or another agent runtime
-operates. For the agent component, see the [`proxyma-agent` release
-installation guide](proxyma-agent-installation-release.md) or the
-[`proxyma-agent` source installation guide](proxyma-agent-installation-source.md).
+operates. For the client component, see the [`proxyma-client` release
+installation guide](proxyma-client-installation-release.md) or the
+[`proxyma-client` source installation guide](proxyma-client-installation-source.md).
 
 Proxyma Server supports four deployment modes. Choose the mode that matches how
 the server will be used, then follow the linked lifecycle guide.

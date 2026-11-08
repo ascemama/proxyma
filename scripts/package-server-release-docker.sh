@@ -64,7 +64,7 @@ image=ghcr.io/ascemama/proxyma:${VERSION#v}
 install=sudo bash ./scripts/install-proxyma-server-docker.sh
 EOF
 
-ARCHIVE="$OUT_DIR/proxyma_docker.tar.gz"
+ARCHIVE="$OUT_DIR/proxyma-server-docker.tar.gz"
 tar \
   --sort=name \
   --mtime="@$SOURCE_DATE_EPOCH" \

@@ -73,7 +73,7 @@ arch=$ARCH
 install=sudo GOARCH=$ARCH bash ./scripts/install-proxyma-server-linux-release.sh
 EOF
 
-ARCHIVE="$OUT_DIR/proxyma_linux_$ARCH.tar.gz"
+ARCHIVE="$OUT_DIR/proxyma-server-linux-$ARCH.tar.gz"
 tar \
   --sort=name \
   --mtime="@$SOURCE_DATE_EPOCH" \

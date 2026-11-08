@@ -17,14 +17,14 @@ Resolve the selected path relative to the project root, not relative to this
 `SKILL.md` file; do not search for the file by basename alone. If neither exact
 path can be read, stop and report the problem before running any Proxyma commands.
 Do not look for `instruction-pack/` inside `.agents`. Use
-`proxyma-agent` for authentication, target resolution,
+`proxyma-client` for authentication, target resolution,
 submission, polling, duplicate prevention, and task-state changes.
 
-Start relevant work with `proxyma-agent resume` and continue actionable saved tasks
+Start relevant work with `proxyma-client resume` and continue actionable saved tasks
 first. Submit only a remote payload—not an SSH or WinRM wrapper—with
 `requested_by: "codex"`. Preserve the returned task ID and revision. Interpret
 results yourself and call `task-complete` only after satisfying the user goal.
 
 Never directly access a target, read credentials, edit CLI-owned state, or replace an
-uncertain submission. Use `proxyma-agent doctor` for configuration or connectivity
+uncertain submission. Use `proxyma-client doctor` for configuration or connectivity
 failures.

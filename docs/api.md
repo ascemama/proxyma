@@ -5,9 +5,9 @@ authenticate with a password-backed session and CSRF token. Agents authenticate
 with a short-lived JWT and can resolve targets, submit commands, and inspect
 their own tasks and interactions.
 
-The agent harness does not call these endpoints directly. It uses
-`proxyma-agent`, whose CLI contract is documented in the shipped harness
-instruction pack and exposed by `proxyma-agent <command> --help`. This page
+The client harness does not call these endpoints directly. It uses
+`proxyma-client`, whose CLI contract is documented in the shipped harness
+instruction pack and exposed by `proxyma-client <command> --help`. This page
 documents the underlying HTTP API for server-side development and integrations;
 copyable agent request and response examples are in
 `harness/instruction-pack/api-examples/`.

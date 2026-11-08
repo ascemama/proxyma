@@ -53,7 +53,7 @@ for required in \
   "$ROOT/harness/examples" \
   "$ROOT/harness/instruction-pack" \
   "$ROOT/harness/tests" \
-  "$ROOT/harness/examples/proxyma-agent.json" \
+  "$ROOT/harness/examples/proxyma-client.json" \
   "$ROOT/harness/agent-configuration/agent.example.json"; do
   if [[ ! -e "$required" || -L "$required" ]]; then
     echo "Missing or unsafe harness package input: $required" >&2
@@ -139,7 +139,7 @@ else
   copy_tracked_tree harness/instruction-pack
   copy_tracked_tree harness/tests
 fi
-install -m 0644 "$ROOT/harness/examples/proxyma-agent.json" "$PAYLOAD_DIR/proxyma-agent.json"
+install -m 0644 "$ROOT/harness/examples/proxyma-client.json" "$PAYLOAD_DIR/proxyma-client.json"
 install -m 0644 "$ROOT/harness/agent-configuration/agent.example.json" "$PAYLOAD_DIR/agent-configuration/agent.example.json"
 : >"$PAYLOAD_DIR/agent-configuration/.gitkeep"
 : >"$PAYLOAD_DIR/task-state/active/.gitkeep"
@@ -148,12 +148,12 @@ install -m 0644 "$ROOT/harness/agent-configuration/agent.example.json" "$PAYLOAD
 : >"$PAYLOAD_DIR/task-state/summaries/.gitkeep"
 
 cat >"$PAYLOAD_DIR/RELEASE" <<EOF
-name=proxyma-agent-harness
+name=proxyma-client-harness
 version=$VERSION
 commit=$COMMIT
 EOF
 
-ARCHIVE="$OUT_DIR/proxyma-agent-harness.tar.gz"
+ARCHIVE="$OUT_DIR/proxyma-client-harness.tar.gz"
 tar \
   --sort=name \
   --mtime="@$SOURCE_DATE_EPOCH" \

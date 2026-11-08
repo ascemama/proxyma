@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://proxyma.local/schemas/proxyma-agent.schema.json",
+  "$id": "https://proxyma.local/schemas/proxyma-client.schema.json",
   "title": "ProxymaAgentHarnessConfig",
   "type": "object",
   "additionalProperties": false,

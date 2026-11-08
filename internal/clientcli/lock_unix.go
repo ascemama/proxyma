@@ -1,6 +1,6 @@
 //go:build !windows
 
-package agentcli
+package clientcli
 
 import (
 	"errors"

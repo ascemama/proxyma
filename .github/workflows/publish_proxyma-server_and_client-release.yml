@@ -1,10 +1,10 @@
-name: Publish Proxyma Server and Agent release
+name: Publish Proxyma Server and Client release
 run-name: ${{ github.event_name == 'push' && format('Publish precompiled Linux binary release {0}', github.ref_name) || 'Validate precompiled Linux binary release changes' }}
 
 on:
   pull_request:
     paths:
-      - ".github/workflows/publish_proxyma-server_and_agent-release.yml"
+      - ".github/workflows/publish_proxyma-server_and_client-release.yml"
       - "README.md"
       - "LICENSE"
       - "cmd/**"
@@ -15,8 +15,8 @@ on:
       - "scripts/*.sh"
       - "scripts/*.ps1"
       - "harness/**"
-      - "docs/proxyma-agent-installation-release.md"
-      - "docs/proxyma-agent-installation-source.md"
+      - "docs/proxyma-client-installation-release.md"
+      - "docs/proxyma-client-installation-source.md"
       - "docs/release-testing.md"
   push:
     tags:
@@ -53,8 +53,8 @@ jobs:
         shell: pwsh
         run: ./harness/tests/validate-harness-assets.ps1
 
-      - name: Test sanitized agent harness package
-        run: bash scripts/test-package-agent-harness.sh
+      - name: Test sanitized client harness package
+        run: bash scripts/test-package-client-harness.sh
 
       - name: Test precompiled downloader
         run: bash scripts/test-install-proxyma-server-linux.sh
@@ -152,19 +152,19 @@ jobs:
       - name: Inspect release archive
         shell: bash
         run: |
-          test "$(tar -tzf "release-assets/proxyma_linux_${{ matrix.arch }}.tar.gz" | grep -c '^proxyma/dist/[^/]\+$')" -eq 2
-          tar -tzf "release-assets/proxyma_linux_${{ matrix.arch }}.tar.gz" | grep -Fx 'proxyma/scripts/install-proxyma-server-linux-release.sh'
-          tar -tzf "release-assets/proxyma_linux_${{ matrix.arch }}.tar.gz" | grep -Fx 'proxyma/scripts/uninstall-proxyma-server-linux-release.sh'
+          test "$(tar -tzf "release-assets/proxyma-server-linux-${{ matrix.arch }}.tar.gz" | grep -c '^proxyma/dist/[^/]\+$')" -eq 2
+          tar -tzf "release-assets/proxyma-server-linux-${{ matrix.arch }}.tar.gz" | grep -Fx 'proxyma/scripts/install-proxyma-server-linux-release.sh'
+          tar -tzf "release-assets/proxyma-server-linux-${{ matrix.arch }}.tar.gz" | grep -Fx 'proxyma/scripts/uninstall-proxyma-server-linux-release.sh'
 
       - name: Upload Linux archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-${{ matrix.arch }}
-          path: release-assets/proxyma_linux_${{ matrix.arch }}.tar.gz
+          path: release-assets/proxyma-server-linux-${{ matrix.arch }}.tar.gz
           if-no-files-found: error
           retention-days: 1
 
-  agent-platform-test:
+  client-platform-test:
     needs: validate
     strategy:
       fail-fast: false
@@ -179,16 +179,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Test agent CLI and atomic state
-        run: go test ./internal/agentcli ./internal/store
-      - name: Test POSIX agent release installer
+      - name: Test client CLI and atomic state
+        run: go test ./internal/clientcli ./internal/store
+      - name: Test POSIX client release installer
         if: runner.os != 'Windows'
         shell: bash
-        run: bash scripts/test-install-agent.sh
-      - name: Test Windows agent release installer
+        run: bash scripts/test-install-client.sh
+      - name: Test Windows client release installer
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/test-install-agent.ps1
+        run: ./scripts/test-install-client.ps1
       - name: Validate PowerShell assets
         if: runner.os == 'Windows'
         shell: pwsh
@@ -196,17 +196,17 @@ jobs:
           $tokens = $null
           $errors = @()
           foreach ($file in @(
-            './scripts/build-agent-release.ps1',
-            './scripts/install-proxyma-agent.ps1',
-            './scripts/test-install-agent.ps1',
-            './scripts/test-agent-release.ps1',
+            './scripts/build-client-release.ps1',
+            './scripts/install-proxyma-client.ps1',
+            './scripts/test-install-client.ps1',
+            './scripts/test-client-release.ps1',
             './harness/tests/claude-code-smoke.ps1'
           )) {
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
           }
           if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
 
-  agent-harness-package:
+  client-harness-package:
     needs: validate
     runs-on: ubuntu-latest
     env:
@@ -215,37 +215,37 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
-      - name: Package sanitized agent harness and installers
+      - name: Package sanitized client harness and installers
         shell: bash
         run: |
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
-          bash scripts/package-agent-harness.sh \
+          bash scripts/package-client-harness.sh \
             "$RELEASE_VERSION" \
             "${{ github.sha }}" \
             release-assets
-          install -m 0755 scripts/install-proxyma-agent.sh release-assets/install-proxyma-agent.sh
-          install -m 0644 scripts/install-proxyma-agent.ps1 release-assets/install-proxyma-agent.ps1
+          install -m 0755 scripts/install-proxyma-client.sh release-assets/install-proxyma-client.sh
+          install -m 0644 scripts/install-proxyma-client.ps1 release-assets/install-proxyma-client.ps1
 
-      - name: Inspect agent harness release assets
+      - name: Inspect client harness release assets
         shell: bash
         run: |
-          tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -Fx 'harness/RELEASE'
-          tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -Fx 'harness/proxyma-agent.json'
-          tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -Fx 'harness/.agents/skills/proxyma-harness/SKILL.md'
-          ! tar -tzf release-assets/proxyma-agent-harness.tar.gz | grep -F 'df9ec8bb-1a22-4181-a7c8-126ad553221d.json'
+          tar -tzf release-assets/proxyma-client-harness.tar.gz | grep -Fx 'harness/RELEASE'
+          tar -tzf release-assets/proxyma-client-harness.tar.gz | grep -Fx 'harness/proxyma-client.json'
+          tar -tzf release-assets/proxyma-client-harness.tar.gz | grep -Fx 'harness/.agents/skills/proxyma-harness/SKILL.md'
+          ! tar -tzf release-assets/proxyma-client-harness.tar.gz | grep -F 'df9ec8bb-1a22-4181-a7c8-126ad553221d.json'
 
-      - name: Upload agent harness and installers
+      - name: Upload client harness and installers
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: proxyma-agent-installation
+          name: proxyma-client-installation
           path: |
-            release-assets/proxyma-agent-harness.tar.gz
-            release-assets/install-proxyma-agent.sh
-            release-assets/install-proxyma-agent.ps1
+            release-assets/proxyma-client-harness.tar.gz
+            release-assets/install-proxyma-client.sh
+            release-assets/install-proxyma-client.ps1
           if-no-files-found: error
           retention-days: 1
 
-  agent-build:
+  client-build:
     needs: validate
     runs-on: ubuntu-latest
     strategy:
@@ -254,22 +254,22 @@ jobs:
         include:
           - os: linux
             arch: amd64
-            asset: proxyma-agent-linux-amd64
+            asset: proxyma-client-linux-amd64
           - os: linux
             arch: arm64
-            asset: proxyma-agent-linux-arm64
+            asset: proxyma-client-linux-arm64
           - os: windows
             arch: amd64
-            asset: proxyma-agent-windows-amd64.exe
+            asset: proxyma-client-windows-amd64.exe
           - os: windows
             arch: arm64
-            asset: proxyma-agent-windows-arm64.exe
+            asset: proxyma-client-windows-arm64.exe
           - os: darwin
             arch: amd64
-            asset: proxyma-agent-darwin-amd64
+            asset: proxyma-client-darwin-amd64
           - os: darwin
             arch: arm64
-            asset: proxyma-agent-darwin-arm64
+            asset: proxyma-client-darwin-arm64
     env:
       RELEASE_VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v0.0.0-ci.{0}', github.run_number) }}
     steps:
@@ -280,7 +280,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Build standalone agent CLI
+      - name: Build standalone client CLI
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
@@ -288,13 +288,13 @@ jobs:
           OUT_DIR: release-assets
           PROXYMA_VERSION: ${{ env.RELEASE_VERSION }}
           PROXYMA_COMMIT: ${{ github.sha }}
-        run: bash scripts/build-agent-release.sh
+        run: bash scripts/build-client-release.sh
       - name: Inspect binary metadata
         run: go version -m "release-assets/${{ matrix.asset }}"
-      - name: Upload standalone agent CLI
+      - name: Upload standalone client CLI
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: agent-${{ matrix.os }}-${{ matrix.arch }}
+          name: client-${{ matrix.os }}-${{ matrix.arch }}
           path: release-assets/${{ matrix.asset }}
           if-no-files-found: error
           retention-days: 1
@@ -320,16 +320,16 @@ jobs:
       - name: Inspect Docker deployment bundle
         shell: bash
         run: |
-          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/RELEASE'
-          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/docker-compose.example.yml'
-          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/scripts/install-proxyma-server-docker.sh'
-          tar -tzf release-assets/proxyma_docker.tar.gz | grep -Fx 'proxyma/scripts/uninstall-proxyma-server-docker.sh'
+          tar -tzf release-assets/proxyma-server-docker.tar.gz | grep -Fx 'proxyma/RELEASE'
+          tar -tzf release-assets/proxyma-server-docker.tar.gz | grep -Fx 'proxyma/docker-compose.example.yml'
+          tar -tzf release-assets/proxyma-server-docker.tar.gz | grep -Fx 'proxyma/scripts/install-proxyma-server-docker.sh'
+          tar -tzf release-assets/proxyma-server-docker.tar.gz | grep -Fx 'proxyma/scripts/uninstall-proxyma-server-docker.sh'
 
       - name: Upload Docker deployment bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: docker-release
-          path: release-assets/proxyma_docker.tar.gz
+          path: release-assets/proxyma-server-docker.tar.gz
           if-no-files-found: error
           retention-days: 1
 
@@ -338,9 +338,9 @@ jobs:
     needs:
       - build
       - docker-package
-      - agent-build
-      - agent-harness-package
-      - agent-platform-test
+      - client-build
+      - client-harness-package
+      - client-platform-test
     runs-on: ubuntu-latest
     permissions:
       artifact-metadata: write
@@ -364,17 +364,17 @@ jobs:
           name: docker-release
           path: release-assets
 
-      - name: Download standalone agent CLIs
+      - name: Download standalone client CLIs
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: agent-*
+          pattern: client-*
           path: release-assets
           merge-multiple: true
 
-      - name: Download agent harness and installers
+      - name: Download client harness and installers
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: proxyma-agent-installation
+          name: proxyma-client-installation
           path: release-assets
 
       - name: Prepare checksums and release installers
@@ -385,17 +385,17 @@ jobs:
           (
             cd release-assets
             sha256sum \
-              proxyma_linux_amd64.tar.gz \
-              proxyma_linux_arm64.tar.gz \
-              proxyma_docker.tar.gz \
+              proxyma-server-linux-amd64.tar.gz \
+              proxyma-server-linux-arm64.tar.gz \
+              proxyma-server-docker.tar.gz \
               install-proxyma-server-linux.sh \
               install-proxyma-server-docker.sh \
-              install-proxyma-agent.sh \
-              install-proxyma-agent.ps1 \
-              proxyma-agent-harness.tar.gz \
-              proxyma-agent-linux-* \
-              proxyma-agent-windows-* \
-              proxyma-agent-darwin-* \
+              install-proxyma-client.sh \
+              install-proxyma-client.ps1 \
+              proxyma-client-harness.tar.gz \
+              proxyma-client-linux-* \
+              proxyma-client-windows-* \
+              proxyma-client-darwin-* \
               | sort -k2 >SHA256SUMS
           )
 
@@ -404,20 +404,20 @@ jobs:
         run: |
           set -euo pipefail
           expected_assets=(
-            proxyma_linux_amd64.tar.gz
-            proxyma_linux_arm64.tar.gz
-            proxyma_docker.tar.gz
+            proxyma-server-linux-amd64.tar.gz
+            proxyma-server-linux-arm64.tar.gz
+            proxyma-server-docker.tar.gz
             install-proxyma-server-linux.sh
             install-proxyma-server-docker.sh
-            install-proxyma-agent.sh
-            install-proxyma-agent.ps1
-            proxyma-agent-harness.tar.gz
-            proxyma-agent-linux-amd64
-            proxyma-agent-linux-arm64
-            proxyma-agent-windows-amd64.exe
-            proxyma-agent-windows-arm64.exe
-            proxyma-agent-darwin-amd64
-            proxyma-agent-darwin-arm64
+            install-proxyma-client.sh
+            install-proxyma-client.ps1
+            proxyma-client-harness.tar.gz
+            proxyma-client-linux-amd64
+            proxyma-client-linux-arm64
+            proxyma-client-windows-amd64.exe
+            proxyma-client-windows-arm64.exe
+            proxyma-client-darwin-amd64
+            proxyma-client-darwin-arm64
           )
           for asset in "${expected_assets[@]}"; do
             test -f "release-assets/$asset"
@@ -439,7 +439,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  prepublish-agent-release:
+  prepublish-client-release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: release-assets
     strategy:
@@ -457,7 +457,7 @@ jobs:
           name: release-assets
           path: release-assets
 
-      - name: Test staged agent release on POSIX
+      - name: Test staged client release on POSIX
         if: runner.os != 'Windows'
         shell: bash
         run: |
@@ -466,21 +466,21 @@ jobs:
           trap 'rm -rf "$staging_root"' EXIT
           mkdir -p "$staging_root/releases/download/$GITHUB_REF_NAME"
           cp release-assets/* "$staging_root/releases/download/$GITHUB_REF_NAME/"
-          bash scripts/test-agent-release.sh \
+          bash scripts/test-client-release.sh \
             "$GITHUB_REF_NAME" \
             "file://$staging_root"
 
-      - name: Test staged agent release on Windows
+      - name: Test staged client release on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $stagingRoot = Join-Path $env:RUNNER_TEMP ("proxyma-agent-release-" + [Guid]::NewGuid().ToString("N"))
+          $stagingRoot = Join-Path $env:RUNNER_TEMP ("proxyma-client-release-" + [Guid]::NewGuid().ToString("N"))
           $releaseDir = Join-Path $stagingRoot ("releases\download\" + $env:GITHUB_REF_NAME)
           New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
           Copy-Item -Path ((Resolve-Path .\release-assets).Path + '\*') -Destination $releaseDir -Recurse
           $releaseBaseUrl = ([Uri]::new($stagingRoot)).AbsoluteUri.TrimEnd('/')
           try {
-            & .\scripts\test-agent-release.ps1 `
+            & .\scripts\test-client-release.ps1 `
               -Version $env:GITHUB_REF_NAME `
               -ReleaseBaseUrl $releaseBaseUrl
           }
@@ -492,7 +492,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs:
       - release-assets
-      - prepublish-agent-release
+      - prepublish-client-release
     runs-on: ubuntu-latest
     environment:
       name: ${{ contains(github.ref_name, '-') && 'release-prerelease' || 'production-release' }}
@@ -528,20 +528,20 @@ jobs:
 
           gh release create "$GITHUB_REF_NAME" \
             "${release_flags[@]}" \
-            release-assets/proxyma_linux_amd64.tar.gz \
-            release-assets/proxyma_linux_arm64.tar.gz \
-            release-assets/proxyma_docker.tar.gz \
+            release-assets/proxyma-server-linux-amd64.tar.gz \
+            release-assets/proxyma-server-linux-arm64.tar.gz \
+            release-assets/proxyma-server-docker.tar.gz \
             release-assets/install-proxyma-server-linux.sh \
             release-assets/install-proxyma-server-docker.sh \
-            release-assets/install-proxyma-agent.sh \
-            release-assets/install-proxyma-agent.ps1 \
-            release-assets/proxyma-agent-harness.tar.gz \
-            release-assets/proxyma-agent-linux-* \
-            release-assets/proxyma-agent-windows-* \
-            release-assets/proxyma-agent-darwin-* \
+            release-assets/install-proxyma-client.sh \
+            release-assets/install-proxyma-client.ps1 \
+            release-assets/proxyma-client-harness.tar.gz \
+            release-assets/proxyma-client-linux-* \
+            release-assets/proxyma-client-windows-* \
+            release-assets/proxyma-client-darwin-* \
             release-assets/SHA256SUMS
 
-  postpublish-agent-release:
+  postpublish-client-release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !github.event.repository.private }}
     needs: publish
     strategy:
@@ -553,18 +553,18 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
-      - name: Test published agent release on POSIX
+      - name: Test published client release on POSIX
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          bash scripts/test-agent-release.sh \
+          bash scripts/test-client-release.sh \
             "$GITHUB_REF_NAME" \
             "https://github.com/$GITHUB_REPOSITORY"
 
-      - name: Test published agent release on Windows
+      - name: Test published client release on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & .\scripts\test-agent-release.ps1 `
+          & .\scripts\test-client-release.ps1 `
             -Version $env:GITHUB_REF_NAME `
             -ReleaseBaseUrl "https://github.com/$env:GITHUB_REPOSITORY"

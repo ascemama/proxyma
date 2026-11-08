@@ -44,7 +44,7 @@ curl -fL -o install-proxyma-server-docker.sh \
 sudo bash ./install-proxyma-server-docker.sh
 ```
 
-The downloaded script retrieves `proxyma_docker.tar.gz` and `SHA256SUMS`,
+The downloaded script retrieves `proxyma-server-docker.tar.gz` and `SHA256SUMS`,
 verifies the bundle checksum, rejects unsafe archive entries, and runs the
 bundled installer. Release metadata selects the exact image tag corresponding
 to the downloaded release rather than the moving `latest` tag.
@@ -62,6 +62,11 @@ sudo bash ./install-proxyma-server-docker.sh --version "$version"
 `--version` accepts only `vMAJOR.MINOR.PATCH` and exact semantic prerelease
 versions such as `v0.3.0-rc.1`. The `latest` selector never selects a
 prerelease.
+
+The current downloader expects `proxyma-server-docker.tar.gz`. Existing
+releases that publish `proxyma_docker.tar.gz` must be installed with the
+installer script from that same release, or by manually downloading and
+extracting the old release bundle.
 
 For maximum image reproducibility, override the matching tag with the manifest
 digest shown by GHCR:
@@ -312,7 +317,7 @@ not be used. Remove the failed download and retry. For additional provenance
 verification, use the GitHub CLI against an exact release asset:
 
 ```bash
-gh attestation verify proxyma_docker.tar.gz --repo ascemama/proxyma
+gh attestation verify proxyma-server-docker.tar.gz --repo ascemama/proxyma
 ```
 
 ## Completely Uninstall

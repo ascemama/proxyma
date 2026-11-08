@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import "fmt"
 
@@ -18,7 +18,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 	switch command {
 	case "":
 		return &HelpInfo{
-			Usage:   "proxyma-agent [--config PATH] [--pretty] <command> [options]",
+			Usage:   "proxyma-client [--config PATH] [--pretty] <command> [options]",
 			Summary: "Operate durable Proxyma agent tasks through the harness v2 protocol.",
 			Flags: []HelpFlag{
 				{Name: "--config", Value: "PATH", Description: "Harness v2 configuration; must appear before the command."},
@@ -37,39 +37,39 @@ func helpFor(command string) (*HelpInfo, bool) {
 				{Name: "version", Summary: "Show CLI and protocol versions."},
 				{Name: "help", Summary: "Show global or command-specific help."},
 			},
-			Notes: []string{"Run proxyma-agent <command> --help for accepted flags and input fields."},
+			Notes: []string{"Run proxyma-client <command> --help for accepted flags and input fields."},
 		}, true
 	case "help":
 		return &HelpInfo{
-			Usage:   "proxyma-agent help [command]",
+			Usage:   "proxyma-client help [command]",
 			Summary: "Show global help or detailed help for one command.",
-			Example: "proxyma-agent help task-complete",
+			Example: "proxyma-client help task-complete",
 		}, true
 	case "version":
 		return &HelpInfo{
-			Usage:   "proxyma-agent version",
+			Usage:   "proxyma-client version",
 			Summary: "Return CLI version, commit, protocol version, and supported state schema.",
 			Notes:   []string{"This command does not load harness configuration."},
 		}, true
 	case "resume":
 		return &HelpInfo{
-			Usage:   "proxyma-agent resume",
+			Usage:   "proxyma-client resume",
 			Summary: "Recover valid journals, safely retry uncertain submissions, and poll all open operations once.",
 			Notes:   []string{"Run this before starting new Proxyma work.", "The response contains only changed or actionable tasks plus unchanged counts."},
 		}, true
 	case "poll":
 		return &HelpInfo{
-			Usage:   "proxyma-agent poll --task CLIENT_TASK_ID",
+			Usage:   "proxyma-client poll --task CLIENT_TASK_ID",
 			Summary: "Poll every non-final Proxyma operation for one logical client task.",
 			Flags: []HelpFlag{
 				{Name: "--task", Value: "CLIENT_TASK_ID", Required: true, Description: "Logical client_task_id returned by the CLI."},
 			},
-			Example: "proxyma-agent poll --task=c20e42a9-fb6f-4517-a201-639280b55444",
+			Example: "proxyma-client poll --task=c20e42a9-fb6f-4517-a201-639280b55444",
 			Notes:   []string{"poll does not accept a revision; it always loads the latest local task revision.", "Do not use the Proxyma server task ID."},
 		}, true
 	case "inspect":
 		return &HelpInfo{
-			Usage:   "proxyma-agent inspect (--task CLIENT_TASK_ID | --target HOST_OR_IP)",
+			Usage:   "proxyma-client inspect (--task CLIENT_TASK_ID | --target HOST_OR_IP)",
 			Summary: "Read authoritative client task state or resolve safe target metadata without submission.",
 			Flags: []HelpFlag{
 				{Name: "--task", Value: "CLIENT_TASK_ID", Description: "Logical client task to read."},
@@ -79,7 +79,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 		}, true
 	case "policy":
 		return &HelpInfo{
-			Usage:   "proxyma-agent policy --target HOST_OR_IP",
+			Usage:   "proxyma-client policy --target HOST_OR_IP",
 			Summary: "Retrieve the current blacklist and whitelist guidance for an authorized target.",
 			Flags: []HelpFlag{
 				{Name: "--target", Value: "HOST_OR_IP", Required: true, Description: "Hostname or IP of a target assigned to this agent."},
@@ -88,12 +88,12 @@ func helpFor(command string) (*HelpInfo, bool) {
 		}, true
 	case "doctor":
 		return &HelpInfo{
-			Usage:   "proxyma-agent doctor",
+			Usage:   "proxyma-client doctor",
 			Summary: "Validate configuration, credentials, state recovery, locking, server health, and required capability.",
 		}, true
 	case "submit":
 		return &HelpInfo{
-			Usage:   "proxyma-agent submit --input FILE_OR_DASH",
+			Usage:   "proxyma-client submit --input FILE_OR_DASH",
 			Summary: "Create or extend a logical task, persist intent, and submit one idempotent Proxyma operation.",
 			Flags:   inputFlagHelp(),
 			InputFields: []HelpField{
@@ -118,7 +118,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 		}, true
 	case "task-update":
 		return &HelpInfo{
-			Usage:   "proxyma-agent task-update --input FILE_OR_DASH",
+			Usage:   "proxyma-client task-update --input FILE_OR_DASH",
 			Summary: "Update agent-owned logical task fields using optimistic revision control.",
 			Flags:   inputFlagHelp(),
 			InputFields: []HelpField{
@@ -136,7 +136,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 		}, true
 	case "task-complete":
 		return &HelpInfo{
-			Usage:   "proxyma-agent task-complete --input FILE_OR_DASH",
+			Usage:   "proxyma-client task-complete --input FILE_OR_DASH",
 			Summary: "Record a final summary and complete a logical task when no operation is in flight.",
 			Flags:   inputFlagHelp(),
 			InputFields: []HelpField{

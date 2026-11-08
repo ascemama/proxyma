@@ -1,14 +1,14 @@
-# First-time Proxyma Agent Configuration
+# First-time Proxyma Client Configuration
 
-This guide configures `proxyma-agent` after the agent executable and matching
+This guide configures `proxyma-client` after the client executable and matching
 harness have been installed. The Proxyma server and agent normally run on
 different machines: the server owns the agent record and signing key, while
 the workstation running Codex or Claude Code stores the client configuration.
 
 Before starting, complete one of the installation guides:
 
-- [`proxyma-agent` release installation](proxyma-agent-installation-release.md)
-- [`proxyma-agent` source installation](proxyma-agent-installation-source.md)
+- [`proxyma-client` release installation](proxyma-client-installation-release.md)
+- [`proxyma-client` source installation](proxyma-client-installation-source.md)
 
 Use the same release or source revision for the executable and harness. Do not
 copy a harness from a different version.
@@ -30,7 +30,7 @@ your-project/
     │   └── agent.json
     ├── instruction-pack/
     ├── task-state/
-    └── proxyma-agent.json
+    └── proxyma-client.json
 ~~~
 
 On a release or source installation, the installer creates `harness/` under
@@ -38,7 +38,7 @@ the selected project directory. Pass `--harness-type codex` (or
 `-HarnessType Codex`) to install the Codex skill at
 `.agents/skills/proxyma-harness/SKILL.md`, or use `claude` to install it at
 `.claude/skills/proxyma-harness/SKILL.md`. Do not put the harness beside the
-agent executable in `$HOME/.local/bin` or
+client executable in `$HOME/.local/bin` or
 `%LOCALAPPDATA%\Programs\Proxyma\bin`.
 
 If no harness type was supplied, copy the adapter for the harness you use:
@@ -66,25 +66,25 @@ inside the adapter directory.
 For example, to install into an existing project on Linux or macOS:
 
 ~~~bash
-bash ./install-proxyma-agent.sh --project-dir /path/to/your-project
+bash ./install-proxyma-client.sh --project-dir /path/to/your-project
 ~~~
 
 On Windows PowerShell:
 
 ~~~powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\install-proxyma-agent.ps1 `
+  -File .\install-proxyma-client.ps1 `
   -ProjectDir C:\path\to\your-project
 ~~~
 
-The agent CLI looks for `harness/proxyma-agent.json` by searching upward from
+The client CLI looks for `harness/proxyma-client.json` by searching upward from
 the current working directory. Therefore, run it from the project directory or
 one of its subdirectories. You can also select a configuration explicitly with
 `--config` before the command, or set `PROXYMA_HARNESS_CONFIG`.
 
 ## 1. Set the Proxyma server URL
 
-Edit `your-project/harness/proxyma-agent.json` and replace the example server
+Edit `your-project/harness/proxyma-client.json` and replace the example server
 URL. This is the URL of the running Proxyma server, not the workstation where
 the agent is installed:
 
@@ -219,10 +219,10 @@ ignored:
 /harness/task-state/closed/
 /harness/task-state/summaries/
 /harness/task-state/.journal/
-/harness/task-state/.proxyma-agent.lock
+/harness/task-state/.proxyma-client.lock
 ~~~
 
-The installer preserves `harness/proxyma-agent.json`,
+The installer preserves `harness/proxyma-client.json`,
 `harness/agent-configuration/`, and `harness/task-state/` during upgrades.
 Back them up securely before changing or rolling back the installed release.
 
@@ -231,9 +231,9 @@ Back them up securely before changing or rolling back the installed release.
 From the project directory, run:
 
 ~~~bash
-proxyma-agent version
-proxyma-agent doctor
-proxyma-agent resume
+proxyma-client version
+proxyma-client doctor
+proxyma-client resume
 ~~~
 
 `doctor` checks the configuration file, credential file or injected secret,
@@ -244,20 +244,20 @@ non-final operations once.
 To verify a target without submitting a command:
 
 ~~~bash
-proxyma-agent inspect --target server.example
+proxyma-client inspect --target server.example
 ~~~
 
 Before the first command for a target in a harness session, retrieve its
 current server-side policy guidance:
 
 ~~~bash
-proxyma-agent policy --target server.example
+proxyma-client policy --target server.example
 ~~~
 
 If discovery fails, run from the project or select the file explicitly:
 
 ~~~bash
-proxyma-agent --config ./harness/proxyma-agent.json doctor
+proxyma-client --config ./harness/proxyma-client.json doctor
 ~~~
 
 Common causes of authentication failure are a mistyped UUID, a signing key

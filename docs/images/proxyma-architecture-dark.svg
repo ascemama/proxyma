@@ -20,7 +20,7 @@
 
   <rect x="405" y="300" width="270" height="180" rx="20" fill="#103037" stroke="#2dd4bf" stroke-width="4"/>
   <circle cx="465" cy="378" r="28" fill="none" stroke="#5eead4" stroke-width="4"/><path d="M465 361 v34 M448 378 h34" stroke="#5eead4" stroke-width="4" stroke-linecap="round"/>
-  <text fill="#e2e8f0" x="565" y="380" class="t b" text-anchor="middle">proxyma-agent</text>
+  <text fill="#e2e8f0" x="565" y="380" class="t b" text-anchor="middle">proxyma-client</text>
   <text fill="#94a3b8" x="540" y="425" class="t s muted" text-anchor="middle">auth · submit · poll</text>
 
   <rect x="760" y="225" width="450" height="365" rx="24" fill="#101b2d" stroke="#60a5fa" stroke-width="5"/>

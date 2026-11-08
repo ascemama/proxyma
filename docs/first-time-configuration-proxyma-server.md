@@ -129,7 +129,7 @@ configuration**.
 
 Use **Copy configuration** in the dialog and paste the result into the harness
 agent configuration file described in the [first-time Proxyma agent
-configuration guide](first-time-configuration-proxyma-agent.md) before
+configuration guide](first-time-configuration-proxyma-client.md) before
 selecting **Done**. The signing key is write-only in the GUI and is used to
 sign short-lived HS256 JWTs; it is never sent as the bearer token itself. An
 agent must also be owned by the user who will operate it.

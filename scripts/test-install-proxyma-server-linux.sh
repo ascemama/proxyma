@@ -44,7 +44,7 @@ EOF
 }
 
 LATEST_DIR="$TEST_ROOT/releases/latest/download"
-create_release "$LATEST_DIR" "proxyma_linux_amd64.tar.gz"
+create_release "$LATEST_DIR" "proxyma-server-linux-amd64.tar.gz"
 RESULT_FILE="$TEST_ROOT/result"
 
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
@@ -59,7 +59,7 @@ mapfile -t result <"$RESULT_FILE"
 [[ "${result[3]}" == "--no-bootstrap-admin" ]] || fail "bootstrap argument was not forwarded"
 
 EXACT_DIR="$TEST_ROOT/releases/download/v1.2.3"
-create_release "$EXACT_DIR" "proxyma_linux_amd64.tar.gz"
+create_release "$EXACT_DIR" "proxyma-server-linux-amd64.tar.gz"
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
 PROXYMA_MACHINE="amd64" \
 PROXYMA_ALLOW_NON_LINUX_TEST=1 \
@@ -78,7 +78,7 @@ if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=ppc64le \
 fi
 
 BAD_DIR="$TEST_ROOT/releases/download/v1.2.4"
-create_release "$BAD_DIR" "proxyma_linux_amd64.tar.gz" invalid
+create_release "$BAD_DIR" "proxyma-server-linux-amd64.tar.gz" invalid
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=x86_64 \
   PROXYMA_ALLOW_NON_LINUX_TEST=1 PROXYMA_TEST_RESULT="$RESULT_FILE" \
   bash "$ROOT/scripts/install-proxyma-server-linux.sh" --version v1.2.4 >/dev/null 2>&1; then
@@ -88,11 +88,11 @@ fi
 UNSAFE_DIR="$TEST_ROOT/releases/download/v1.2.5"
 mkdir -p "$UNSAFE_DIR" "$TEST_ROOT/unsafe-source"
 printf 'unsafe\n' >"$TEST_ROOT/unsafe-source/payload"
-tar -C "$TEST_ROOT/unsafe-source" -czf "$UNSAFE_DIR/proxyma_linux_amd64.tar.gz" \
+tar -C "$TEST_ROOT/unsafe-source" -czf "$UNSAFE_DIR/proxyma-server-linux-amd64.tar.gz" \
   --transform='s#^payload#proxyma/../escape#' payload
 (
   cd "$UNSAFE_DIR"
-  sha256sum proxyma_linux_amd64.tar.gz >SHA256SUMS
+  sha256sum proxyma-server-linux-amd64.tar.gz >SHA256SUMS
 )
 if PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_MACHINE=x86_64 \
   PROXYMA_ALLOW_NON_LINUX_TEST=1 PROXYMA_TEST_RESULT="$RESULT_FILE" \

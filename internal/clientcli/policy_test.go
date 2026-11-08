@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"context"
@@ -38,7 +38,7 @@ func TestPolicyFetchReturnsTargetGuidance(t *testing.T) {
 
 func TestPolicyHelpIsExplicitlyTargetBound(t *testing.T) {
 	help, ok := helpFor("policy")
-	if !ok || help.Usage != "proxyma-agent policy --target HOST_OR_IP" {
+	if !ok || help.Usage != "proxyma-client policy --target HOST_OR_IP" {
 		t.Fatalf("help = %#v", help)
 	}
 }

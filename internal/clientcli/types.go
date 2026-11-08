@@ -1,5 +1,5 @@
-// Package agentcli implements the deterministic Proxyma harness client.
-package agentcli
+// Package clientcli implements the deterministic Proxyma harness client.
+package clientcli
 
 import "time"
 

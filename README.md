@@ -32,8 +32,8 @@ credentials, command policy, audit state, and approval channel.
   - [Technical Capabilities](#technical-capabilities)
 - [Installation](#installation)
   - [Proxyma Server installation options](docs/proxyma-server-installation.md)
-  - [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
-  - [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md)
+  - [`proxyma-client` release installation](docs/proxyma-client-installation-release.md)
+  - [`proxyma-client` source installation](docs/proxyma-client-installation-source.md)
 - [Repository Layout](#repository-layout)
 - [Proxyma Server Runtime Configuration](#proxyma-server-runtime-configuration)
 - [Agent Harness](#agent-harness)
@@ -45,25 +45,25 @@ credentials, command policy, audit state, and approval channel.
 ## How It Works
 
 <p align="center">
-  <img src="docs/images/proxyma-architecture-flow-machine.png" alt="Proxyma architecture showing the agent harness and proxyma-agent on the same machine" width="960">
+  <img src="docs/images/proxyma-architecture-flow-machine.png" alt="Proxyma architecture showing the agent harness and proxyma-client on the same machine" width="960">
 </p>
 
 The complete command workflow is:
 
 1. The harness decides that it needs to run a specific command on a target.
-2. During proxyma-agent installation, select the Codex or Claude Code adapter
-   so the harness knows when and how to use the `proxyma-agent` CLI. If no
+2. During proxyma-client installation, select the Codex or Claude Code adapter
+   so the harness knows when and how to use the `proxyma-client` CLI. If no
    adapter is selected, copy the matching skill from `harness/` into the
    project-root discovery directory.
 3. Before the first command for a target in the current session, the harness
    requests that target's blacklist and whitelist guidance with
-   `proxyma-agent policy --target`. It reuses the guidance for that target until
+   `proxyma-client policy --target`. It reuses the guidance for that target until
    the harness restarts.
    This gives the harness enough context to select an exact pre-approved command
    template instead of an equivalent wrapper or script that would require
    approval. The server remains authoritative and checks the submitted command
    independently.
-4. The harness uses `proxyma-agent` to authenticate, resolve the target, and
+4. The harness uses `proxyma-client` to authenticate, resolve the target, and
    submit the command to the Proxyma Server. The request contains the target
    identity, canonical command, and reasoning, but not the target credentials.
 5. The Proxyma Server authenticates the agent and verifies that the agent is
@@ -81,7 +81,7 @@ The complete command workflow is:
    the target using its stored connection details, without exposing those
    credentials to the agent.
 11. The server persists the task, command result, status, and audit information.
-   The harness polls through `proxyma-agent` until it receives the final
+   The harness polls through `proxyma-client` until it receives the final
    status, stdout, stderr, and exit status.
 
 See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) for the complete lifecycle.  
@@ -89,7 +89,7 @@ See the [detailed usage flow](docs/proxyma-typical-usage-flow.md) for the comple
 <table>
   <tr>
     <td bgcolor="#e8f4ff"><strong>Note</strong><br>
-    The <code>proxyma-agent</code> CLI was introduced to improve speed and token
+    The <code>proxyma-client</code> CLI was introduced to improve speed and token
     consumption. Providing the API to the harness (as a skill) imposes a high
     and unnecessary burden on the harness, which results in poor performance.
     No MCP server is provided for a similar reason.</td>
@@ -119,7 +119,7 @@ human-interaction instances.
 
 | Area | Support |
 | --- | --- |
-| Agent command execution | Agents submit target commands through `proxyma-agent`; they do not connect directly to targets. |
+| Agent command execution | Agents submit target commands through `proxyma-client`; they do not connect directly to targets. |
 | Target management | Configure targets, authorized agents, target owners, transports, and credentials. |
 | Human approval | Built-in local-console approval and remote NTFY approval requests/responses. No other interaction channels are currently supported. |
 | Command policy | Each target uses one user-owned policy containing typed blacklist/whitelist rules and an optional LLM fallback; unmatched commands require approval. JSON rule lists can be imported into existing policies. |
@@ -147,7 +147,7 @@ rule list to an existing policy.
 | User authentication | Argon2id passwords, persisted cookie sessions, CSRF protection, activation links, and password-reset links. |
 | Server transport security | HTTPS with an automatically managed self-signed certificate or an operator-provided certificate and key; explicit HTTP mode for local development. |
 | Persistence | SQLite-backed canonical command and interaction records with unified searchable history; JSON stores configuration resources. |
-| Agent platforms | Windows, Linux, and macOS installers for the cross-platform `proxyma-agent` CLI. |
+| Agent platforms | Windows, Linux, and macOS installers for the cross-platform `proxyma-client` CLI. |
 
 
 ## Installation
@@ -162,12 +162,12 @@ rollback, backup, troubleshooting, and removal.
 | Precompiled Linux binary | `proxyma-server` | Recommended host-level Linux server installation without a compiler or source checkout | [Proxyma Server — precompiled Linux](docs/proxyma-server-installation-linux-precompiled.md) |
 | Source-built Linux binary | `proxyma-server` | Build and install a selected source revision on Linux | [Proxyma Server — source-built Linux](docs/proxyma-server-installation-linux-binary.md) |
 | Docker | `proxyma-server` | Run the server and embedded frontend in a container | [Proxyma Server — Docker](docs/proxyma-server-installation-docker.md) |
-| Release installation | `proxyma-agent` | Install the official cross-platform agent CLI, matching harness, and model adapter | [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md) |
-| Source installation | `proxyma-agent` | Build and install the agent CLI and matching harness from a selected source revision | [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md) |
+| Release installation | `proxyma-client` | Install the official cross-platform client CLI, matching harness, and model adapter | [`proxyma-client` release installation](docs/proxyma-client-installation-release.md) |
+| Source installation | `proxyma-client` | Build and install the client CLI and matching harness from a selected source revision | [`proxyma-client` source installation](docs/proxyma-client-installation-source.md) |
 
 After installation, follow the [Proxyma Server first-time configuration guide](docs/first-time-configuration-proxyma-server.md)
 to create the initial policy, interaction, agent, and target resources, then
-follow the [Proxyma Agent first-time configuration guide](docs/first-time-configuration-proxyma-agent.md)
+follow the [Proxyma Client first-time configuration guide](docs/first-time-configuration-proxyma-client.md)
 to configure the workstation harness and signing key.
 
 ## Repository Layout
@@ -175,7 +175,7 @@ to configure the workstation harness and signing key.
 ```text
 .github/workflows/         Release and container automation
 cmd/proxyma/               Proxyma server entry point
-cmd/proxyma-agent/         Cross-platform deterministic agent harness CLI
+cmd/proxyma-client/         Cross-platform deterministic Proxyma client CLI
 cmd/proxymactl/            Administrator CLI entry point
 deploy/systemd/            Linux systemd service definition
 docs/                      Proxyma Server installation, operation, API, and architecture guides
@@ -246,13 +246,13 @@ safe reset procedures.
 
 ## Agent Harness
 
-The cross-platform `proxyma-agent` CLI gives existing agent runtimes one
+The cross-platform `proxyma-client` CLI gives existing agent runtimes one
 deterministic interface for Proxyma authentication, target resolution, command
 submission, polling, duplicate prevention, and durable client task state. Agents:
 
 - route target-machine commands through Proxyma instead of connecting directly;
-- run `proxyma-agent resume` before new remote work;
-- run `proxyma-agent policy --target=<hostname-or-ip>` before the first command
+- run `proxyma-client resume` before new remote work;
+- run `proxyma-client policy --target=<hostname-or-ip>` before the first command
   for each target in a harness session;
 - supply only target identity, remote payload, and reasoning;
 - interpret results and decide when the logical user goal is complete.
@@ -260,19 +260,19 @@ submission, polling, duplicate prevention, and durable client task state. Agents
 GitHub releases include verified user-local installers for Windows, Linux, and
 macOS. They select the native executable and install the matching sanitized
 harness package and selected adapter from the same release; see the
-[`proxyma-agent` release installation guide](docs/proxyma-agent-installation-release.md).
+[`proxyma-client` release installation guide](docs/proxyma-client-installation-release.md).
 
 Start with the
 [harness instruction pack](harness/instruction-pack/proxyma-harness.md),
 and [CLI authentication guide](harness/instruction-pack/auth/proxyma-auth.md). The
-[harness configuration schema](harness/instruction-pack/proxyma-agent.schema.json),
+[harness configuration schema](harness/instruction-pack/proxyma-client.schema.json),
 [task-state schema](harness/instruction-pack/task-state.schema.json),
 [examples](harness/examples/), and
 [validation instructions](harness/tests/README.md) support integrations. A
 [Codex project skill](harness/.agents/skills/proxyma-harness/SKILL.md) and a
 [Claude Code project skill](harness/.claude/skills/proxyma-harness/SKILL.md) are
 included in the shared harness. Pass `--harness-type codex` or
-`--harness-type claude` to the agent installer to place the selected skill at
+`--harness-type claude` to the client installer to place the selected skill at
 the project-root discovery path. If the option is omitted, copy the desired
 skill into `.agents/skills/proxyma-harness/` for Codex or
 `.claude/skills/proxyma-harness/` for Claude Code, then restart the harness.
@@ -281,12 +281,12 @@ Harness v1 state and run configuration are intentionally unsupported.
 ## Documentation
 
 - [First-time Proxyma Server configuration](docs/first-time-configuration-proxyma-server.md)
-- [First-time Proxyma Agent configuration](docs/first-time-configuration-proxyma-agent.md)
+- [First-time Proxyma Client configuration](docs/first-time-configuration-proxyma-client.md)
 - [Proxyma Server installation overview](docs/proxyma-server-installation.md)
 - [`proxymactl` command reference](docs/proxymactl-command-reference.md)
-- [`proxyma-agent` release installation](docs/proxyma-agent-installation-release.md)
+- [`proxyma-client` release installation](docs/proxyma-client-installation-release.md)
 - [Release artifact testing](docs/release-testing.md)
-- [`proxyma-agent` source installation](docs/proxyma-agent-installation-source.md)
+- [`proxyma-client` source installation](docs/proxyma-client-installation-source.md)
 - [Configuration records and runtime settings](docs/configuration.md)
 - [User and agent API usage](docs/api.md)
 - [Build and version metadata](docs/build-version.md)

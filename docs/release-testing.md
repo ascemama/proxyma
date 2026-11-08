@@ -1,8 +1,8 @@
 # Release artifact testing
 
 This guide is for Proxyma maintainers who build and publish server and
-`proxyma-agent` release artifacts. End users should follow the
-[`proxyma-agent` release installation guide](proxyma-agent-installation-release.md)
+`proxyma-client` release artifacts. End users should follow the
+[`proxyma-client` release installation guide](proxyma-client-installation-release.md)
 instead.
 
 ## Release lifecycle
@@ -34,7 +34,7 @@ assets. It then assembles one complete `release-assets` workflow artifact,
 generates `SHA256SUMS`, and checks that every expected asset exists and matches
 its checksum.
 
-The staged agent installer is tested on Ubuntu, macOS, and Windows before a
+The staged client installer is tested on Ubuntu, macOS, and Windows before a
 GitHub release is created. These tests:
 
 1. Use the exact tag version.
@@ -90,10 +90,10 @@ private-release/
 └── releases/
     └── download/
         └── v0.0.0-test/
-            ├── install-proxyma-agent.sh
-            ├── install-proxyma-agent.ps1
-            ├── proxyma-agent-linux-amd64
-            ├── proxyma-agent-harness.tar.gz
+            ├── install-proxyma-client.sh
+            ├── install-proxyma-client.ps1
+            ├── proxyma-client-linux-amd64
+            ├── proxyma-client-harness.tar.gz
             └── SHA256SUMS
 ```
 
@@ -102,7 +102,7 @@ harness payload. On Linux or macOS, run the reusable smoke test against a local
 file mirror:
 
 ```bash
-bash scripts/test-agent-release.sh \
+bash scripts/test-client-release.sh \
   v0.0.0-test \
   file:///path/to/private-release
 ```
@@ -110,7 +110,7 @@ bash scripts/test-agent-release.sh \
 On Windows, run:
 
 ```powershell
-& .\scripts\test-agent-release.ps1 `
+& .\scripts\test-client-release.ps1 `
   -Version v0.0.0-test `
   -ReleaseBaseUrl ([Uri]::new((Resolve-Path .\private-release).Path).AbsoluteUri.TrimEnd('/'))
 ```
@@ -122,7 +122,7 @@ verification.
 
 ## What is not part of the release smoke test
 
-The smoke test does not run `proxyma-agent doctor`, submit commands, or access
+The smoke test does not run `proxyma-client doctor`, submit commands, or access
 a real Proxyma server. Those operations require a server URL, agent UUID,
 signing key, and appropriate target authorization. Keep those credentials out
 of release jobs unless a separately protected integration environment is

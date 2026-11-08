@@ -5,25 +5,25 @@ REPOSITORY_URL="${PROXYMA_RELEASE_BASE_URL:-https://github.com/ascemama/proxyma}
 VERSION="latest"
 PROJECT_DIR="$PWD"
 BIN_DIR="${HOME:?HOME is required}/.local/bin"
-TARGET_OS="${PROXYMA_AGENT_OS:-}"
-TARGET_ARCH="${PROXYMA_AGENT_ARCH:-}"
-ARCHIVE_NAME="proxyma-agent-harness.tar.gz"
+TARGET_OS="${PROXYMA_CLIENT_OS:-}"
+TARGET_ARCH="${PROXYMA_CLIENT_ARCH:-}"
+ARCHIVE_NAME="proxyma-client-harness.tar.gz"
 LOCAL_BINARY=""
 LOCAL_HARNESS=""
 HARNESS_TYPE=""
 
 usage() {
   cat <<'EOF'
-Usage: bash ./install-proxyma-agent.sh [options]
+Usage: bash ./install-proxyma-client.sh [options]
 
-Downloads and verifies the native proxyma-agent executable and matching harness
+Downloads and verifies the native proxyma-client executable and matching harness
 from one GitHub release, or installs local build artifacts, then installs both
 for the current user and project.
 
 Options:
   --version VERSION    Install latest or an exact vMAJOR.MINOR.PATCH[-PRERELEASE].
   --project-dir DIR    Install/refresh the harness in DIR (default: current directory).
-  --bin-dir DIR        Install proxyma-agent in DIR (default: $HOME/.local/bin).
+  --bin-dir DIR        Install proxyma-client in DIR (default: $HOME/.local/bin).
   --binary PATH        Install this locally built executable instead of downloading one.
   --harness PATH       Install this locally built harness archive instead of downloading one.
   --harness-type TYPE  Install the project adapter for codex or claude (optional).
@@ -163,8 +163,8 @@ fi
 mkdir -p "$BIN_DIR"
 BIN_DIR="$(cd "$BIN_DIR" && pwd -P)"
 
-BINARY_NAME="proxyma-agent-$TARGET_OS-$TARGET_ARCH"
-TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/proxyma-agent.XXXXXX")"
+BINARY_NAME="proxyma-client-$TARGET_OS-$TARGET_ARCH"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/proxyma-client.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 BINARY_PATH="$TEMP_DIR/$BINARY_NAME"
 ARCHIVE_PATH="$TEMP_DIR/$ARCHIVE_NAME"
@@ -175,14 +175,14 @@ if [[ -n "$LOCAL_BINARY" ]]; then
   [[ -f "$LOCAL_HARNESS" && ! -L "$LOCAL_HARNESS" ]] || { echo "Local harness archive must be a regular file and not a symbolic link: $LOCAL_HARNESS" >&2; exit 1; }
   cp "$LOCAL_BINARY" "$BINARY_PATH"
   cp "$LOCAL_HARNESS" "$ARCHIVE_PATH"
-  echo "Installing local proxyma-agent artifacts for $TARGET_OS/$TARGET_ARCH..."
+  echo "Installing local proxyma-client artifacts for $TARGET_OS/$TARGET_ARCH..."
 else
   if [[ "$VERSION" == "latest" ]]; then
     RELEASE_URL="$REPOSITORY_URL/releases/latest/download"
   else
     RELEASE_URL="$REPOSITORY_URL/releases/download/$VERSION"
   fi
-  echo "Downloading proxyma-agent $VERSION for $TARGET_OS/$TARGET_ARCH..."
+  echo "Downloading proxyma-client $VERSION for $TARGET_OS/$TARGET_ARCH..."
   for asset_name in "$BINARY_NAME" "$ARCHIVE_NAME" "SHA256SUMS"; do
     curl --fail --location --silent --show-error --retry 3 \
       --output "$TEMP_DIR/$asset_name" "$RELEASE_URL/$asset_name"
@@ -243,7 +243,7 @@ tar --extract --gzip --file "$ARCHIVE_PATH" --directory "$TEMP_DIR" \
 PAYLOAD_DIR="$TEMP_DIR/harness"
 for required in \
   "$PAYLOAD_DIR/RELEASE" \
-  "$PAYLOAD_DIR/proxyma-agent.json" \
+  "$PAYLOAD_DIR/proxyma-client.json" \
   "$PAYLOAD_DIR/instruction-pack/proxyma-harness.md" \
   "$PAYLOAD_DIR/.agents/skills/proxyma-harness/SKILL.md" \
   "$PAYLOAD_DIR/.claude/skills/proxyma-harness/SKILL.md"; do
@@ -274,7 +274,7 @@ replace_path() {
   [[ ! -e "$backup_path" ]] || rm -rf "$backup_path"
 }
 
-INSTALLED_BINARY="$BIN_DIR/proxyma-agent"
+INSTALLED_BINARY="$BIN_DIR/proxyma-client"
 HARNESS_DIR="$PROJECT_DIR/harness"
 ROOT_ADAPTER_DIR=""
 ROOT_ADAPTER_PATH=""
@@ -294,7 +294,7 @@ if [[ -e "$HARNESS_DIR" && ( ! -d "$HARNESS_DIR" || -L "$HARNESS_DIR" ) ]]; then
   exit 1
 fi
 for preserved_path in \
-  "$HARNESS_DIR/proxyma-agent.json" \
+  "$HARNESS_DIR/proxyma-client.json" \
   "$HARNESS_DIR/agent-configuration" \
   "$HARNESS_DIR/agent-configuration/agent.example.json" \
   "$HARNESS_DIR/task-state" \
@@ -307,8 +307,8 @@ for preserved_path in \
     exit 1
   fi
 done
-if [[ -e "$HARNESS_DIR/proxyma-agent.json" && ! -f "$HARNESS_DIR/proxyma-agent.json" ]]; then
-  echo "Harness configuration must be a regular file: $HARNESS_DIR/proxyma-agent.json" >&2
+if [[ -e "$HARNESS_DIR/proxyma-client.json" && ! -f "$HARNESS_DIR/proxyma-client.json" ]]; then
+  echo "Harness configuration must be a regular file: $HARNESS_DIR/proxyma-client.json" >&2
   exit 1
 fi
 if [[ -e "$HARNESS_DIR/agent-configuration/agent.example.json" && ! -f "$HARNESS_DIR/agent-configuration/agent.example.json" ]]; then
@@ -367,8 +367,8 @@ fi
 [[ ! -e "$BACKUP_BINARY" ]] || rm -f "$BACKUP_BINARY"
 
 mkdir -p "$HARNESS_DIR"
-if [[ ! -e "$HARNESS_DIR/proxyma-agent.json" ]]; then
-  install -m 0600 "$PAYLOAD_DIR/proxyma-agent.json" "$HARNESS_DIR/proxyma-agent.json"
+if [[ ! -e "$HARNESS_DIR/proxyma-client.json" ]]; then
+  install -m 0600 "$PAYLOAD_DIR/proxyma-client.json" "$HARNESS_DIR/proxyma-client.json"
 fi
 install -d -m 0700 \
   "$HARNESS_DIR/agent-configuration" \
@@ -394,7 +394,7 @@ elif [[ "$HARNESS_TYPE" == "claude" ]]; then
   replace_path "$PAYLOAD_DIR/.claude/skills/proxyma-harness" "$ROOT_ADAPTER_PATH"
 fi
 
-echo "Installed proxyma-agent at $INSTALLED_BINARY"
+echo "Installed proxyma-client at $INSTALLED_BINARY"
 echo "Installed the matching harness at $HARNESS_DIR"
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
   echo "Installed the Codex adapter at $ROOT_ADAPTER_PATH"

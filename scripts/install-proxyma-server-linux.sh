@@ -107,7 +107,7 @@ else
   RELEASE_URL="$REPOSITORY_URL/releases/download/$VERSION"
 fi
 
-ARCHIVE_NAME="proxyma_linux_$ARCH.tar.gz"
+ARCHIVE_NAME="proxyma-server-linux-$ARCH.tar.gz"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 ARCHIVE_PATH="$TEMP_DIR/$ARCHIVE_NAME"

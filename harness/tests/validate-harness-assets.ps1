@@ -21,8 +21,8 @@ function Require-Text([string]$RelativePath, [string[]]$Terms) {
     foreach ($term in $Terms) { if (-not $content.Contains($term)) { Add-Error "$RelativePath missing '$term'" } }
 }
 
-$config = Read-Json "harness/proxyma-agent.json"
-foreach ($name in @("schema_version", "proxyma_base_url", "agent_config", "state_dir")) { Require-Property $config $name "harness/proxyma-agent.json" }
+$config = Read-Json "harness/proxyma-client.json"
+foreach ($name in @("schema_version", "proxyma_base_url", "agent_config", "state_dir")) { Require-Property $config $name "harness/proxyma-client.json" }
 if ($null -ne $config -and $config.schema_version -ne "2") { Add-Error "Harness config must use schema version 2" }
 
 $credentialExample = Read-Json "harness/agent-configuration/agent.example.json"
@@ -33,7 +33,7 @@ if ($null -ne $credentialExample) {
     }
 }
 
-$configSchema = Read-Json "harness/instruction-pack/proxyma-agent.schema.json"
+$configSchema = Read-Json "harness/instruction-pack/proxyma-client.schema.json"
 $stateSchema = Read-Json "harness/instruction-pack/task-state.schema.json"
 if ($null -ne $stateSchema -and $stateSchema.properties.schema_version.const -ne "2") { Add-Error "Task schema must require version 2" }
 
@@ -55,9 +55,9 @@ foreach ($file in $examples) {
 $core = "harness/instruction-pack/proxyma-harness.md"
 $codex = "harness/.agents/skills/proxyma-harness/SKILL.md"
 $claude = "harness/.claude/skills/proxyma-harness/SKILL.md"
-Require-Text $core @("proxyma-agent resume", "task-complete", "Never directly use SSH", "Never read or edit", "uncertain submission", "Harness v1")
-Require-Text $codex @("harness/instruction-pack/proxyma-harness.md", "proxyma-agent resume", 'requested_by: "codex"', "task-complete")
-Require-Text $claude @("harness/instruction-pack/proxyma-harness.md", "proxyma-agent resume", 'requested_by: "claude-code"', "task-complete")
+Require-Text $core @("proxyma-client resume", "task-complete", "Never directly use SSH", "Never read or edit", "uncertain submission", "Harness v1")
+Require-Text $codex @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", 'requested_by: "codex"', "task-complete")
+Require-Text $claude @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", 'requested_by: "claude-code"', "task-complete")
 
 foreach ($adapter in @($codex, $claude)) {
     $length = (Get-Content -LiteralPath (Join-Path $RepoRoot $adapter) -Raw).Length

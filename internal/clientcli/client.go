@@ -1,4 +1,4 @@
-package agentcli
+package clientcli
 
 import (
 	"bytes"
@@ -78,7 +78,7 @@ func (c *Client) Health(ctx context.Context) error {
 			return nil
 		}
 	}
-	return &commandError{code: "server_capability_missing", message: "Proxyma does not advertise agent command idempotency", hint: "upgrade Proxyma before using proxyma-agent submit or resume", exitCode: 4}
+	return &commandError{code: "server_capability_missing", message: "Proxyma does not advertise agent command idempotency", hint: "upgrade Proxyma before using proxyma-client submit or resume", exitCode: 4}
 }
 
 func (c *Client) Resolve(ctx context.Context, target Target) (ResolvedTarget, error) {
