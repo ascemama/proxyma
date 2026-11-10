@@ -131,6 +131,11 @@ from an internet-connected staging machine. In this workflow, "offline" means
 that the target machine does not need GitHub or public internet access. It still
 needs network access to the Proxyma server when the client is used.
 
+Do not run the installer with only its normal options on the isolated machine:
+without local artifact arguments it tries to download the release from GitHub.
+Use `--binary` and `--harness` (or `-Binary` and `-Harness` on Windows) so the
+installer operates entirely on files already present on the target machine.
+
 Use the same exact release and target architecture for every transferred
 artifact. On the staging machine, download:
 
@@ -140,15 +145,38 @@ artifact. On the staging machine, download:
 - the matching installer script; and
 - `SHA256SUMS`.
 
-Verify the binary and harness archive against `SHA256SUMS` before transferring
-them. GitHub artifact attestations can provide an additional provenance check.
+Verify the binary, harness archive, and installer script against `SHA256SUMS`
+before transferring them. GitHub artifact attestations can provide an
+additional provenance check.
 Do not put agent credentials or a JWT signing key in the transfer bundle.
 
-Transfer the verified binary, harness archive, and installer script to the
-target machine using approved removable media or an internal transfer method.
-The checksum manifest does not need to be transferred because local-artifact
-mode does not contact GitHub or perform installer-side checksum verification;
-integrity verification must happen before transfer.
+For example, on a Linux staging machine, prepare a bundle for release `v1.2.3`:
+
+```bash
+version=v1.2.3
+asset=proxyma-client-linux-amd64
+base="https://github.com/ascemama/proxyma/releases/download/$version"
+mkdir -p proxyma-client-offline
+curl -fL -o "proxyma-client-offline/$asset" "$base/$asset"
+curl -fL -o proxyma-client-offline/proxyma-client-harness.tar.gz \
+  "$base/proxyma-client-harness.tar.gz"
+curl -fL -o proxyma-client-offline/install-proxyma-client.sh \
+  "$base/install-proxyma-client.sh"
+curl -fL -o proxyma-client-offline/SHA256SUMS "$base/SHA256SUMS"
+(
+  cd proxyma-client-offline
+  grep "  $asset$" SHA256SUMS | sha256sum --check
+  grep '  proxyma-client-harness.tar.gz$' SHA256SUMS | sha256sum --check
+  grep '  install-proxyma-client.sh$' SHA256SUMS | sha256sum --check
+)
+```
+
+Transfer the verified `proxyma-client-offline` directory to the target machine
+using approved removable media or an internal transfer method, then use the
+local paths shown below. Keep `SHA256SUMS` with the bundle if the target's
+operators need to repeat or audit the verification; the local-artifact
+installer itself does not need it because it does not contact GitHub or perform
+installer-side checksum verification.
 
 On Linux or macOS, provide `--binary` and `--harness` together. These options
 select local-artifact mode and avoid all network access by the installer:
