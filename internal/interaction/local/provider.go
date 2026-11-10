@@ -175,8 +175,8 @@ func (p *Provider) writePrompt(request interaction.Interaction) {
 	if justification := stringMetadata(request.Metadata, "policy_justification"); justification != "" {
 		_, _ = fmt.Fprintf(p.writer, "LLM justification: %s\n", justification)
 	}
-	if requestedBy := strings.TrimSpace(request.RequestedBy); requestedBy != "" {
-		_, _ = fmt.Fprintf(p.writer, "Requested by: %s\n", requestedBy)
+	if harnessName := strings.TrimSpace(request.HarnessName); harnessName != "" {
+		_, _ = fmt.Fprintf(p.writer, "Harness name: %s\n", harnessName)
 	}
 	_, _ = fmt.Fprintln(p.writer)
 }

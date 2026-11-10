@@ -56,7 +56,7 @@ flowchart TD
     Start(["START<br/>User asks harness to run a target command"])
 
     subgraph Harness["Harness / Agent"]
-        H1["Build Proxyma command request<br/>Data: target hostname/IP, canonical command, reasoning, requested_by"]
+        H1["Build Proxyma command request<br/>Data: target hostname/IP, canonical command, reasoning, harness_name"]
         H2["Receive task_id immediately<br/>Data: task_id, status=created"]
         H3["Poll task status<br/>Data: task_id"]
         H4["Record final result in harness task state<br/>Data: stdout, stderr, exit_status, status"]
@@ -135,7 +135,7 @@ flowchart TD
     end
 
     subgraph LocalProvider["internal/interaction/local"]
-        L1["Print approval prompt on Proxyma console<br/>Data shown: task_id, target, command, reasoning, requested_by"]
+        L1["Print approval prompt on Proxyma console<br/>Data shown: task_id, target, command, reasoning, harness_name"]
         L2["Read y/n from stdin"]
         L3["Send normalized response back to interaction service"]
     end

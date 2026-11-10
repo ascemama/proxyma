@@ -51,10 +51,9 @@ credentials, command policy, audit state, and approval channel.
 The complete command workflow is:
 
 1. The harness decides that it needs to run a specific command on a target.
-2. During proxyma-client installation, select the Codex or Claude Code adapter
-   so the harness knows when and how to use the `proxyma-client` CLI. If no
-   adapter is selected, copy the matching skill from `harness/` into the
-   project-root discovery directory.
+2. During proxyma-client installation, select the Codex, Claude Code, or generic
+   adapter so the harness knows when and how to use the `proxyma-client` CLI. A
+   generic install requires an explicit skill directory and project directory.
 3. Before the first command for a target in the current session, the harness
    requests that target's blacklist and whitelist guidance with
    `proxyma-client policy --target`. It reuses the guidance for that target until
@@ -269,14 +268,17 @@ and [CLI authentication guide](harness/instruction-pack/auth/proxyma-auth.md). T
 [task-state schema](harness/instruction-pack/task-state.schema.json),
 [examples](harness/examples/), and
 [validation instructions](harness/tests/README.md) support integrations. A
-[Codex project skill](harness/.agents/skills/proxyma-harness/SKILL.md) and a
-[Claude Code project skill](harness/.claude/skills/proxyma-harness/SKILL.md) are
+[Codex project skill](harness/.agents/skills/proxyma-harness/SKILL.md), a
+[Claude Code project skill](harness/.claude/skills/proxyma-harness/SKILL.md),
+and a [neutral skill](harness/generic/skills/proxyma-harness/SKILL.md) are
 included in the shared harness. Pass `--harness-type codex` or
-`--harness-type claude` to the client installer to place the selected skill at
-the project-root discovery path. If the option is omitted, copy the desired
-skill into `.agents/skills/proxyma-harness/` for Codex or
-`.claude/skills/proxyma-harness/` for Claude Code, then restart the harness.
-Harness v1 state and run configuration are intentionally unsupported.
+`--harness-type claude` to install a project-root skill. For another harness,
+pass `--harness-type generic --skill-dir SKILL_DIR --project-dir PROJECT_DIR`;
+the shared runtime is installed in `PROJECT_DIR/harness/` and the skill is
+installed in `SKILL_DIR/proxyma-harness/`. The optional `harness_name` in
+`harness/proxyma-client.json` identifies the harness in Proxyma requests and
+server logs. Harness v1 state and run configuration are intentionally
+unsupported.
 
 ## Documentation
 

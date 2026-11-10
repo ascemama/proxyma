@@ -139,7 +139,7 @@ func (f *Flow) policyDecision(ctx context.Context, task *tasks.Task) (tasks.Poli
 	}
 	result, err := evaluator.Evaluate(ctx, policy.Request{
 		TaskID:        task.TaskID,
-		RequestedBy:   task.RequestedBy,
+		HarnessName:   task.HarnessName,
 		Target:        policyTarget(task.Target),
 		Command:       task.Command,
 		RemoteCommand: tasks.RedactCredentialValues(remoteCommand(task), task.SensitiveValues...),
@@ -201,7 +201,7 @@ func (f *Flow) requestApproval(ctx context.Context, task *tasks.Task) error {
 		ExpectedResponse:      interaction.ExpectedApproval,
 		Subject:               "Approve Proxyma command",
 		Message:               "Approve the submitted Proxyma command before execution.",
-		RequestedBy:           task.RequestedBy,
+		HarnessName:           task.HarnessName,
 		Metadata: map[string]any{
 			"target":               formatTarget(task.Target),
 			"command":              task.Command,

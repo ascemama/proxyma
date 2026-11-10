@@ -86,7 +86,7 @@ func (s *Service) Request(ctx Context, request Request) (*Interaction, error) {
 		ExpectedResponse:      expectedResponse(request),
 		Subject:               request.Subject,
 		Message:               request.Message,
-		RequestedBy:           request.RequestedBy,
+		HarnessName:           request.HarnessName,
 		Metadata:              copyMetadata(request.Metadata),
 		Status:                StatusPending,
 		CreatedAt:             now,

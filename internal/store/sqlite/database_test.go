@@ -30,6 +30,7 @@ func TestOpenWithOptionsLogsLifecycleInDebugMode(t *testing.T) {
 		"new=true",
 		"sqlite migration applied version=000001",
 		"sqlite migration applied version=000002",
+		"sqlite migration applied version=000003",
 		"sqlite database created",
 		"sqlite database ready",
 		"sqlite database closing",
@@ -53,7 +54,7 @@ func TestOpenMigratesAndReopensDatabase(t *testing.T) {
 	if err := database.sqlDB().QueryRowContext(context.Background(), `SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 2 {
+	if version != 3 {
 		t.Fatalf("schema version = %d", version)
 	}
 	if _, err := database.sqlDB().ExecContext(context.Background(), `SELECT 1 FROM history_entries`); err == nil {
@@ -72,7 +73,7 @@ func TestOpenMigratesAndReopensDatabase(t *testing.T) {
 	if err := reopened.sqlDB().QueryRowContext(context.Background(), `SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 2 {
+	if count != 3 {
 		t.Fatalf("migration count after reopen = %d", count)
 	}
 }
@@ -134,7 +135,7 @@ func TestIntegrityAndResetRecreateSchema(t *testing.T) {
 	if err := recreated.sqlDB().QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 2 {
+	if count != 3 {
 		t.Fatalf("recreated migration count = %d", count)
 	}
 }

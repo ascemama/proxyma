@@ -38,7 +38,7 @@ type Operation struct {
 	PayloadKind      string         `json:"payload_kind"`
 	CanonicalCommand string         `json:"canonical_command"`
 	Reasoning        string         `json:"reasoning"`
-	RequestedBy      string         `json:"requested_by"`
+	HarnessName      string         `json:"harness_name"`
 	Metadata         map[string]any `json:"metadata,omitempty"`
 	ProxymaTaskID    string         `json:"proxyma_task_id,omitempty"`
 	ProxymaStatus    string         `json:"proxyma_status,omitempty"`
@@ -74,7 +74,7 @@ type SubmitInput struct {
 	Target           Target         `json:"target"`
 	Payload          string         `json:"payload"`
 	Reasoning        string         `json:"reasoning"`
-	RequestedBy      string         `json:"requested_by"`
+	HarnessName      string         `json:"harness_name"`
 	Metadata         map[string]any `json:"metadata,omitempty"`
 }
 

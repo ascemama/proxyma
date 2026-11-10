@@ -104,7 +104,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 				{Name: "target", Type: "object", Required: true, Description: "Exactly one of hostname or ip."},
 				{Name: "payload", Type: "string", Required: true, Description: "Remote payload only; never an SSH or WinRM wrapper."},
 				{Name: "reasoning", Type: "string", Required: true, Description: "Why this operation is necessary."},
-				{Name: "requested_by", Type: "string", Required: true, Description: "Harness identifier, for example codex or claude-code."},
+				{Name: "harness_name", Type: "string", Required: true, Description: "Harness identifier, for example codex or claude-code."},
 				{Name: "metadata", Type: "object", Description: "Optional non-secret metadata."},
 			},
 			Example: map[string]any{
@@ -112,7 +112,7 @@ func helpFor(command string) (*HelpInfo, bool) {
 				"target":       map[string]any{"hostname": "server.example"},
 				"payload":      "uptime",
 				"reasoning":    "Answer the user's uptime question",
-				"requested_by": "<harness-name>",
+				"harness_name": "<harness-name>",
 			},
 			Notes: []string{"Use --input - to read exactly one JSON object from stdin.", "For an existing task, copy output revision into input expected_revision."},
 		}, true

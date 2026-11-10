@@ -88,7 +88,7 @@ func (s *InteractionStore) Save(record interaction.Interaction) error {
 	stmt, err := tx.PrepareContext(context.Background(), `
 		INSERT INTO interactions (
 			interaction_id, task_id, interaction_instance_id, interaction_instance_creator_user_id,
-			provider, kind, expected_response, subject, message, requested_by, status,
+			provider, kind, expected_response, subject, message, harness_name, status,
 			created_at, expires_at, responded_at, approved, answer, responded_by, cancel_reason,
 			delivery_reference, delivered_at, record_json
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -101,7 +101,7 @@ func (s *InteractionStore) Save(record interaction.Interaction) error {
 			expected_response = excluded.expected_response,
 			subject = excluded.subject,
 			message = excluded.message,
-			requested_by = excluded.requested_by,
+			harness_name = excluded.harness_name,
 			status = excluded.status,
 			created_at = excluded.created_at,
 			expires_at = excluded.expires_at,
@@ -118,7 +118,7 @@ func (s *InteractionStore) Save(record interaction.Interaction) error {
 	}
 	_, err = stmt.ExecContext(context.Background(),
 		record.InteractionID, taskID, instances.NormalizeInstanceID(record.InteractionInstanceID), creator,
-		provider, record.Kind, record.ExpectedResponse, record.Subject, record.Message, record.RequestedBy, record.Status,
+		provider, record.Kind, record.ExpectedResponse, record.Subject, record.Message, record.HarnessName, record.Status,
 		record.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(record.ExpiresAt), nullableTime(respondedAt), approved,
 		answer, respondedBy, record.CancelReason, deliveryReference, nullableTime(deliveredAt), string(encoded))
 	closeErr := stmt.Close()
@@ -161,11 +161,11 @@ func syncInteractionSearch(ctx context.Context, tx *sql.Tx, record interaction.I
 	if err := deleteStmt.Close(); err != nil {
 		return fmt.Errorf("close interaction search delete: %w", err)
 	}
-	insertStmt, err := tx.PrepareContext(ctx, `INSERT INTO interactions_fts(interaction_id, task_id, subject, message, answer, requested_by) VALUES (?, ?, ?, ?, ?, ?)`)
+	insertStmt, err := tx.PrepareContext(ctx, `INSERT INTO interactions_fts(interaction_id, task_id, subject, message, answer, harness_name) VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare interaction search insert: %w", err)
 	}
-	_, execErr := insertStmt.ExecContext(ctx, record.InteractionID, taskID, record.Subject, record.Message, answer, record.RequestedBy)
+	_, execErr := insertStmt.ExecContext(ctx, record.InteractionID, taskID, record.Subject, record.Message, answer, record.HarnessName)
 	closeErr := insertStmt.Close()
 	if execErr != nil {
 		return fmt.Errorf("insert interaction search row: %w", execErr)

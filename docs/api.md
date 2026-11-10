@@ -256,7 +256,7 @@ Authorization: Bearer <jwt>
   },
   "command": "ssh {user}@app.example hostname",
   "reasoning": "Identify the target host for diagnostics",
-  "requested_by": "operations-agent"
+  "harness_name": "operations-agent"
 }
 ```
 

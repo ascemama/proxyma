@@ -10,7 +10,7 @@
   <path d="M0 150 H1600 M0 760 H1600" stroke="#1e293b" stroke-width="2"/>
   <path d="M0 200 H1600 M0 250 H1600 M0 300 H1600 M0 350 H1600 M0 400 H1600 M0 450 H1600 M0 500 H1600 M0 550 H1600 M0 600 H1600 M0 650 H1600 M0 700 H1600" stroke="#111c2e" stroke-width="1"/>
   <text fill="#e2e8f0" x="80" y="86" class="t h">Proxyma control boundary</text>
-  <text fill="#94a3b8" x="80" y="122" class="t s muted">Commands are requested by the harness, governed by the server, and executed on the target.</text>
+  <text fill="#94a3b8" x="80" y="122" class="t s muted">Commands are submitted by the harness, governed by the server, and executed on the target.</text>
 
   <rect x="65" y="300" width="285" height="180" rx="20" fill="#182341" stroke="#818cf8" stroke-width="4"/>
   <rect x="105" y="350" width="62" height="48" rx="6" fill="none" stroke="#a5b4fc" stroke-width="4"/>

@@ -9,7 +9,7 @@ import (
 
 func TestPlaceholderCommandCreatedAndStoredSafely(t *testing.T) {
 	server, _ := newHarness(t)
-	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickPlaceholderSSHCommand+`","reasoning":"verify substitution","requested_by":"e2e"}`)
+	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickPlaceholderSSHCommand+`","reasoning":"verify substitution","harness_name":"e2e"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("status = %d", code)
 	}
@@ -24,7 +24,7 @@ func TestPlaceholderCommandCreatedAndStoredSafely(t *testing.T) {
 
 func TestBareCommandRejected(t *testing.T) {
 	server, _ := newHarness(t)
-	_, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"echo unchanged","reasoning":"verify regression","requested_by":"e2e"}`)
+	_, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"echo unchanged","reasoning":"verify regression","harness_name":"e2e"}`)
 	if code != http.StatusBadRequest {
 		t.Fatalf("status = %d", code)
 	}

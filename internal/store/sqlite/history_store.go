@@ -63,7 +63,7 @@ func scanHistoryItem(scanner interface{ Scan(...any) error }) (history.HistoryIt
 	if err := scanner.Scan(
 		&item.EntryType, &item.HistoryID, &item.InteractionID, &item.TaskID, &item.AgentID, &item.AgentName,
 		&item.InteractionInstanceID, &item.InteractionInstanceCreatorUserID, &item.Provider, &item.Kind,
-		&item.ExpectedResponse, &item.Status, &item.Subject, &item.Message, &item.RequestedBy, &approved,
+		&item.ExpectedResponse, &item.Status, &item.Subject, &item.Message, &item.HarnessName, &approved,
 		&item.Answer, &item.RespondedBy, &item.CancelReason, &item.TargetID, &item.TargetHostname, &item.TargetIP,
 		&item.Command, &item.Result, &item.PolicyJustification, &createdAt, &completedAt, &expiresAt,
 		&respondedAt, &taskCreatedAt); err != nil {

@@ -87,7 +87,7 @@ func (f *fakeNtfy) postCount() int {
 
 func TestNtfyApprovalRunsCommand(t *testing.T) {
 	server, ntfyServer := newNtfyHarness(t)
-	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test ntfy approval"}`)
+	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test ntfy approval","harness_name":"test"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("status = %d", code)
 	}
@@ -113,7 +113,7 @@ func TestNtfyApprovalRunsCommand(t *testing.T) {
 
 func TestNtfyRejectionBlocksCommand(t *testing.T) {
 	server, ntfyServer := newNtfyHarness(t)
-	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test ntfy rejection"}`)
+	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test ntfy rejection","harness_name":"test"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("status = %d", code)
 	}

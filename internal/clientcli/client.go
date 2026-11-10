@@ -36,7 +36,7 @@ type commandRequest struct {
 	Command           string         `json:"command"`
 	Reasoning         string         `json:"reasoning"`
 	Target            Target         `json:"target"`
-	RequestedBy       string         `json:"requested_by,omitempty"`
+	HarnessName       string         `json:"harness_name,omitempty"`
 	Metadata          map[string]any `json:"metadata,omitempty"`
 }
 

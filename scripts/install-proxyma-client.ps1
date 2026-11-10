@@ -5,13 +5,20 @@ param(
     [string]$BinDir = "",
     [string]$Binary = "",
     [string]$Harness = "",
-    [string]$HarnessType = ""
+    [string]$HarnessType = "",
+    [string]$SkillDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 $HarnessType = $HarnessType.ToLowerInvariant()
-if ($HarnessType -notin @("", "codex", "claude")) {
-    throw "Invalid harness type '$HarnessType'. Use codex or claude."
+if ($HarnessType -notin @("", "codex", "claude", "generic")) {
+    throw "Invalid harness type '$HarnessType'. Use codex, claude, or generic."
+}
+if ($HarnessType -eq "generic" -and [string]::IsNullOrWhiteSpace($SkillDir)) {
+    throw "-SkillDir is required when -HarnessType Generic is selected."
+}
+if ($HarnessType -ne "generic" -and -not [string]::IsNullOrWhiteSpace($SkillDir)) {
+    throw "-SkillDir is only valid with -HarnessType Generic."
 }
 $RepositoryUrl = if ($env:PROXYMA_RELEASE_BASE_URL) { $env:PROXYMA_RELEASE_BASE_URL.TrimEnd('/') } else { "https://github.com/ascemama/proxyma" }
 $ArchiveName = "proxyma-client-harness.tar.gz"
@@ -126,6 +133,15 @@ if (-not (Test-Path -LiteralPath $ProjectDir -PathType Container)) {
 Assert-NotReparsePoint $ProjectDir "Project directory"
 $ProjectDir = (Resolve-Path -LiteralPath $ProjectDir).Path
 
+if ($HarnessType -eq "generic") {
+    Assert-NotReparsePoint $SkillDir "Skill directory"
+    if ((Test-Path -LiteralPath $SkillDir) -and -not (Test-Path -LiteralPath $SkillDir -PathType Container)) {
+        throw "Skill directory must be a directory: $SkillDir"
+    }
+    New-Item -ItemType Directory -Force -Path $SkillDir | Out-Null
+    $SkillDir = (Resolve-Path -LiteralPath $SkillDir).Path
+}
+
 Assert-NotReparsePoint $BinDir "Binary directory"
 if ((Test-Path -LiteralPath $BinDir) -and -not (Test-Path -LiteralPath $BinDir -PathType Container)) {
     throw "Binary directory must be a directory: $BinDir"
@@ -179,7 +195,8 @@ try {
         "proxyma-client.json",
         "instruction-pack\proxyma-harness.md",
         ".agents\skills\proxyma-harness\SKILL.md",
-        ".claude\skills\proxyma-harness\SKILL.md"
+        ".claude\skills\proxyma-harness\SKILL.md",
+        "generic\skills\proxyma-harness\SKILL.md"
     )) {
         $required = Join-Path $payloadDir $relative
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Harness archive is missing required file: $relative" }
@@ -200,6 +217,11 @@ try {
         $rootAdapterDir = Join-Path $ProjectDir ".claude\skills"
         $rootAdapterPath = Join-Path $rootAdapterDir "proxyma-harness"
         $rootAdapterSource = Join-Path $payloadDir ".claude\skills\proxyma-harness"
+    }
+    elseif ($HarnessType -eq "generic") {
+        $rootAdapterDir = $SkillDir
+        $rootAdapterPath = Join-Path $rootAdapterDir "proxyma-harness"
+        $rootAdapterSource = Join-Path $payloadDir "generic\skills\proxyma-harness"
     }
     Assert-NotReparsePoint $installedBinary "Installed binary"
     if ((Test-Path -LiteralPath $installedBinary) -and -not (Test-Path -LiteralPath $installedBinary -PathType Leaf)) {
@@ -250,6 +272,7 @@ try {
         (Join-Path $harnessDir "tests"),
         (Join-Path $harnessDir ".agents"),
         (Join-Path $harnessDir ".claude"),
+        (Join-Path $harnessDir "generic"),
         (Join-Path $harnessDir "RELEASE"),
         $installedBinary
     )
@@ -272,7 +295,7 @@ try {
     if (-not (Test-Path -LiteralPath $exampleConfigPath)) {
         Copy-Item -LiteralPath (Join-Path $payloadDir "agent-configuration\agent.example.json") -Destination $exampleConfigPath
     }
-    foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "RELEASE")) {
+    foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "generic", "RELEASE")) {
         Replace-InstalledPath (Join-Path $payloadDir $owned) (Join-Path $harnessDir $owned)
     }
     if ($HarnessType) {
@@ -281,12 +304,17 @@ try {
     }
 
     Write-Host "Installed proxyma-client at $installedBinary"
+    Write-Host "Project directory: $ProjectDir"
     Write-Host "Installed the matching harness at $harnessDir"
     if ($HarnessType -eq "codex") {
         Write-Host "Installed the Codex adapter at $rootAdapterPath"
     }
     elseif ($HarnessType -eq "claude") {
         Write-Host "Installed the Claude adapter at $rootAdapterPath"
+    }
+    elseif ($HarnessType -eq "generic") {
+        Write-Host "Skill directory: $SkillDir"
+        Write-Host "Installed the generic skill at $rootAdapterPath"
     }
     else {
         $codexSkill = Join-Path $harnessDir ".agents\skills\proxyma-harness\SKILL.md"

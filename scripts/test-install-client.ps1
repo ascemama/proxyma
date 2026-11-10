@@ -12,7 +12,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     $harness = Join-Path $payload "harness"
     foreach ($relative in @(
         "instruction-pack", "examples", "tests", ".agents\skills\proxyma-harness",
-        ".claude\skills\proxyma-harness", "agent-configuration", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries"
+        ".claude\skills\proxyma-harness", "generic\skills\proxyma-harness", "agent-configuration", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries"
     )) {
         New-Item -ItemType Directory -Force -Path (Join-Path $harness $relative) | Out-Null
     }
@@ -24,6 +24,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     Set-Content -LiteralPath (Join-Path $harness "tests\test.txt") -Value "test"
     Set-Content -LiteralPath (Join-Path $harness ".agents\skills\proxyma-harness\SKILL.md") -Value $Marker
     Set-Content -LiteralPath (Join-Path $harness ".claude\skills\proxyma-harness\SKILL.md") -Value $Marker
+    Set-Content -LiteralPath (Join-Path $harness "generic\skills\proxyma-harness\SKILL.md") -Value $Marker
     & tar -czf $Output -C $payload harness
     if ($LASTEXITCODE -ne 0) { Fail "could not create harness fixture" }
 }
@@ -93,6 +94,7 @@ try {
     if (Test-Path -LiteralPath (Join-Path $latestProject ".claude\skills\proxyma-harness")) { Fail "Claude adapter was installed without selection" }
     if (-not (Test-Path -LiteralPath (Join-Path $latestProject "harness\.agents\skills\proxyma-harness\SKILL.md"))) { Fail "manual Codex adapter source is missing" }
     if (-not (Test-Path -LiteralPath (Join-Path $latestProject "harness\.claude\skills\proxyma-harness\SKILL.md"))) { Fail "manual Claude adapter source is missing" }
+    if (-not (Test-Path -LiteralPath (Join-Path $latestProject "harness\generic\skills\proxyma-harness\SKILL.md"))) { Fail "manual generic skill source is missing" }
 
     $claudeProject = Join-Path $TestRoot "claude-project"
     $claudeBin = Join-Path $TestRoot "claude-bin"
@@ -100,6 +102,17 @@ try {
     & $Installer -HarnessType claude -ProjectDir $claudeProject -BinDir $claudeBin
     if (-not (Test-Path -LiteralPath (Join-Path $claudeProject ".claude\skills\proxyma-harness\SKILL.md"))) { Fail "Claude adapter was not installed" }
     if (Test-Path -LiteralPath (Join-Path $claudeProject ".agents\skills\proxyma-harness")) { Fail "Codex adapter was installed during Claude install" }
+
+    $genericProject = Join-Path $TestRoot "generic-project"
+    $genericSkillDir = Join-Path $TestRoot "hermes\skills"
+    $genericBin = Join-Path $TestRoot "generic-bin"
+    New-Item -ItemType Directory -Path $genericProject | Out-Null
+    & $Installer -HarnessType generic -SkillDir $genericSkillDir -ProjectDir $genericProject -BinDir $genericBin
+    if (-not (Test-Path -LiteralPath (Join-Path $genericSkillDir "proxyma-harness\SKILL.md"))) { Fail "generic skill was not installed" }
+    if (-not (Test-Path -LiteralPath (Join-Path $genericProject "harness\generic\skills\proxyma-harness\SKILL.md"))) { Fail "generic source skill is missing" }
+    if (Test-Path -LiteralPath (Join-Path $genericProject ".agents\skills\proxyma-harness")) { Fail "generic install created the Codex adapter" }
+    if (Test-Path -LiteralPath (Join-Path $genericProject ".claude\skills\proxyma-harness")) { Fail "generic install created the Claude adapter" }
+    Invoke-ExpectedFailure { & $Installer -HarnessType generic -ProjectDir (Join-Path $TestRoot "missing-skill-project") -BinDir (Join-Path $TestRoot "missing-skill-bin") } "generic install accepted a missing skill directory"
 
     $invalidProject = Join-Path $TestRoot "invalid-project"
     Invoke-ExpectedFailure { & $Installer -HarnessType invalid -ProjectDir $invalidProject -BinDir (Join-Path $TestRoot "invalid-bin") } "invalid harness type"

@@ -81,7 +81,7 @@ func TestSendPublishesApprovalNotification(t *testing.T) {
 		"Command: ssh {user}@127.0.0.1 hostname",
 		"Reasoning: test",
 		"LLM justification: ",
-		"Requested by: agent-demo",
+		"Harness name: agent-demo",
 	} {
 		if !strings.Contains(got.Message, want) {
 			t.Fatalf("message missing %q:\n%s", want, got.Message)
@@ -397,7 +397,7 @@ func testInteraction(id string) interaction.Interaction {
 		ExpectedResponse: interaction.ExpectedApproval,
 		Subject:          "Approve command",
 		Message:          "Run command?",
-		RequestedBy:      "agent-demo",
+		HarnessName:      "agent-demo",
 		Metadata: map[string]any{
 			"target":               "127.0.0.1",
 			"command":              "ssh {user}@127.0.0.1 hostname",

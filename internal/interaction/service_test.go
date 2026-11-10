@@ -74,7 +74,7 @@ func TestServiceRequestRespondAndRecover(t *testing.T) {
 		Kind:                  KindApprovalRequest,
 		Subject:               "Approve command",
 		Message:               "Run hostname?",
-		RequestedBy:           "agent-demo",
+		HarnessName:           "agent-demo",
 	})
 	if err != nil {
 		t.Fatal(err)

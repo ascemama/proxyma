@@ -11,6 +11,7 @@ ARCHIVE_NAME="proxyma-client-harness.tar.gz"
 LOCAL_BINARY=""
 LOCAL_HARNESS=""
 HARNESS_TYPE=""
+SKILL_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -26,7 +27,8 @@ Options:
   --bin-dir DIR        Install proxyma-client in DIR (default: $HOME/.local/bin).
   --binary PATH        Install this locally built executable instead of downloading one.
   --harness PATH       Install this locally built harness archive instead of downloading one.
-  --harness-type TYPE  Install the project adapter for codex or claude (optional).
+  --harness-type TYPE  Install the adapter for codex, claude, or generic (optional).
+  --skill-dir DIR      Install the generic skill below DIR (required for generic).
   -h, --help           Show this help text.
 
 The installer does not accept credentials and does not modify PATH.
@@ -90,20 +92,34 @@ while [[ $# -gt 0 ]]; do
       ;;
     --harness=*) LOCAL_HARNESS="${1#*=}"; shift ;;
     --harness-type)
-      [[ $# -ge 2 && -n "$2" ]] || { echo "--harness-type requires codex or claude." >&2; exit 2; }
+      [[ $# -ge 2 && -n "$2" ]] || { echo "--harness-type requires codex, claude, or generic." >&2; exit 2; }
       HARNESS_TYPE="$2"
       shift 2
       ;;
     --harness-type=*) HARNESS_TYPE="${1#*=}"; shift ;;
+    --skill-dir)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "--skill-dir requires a path." >&2; exit 2; }
+      SKILL_DIR="$2"
+      shift 2
+      ;;
+    --skill-dir=*) SKILL_DIR="${1#*=}"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
 
 case "$HARNESS_TYPE" in
-  ""|codex|claude) ;;
-  *) echo "Invalid harness type: $HARNESS_TYPE. Use codex or claude." >&2; exit 2 ;;
+  ""|codex|claude|generic) ;;
+  *) echo "Invalid harness type: $HARNESS_TYPE. Use codex, claude, or generic." >&2; exit 2 ;;
 esac
+if [[ "$HARNESS_TYPE" == "generic" && -z "$SKILL_DIR" ]]; then
+  echo "--skill-dir is required when --harness-type generic is selected." >&2
+  exit 2
+fi
+if [[ "$HARNESS_TYPE" != "generic" && -n "$SKILL_DIR" ]]; then
+  echo "--skill-dir is only valid with --harness-type generic." >&2
+  exit 2
+fi
 
 if [[ -n "$LOCAL_BINARY" || -n "$LOCAL_HARNESS" ]]; then
   [[ -n "$LOCAL_BINARY" && -n "$LOCAL_HARNESS" ]] || {
@@ -155,6 +171,15 @@ if [[ ! -d "$PROJECT_DIR" || -L "$PROJECT_DIR" ]]; then
   exit 1
 fi
 PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd -P)"
+
+if [[ "$HARNESS_TYPE" == "generic" ]]; then
+  if [[ -e "$SKILL_DIR" && ( ! -d "$SKILL_DIR" || -L "$SKILL_DIR" ) ]]; then
+    echo "Skill directory must be a directory and not a symbolic link: $SKILL_DIR" >&2
+    exit 1
+  fi
+  mkdir -p "$SKILL_DIR"
+  SKILL_DIR="$(cd "$SKILL_DIR" && pwd -P)"
+fi
 
 if [[ -e "$BIN_DIR" && ( ! -d "$BIN_DIR" || -L "$BIN_DIR" ) ]]; then
   echo "Binary directory must be a directory and not a symbolic link: $BIN_DIR" >&2
@@ -246,7 +271,8 @@ for required in \
   "$PAYLOAD_DIR/proxyma-client.json" \
   "$PAYLOAD_DIR/instruction-pack/proxyma-harness.md" \
   "$PAYLOAD_DIR/.agents/skills/proxyma-harness/SKILL.md" \
-  "$PAYLOAD_DIR/.claude/skills/proxyma-harness/SKILL.md"; do
+  "$PAYLOAD_DIR/.claude/skills/proxyma-harness/SKILL.md" \
+  "$PAYLOAD_DIR/generic/skills/proxyma-harness/SKILL.md"; do
   if [[ ! -f "$required" || -L "$required" ]]; then
     echo "Harness archive is missing a required regular file: $required" >&2
     exit 1
@@ -283,6 +309,9 @@ if [[ "$HARNESS_TYPE" == "codex" ]]; then
   ROOT_ADAPTER_PATH="$ROOT_ADAPTER_DIR/proxyma-harness"
 elif [[ "$HARNESS_TYPE" == "claude" ]]; then
   ROOT_ADAPTER_DIR="$PROJECT_DIR/.claude/skills"
+  ROOT_ADAPTER_PATH="$ROOT_ADAPTER_DIR/proxyma-harness"
+elif [[ "$HARNESS_TYPE" == "generic" ]]; then
+  ROOT_ADAPTER_DIR="$SKILL_DIR"
   ROOT_ADAPTER_PATH="$ROOT_ADAPTER_DIR/proxyma-harness"
 fi
 if [[ -e "$INSTALLED_BINARY" && ( ! -f "$INSTALLED_BINARY" || -L "$INSTALLED_BINARY" ) ]]; then
@@ -382,7 +411,7 @@ if [[ ! -e "$HARNESS_DIR/agent-configuration/agent.example.json" ]]; then
   install -m 0644 "$PAYLOAD_DIR/agent-configuration/agent.example.json" "$HARNESS_DIR/agent-configuration/agent.example.json"
 fi
 
-for owned in instruction-pack examples tests .agents .claude RELEASE; do
+for owned in instruction-pack examples tests .agents .claude generic RELEASE; do
   replace_path "$PAYLOAD_DIR/$owned" "$HARNESS_DIR/$owned"
 done
 
@@ -392,14 +421,21 @@ if [[ "$HARNESS_TYPE" == "codex" ]]; then
 elif [[ "$HARNESS_TYPE" == "claude" ]]; then
   mkdir -p "$ROOT_ADAPTER_DIR"
   replace_path "$PAYLOAD_DIR/.claude/skills/proxyma-harness" "$ROOT_ADAPTER_PATH"
+elif [[ "$HARNESS_TYPE" == "generic" ]]; then
+  mkdir -p "$ROOT_ADAPTER_DIR"
+  replace_path "$PAYLOAD_DIR/generic/skills/proxyma-harness" "$ROOT_ADAPTER_PATH"
 fi
 
 echo "Installed proxyma-client at $INSTALLED_BINARY"
+echo "Project directory: $PROJECT_DIR"
 echo "Installed the matching harness at $HARNESS_DIR"
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
   echo "Installed the Codex adapter at $ROOT_ADAPTER_PATH"
 elif [[ "$HARNESS_TYPE" == "claude" ]]; then
   echo "Installed the Claude adapter at $ROOT_ADAPTER_PATH"
+elif [[ "$HARNESS_TYPE" == "generic" ]]; then
+  echo "Skill directory: $SKILL_DIR"
+  echo "Installed the generic skill at $ROOT_ADAPTER_PATH"
 else
   echo "No project adapter selected. To enable Codex, run:"
   echo "  mkdir -p \"$PROJECT_DIR/.agents/skills/proxyma-harness\""

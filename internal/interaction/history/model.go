@@ -77,7 +77,7 @@ type HistoryItem struct {
 	Status                           string     `json:"status"`
 	Subject                          string     `json:"subject"`
 	Message                          string     `json:"message"`
-	RequestedBy                      string     `json:"requested_by,omitempty"`
+	HarnessName                      string     `json:"harness_name,omitempty"`
 	Approved                         *bool      `json:"approved,omitempty"`
 	Answer                           string     `json:"answer,omitempty"`
 	RespondedBy                      string     `json:"responded_by,omitempty"`

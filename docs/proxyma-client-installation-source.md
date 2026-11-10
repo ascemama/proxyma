@@ -121,8 +121,11 @@ reproducible metadata is required.
 
 ## Install the built executable and harness
 
-Set `PROJECT_DIR` to the project where Codex or Claude Code will work. Use a separate project
-directory if the source checkout is only a build checkout.
+Set `PROJECT_DIR` to the project directory where the harness will work. This
+directory receives `harness/` and must be used as the harness working directory.
+For a neutral harness, also set `SKILL_DIR` to the parent skill discovery
+directory. Use a separate project directory if the source checkout is only a
+build checkout.
 
 Linux or macOS:
 
@@ -139,6 +142,20 @@ bash ./scripts/install-proxyma-client.sh \
   --bin-dir "$BIN_DIR"
 ```
 
+For Hermes or another neutral harness:
+
+```bash
+SKILL_DIR="$HOME/.hermes/skills"
+
+bash ./scripts/install-proxyma-client.sh \
+  --binary "$ASSET" \
+  --harness "$PWD/dist/proxyma-client-harness.tar.gz" \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR" \
+  --bin-dir "$BIN_DIR"
+```
+
 Windows PowerShell:
 
 ```powershell
@@ -150,6 +167,21 @@ $Asset = ".\dist\proxyma-client-$(& go env GOOS)-$(& go env GOARCH).exe"
   -Binary $Asset `
   -Harness ".\dist\proxyma-client-harness.tar.gz" `
   -HarnessType Codex `
+  -ProjectDir $ProjectDir `
+  -BinDir $BinDir
+```
+
+For a neutral harness on Windows, add `-HarnessType Generic` and an explicit
+`-SkillDir`, for example:
+
+```powershell
+$SkillDir = Join-Path $HOME ".hermes\skills"
+
+& .\scripts\install-proxyma-client.ps1 `
+  -Binary $Asset `
+  -Harness ".\dist\proxyma-client-harness.tar.gz" `
+  -HarnessType Generic `
+  -SkillDir $SkillDir `
   -ProjectDir $ProjectDir `
   -BinDir $BinDir
 ```

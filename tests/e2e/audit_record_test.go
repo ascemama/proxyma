@@ -7,12 +7,12 @@ import (
 
 func TestAuditReadyRecordAfterCompletion(t *testing.T) {
 	server, _ := newHarness(t)
-	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"audit reason","requested_by":"agent"}`)
+	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"audit reason","harness_name":"agent"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("submit code = %d", code)
 	}
 	task := waitFinal(t, server, response.TaskID)
-	if task.Target == nil || task.Command == "" || task.Reasoning == "" || task.RequestedBy == "" {
+	if task.Target == nil || task.Command == "" || task.Reasoning == "" || task.HarnessName == "" {
 		t.Fatalf("missing audit fields: %#v", task)
 	}
 	if len(task.History) < 3 {

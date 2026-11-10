@@ -22,7 +22,7 @@ func TestPersistedTaskContainsAuditReadyFields(t *testing.T) {
 		Target:      &tasks.Target{Hostname: "demo-target", IP: "127.0.0.1"},
 		Command:     `ssh {user}@127.0.0.1 "hostname"`,
 		Reasoning:   "verify audit",
-		RequestedBy: "agent",
+		HarnessName: "agent",
 		Transcription: &transcriptor.Metadata{
 			Transcribed:   true,
 			CommandFamily: transcriptor.KindSSHRemoteCommand,

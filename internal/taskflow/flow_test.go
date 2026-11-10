@@ -357,7 +357,7 @@ func newFlowHarness(t *testing.T, providerEnabled bool) (*tasks.Manager, *intera
 
 func submitTask(t *testing.T, manager *tasks.Manager) *tasks.Task {
 	t.Helper()
-	task, err := manager.Submit(context.Background(), tasks.CommandContext{Command: "echo done", Reasoning: "test", RequestedBy: "agent-demo", InteractionInstanceID: "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"})
+	task, err := manager.Submit(context.Background(), tasks.CommandContext{Command: "echo done", Reasoning: "test", HarnessName: "agent-demo", InteractionInstanceID: "6a5b2d49-8c61-4f2e-9f1a-7f47ddbd71a8"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +369,7 @@ func submitPolicyTask(t *testing.T, manager *tasks.Manager, command string) *tas
 	task, err := manager.Submit(context.Background(), tasks.CommandContext{
 		Command:     command,
 		Reasoning:   "test",
-		RequestedBy: "agent-demo",
+		HarnessName: "agent-demo",
 		Target:      &tasks.Target{Hostname: "target.example", PolicyID: "baseline"},
 	})
 	if err != nil {

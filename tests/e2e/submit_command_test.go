@@ -10,7 +10,7 @@ import (
 
 func TestSubmitCommandCreatedWithinTwoSeconds(t *testing.T) {
 	server, _ := newHarness(t)
-	response, code, elapsed := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"diagnostic","requested_by":"agent-demo"}`)
+	response, code, elapsed := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"diagnostic","harness_name":"agent-demo"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("code = %d", code)
 	}

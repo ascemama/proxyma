@@ -79,7 +79,7 @@ func TestSubmitAndResumeCompletedTask(t *testing.T) {
 			Target:      Target{Hostname: "example.test"},
 			Payload:     "hostname",
 			Reasoning:   "identify the target host",
-			RequestedBy: "test-agent",
+			HarnessName: "test-agent",
 		})
 	})
 	if err != nil {
@@ -109,7 +109,7 @@ func TestResumeOmitsUnchangedRunningTask(t *testing.T) {
 	if _, err := service.WithStateLock(func() (Envelope, error) {
 		return service.Submit(context.Background(), SubmitInput{
 			UserGoal: "wait for work", Target: Target{Hostname: "example.test"}, Payload: "hostname",
-			Reasoning: "test unchanged polling", RequestedBy: "test-agent",
+			Reasoning: "test unchanged polling", HarnessName: "test-agent",
 		})
 	}); err != nil {
 		t.Fatal(err)
@@ -160,7 +160,7 @@ func TestSubmitConstructsEveryPayloadKind(t *testing.T) {
 			defer server.Close()
 			service := NewService(testConfig(t, server.URL))
 			envelope, err := service.WithStateLock(func() (Envelope, error) {
-				return service.Submit(context.Background(), SubmitInput{UserGoal: "test", Target: Target{Hostname: "example.test"}, Payload: test.payload, Reasoning: "test", RequestedBy: "test-agent"})
+				return service.Submit(context.Background(), SubmitInput{UserGoal: "test", Target: Target{Hostname: "example.test"}, Payload: test.payload, Reasoning: "test", HarnessName: "test-agent"})
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -179,7 +179,7 @@ func TestResumeReplaysSubmissionUnknownWithSameOperation(t *testing.T) {
 	now := time.Now().UTC()
 	task := TaskState{
 		SchemaVersion: StateVersion, ClientTaskID: "81fbef9c-0394-42d7-861e-61aa4f1e0816", Revision: 1, UserGoal: "test", Status: "waiting_proxyma", CreatedAt: now, UpdatedAt: now, RemainingWork: "test",
-		Operations: []Operation{{OperationID: "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f", RequestHash: "sha256:b835aac2016fab3e8c15578e518b00a6dbd35cc21d0e1a7fb6c5455440319e0c", Phase: "submission_unknown", Target: Target{Hostname: "example.test"}, Payload: "hostname", PayloadKind: "posix_shell", CanonicalCommand: "ssh {user}@example.test hostname", Reasoning: "test", RequestedBy: "test-agent", PreparedAt: now}},
+		Operations: []Operation{{OperationID: "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f", RequestHash: "sha256:31ed93b8b2833c1a1ceafead28b509a4674950950570326b9501c52517c527ce", Phase: "submission_unknown", Target: Target{Hostname: "example.test"}, Payload: "hostname", PayloadKind: "posix_shell", CanonicalCommand: "ssh {user}@example.test hostname", Reasoning: "test", HarnessName: "test-agent", PreparedAt: now}},
 	}
 	if err := service.state.Save(task); err != nil {
 		t.Fatal(err)
@@ -446,7 +446,7 @@ func TestLoadConfigResolvesPathsAndEnvironmentKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	configPath := filepath.Join(dir, "proxyma-client.json")
-	if err := os.WriteFile(configPath, []byte(`{"schema_version":"2","proxyma_base_url":"https://proxyma.example/","agent_config":"agent-configuration/agent.json","state_dir":"task-state"}`), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(`{"schema_version":"2","proxyma_base_url":"https://proxyma.example/","agent_config":"agent-configuration/agent.json","state_dir":"task-state","harness_name":"hermes-nightly"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PROXYMA_AGENT_JWT_SIGNING_KEY", "environment-key")
@@ -454,7 +454,7 @@ func TestLoadConfigResolvesPathsAndEnvironmentKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.SigningKey != "environment-key" || cfg.ProxymaBaseURL != "https://proxyma.example" || !filepath.IsAbs(cfg.StateDir) {
+	if cfg.SigningKey != "environment-key" || cfg.ProxymaBaseURL != "https://proxyma.example" || cfg.HarnessName != "hermes-nightly" || !filepath.IsAbs(cfg.StateDir) {
 		t.Fatalf("config=%#v", cfg)
 	}
 }

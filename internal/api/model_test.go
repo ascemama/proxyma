@@ -21,7 +21,7 @@ func TestTaskStatusResponseDoesNotExposeInternalExecutionFields(t *testing.T) {
 		Target:      &tasks.Target{Hostname: "local-dev", IP: "127.0.0.1"},
 		Command:     "ssh {user}@127.0.0.1 hostname",
 		Reasoning:   "Identify the target host",
-		RequestedBy: "agent-demo",
+		HarnessName: "agent-demo",
 		Metadata:    map[string]any{"ticket": "INC-123"},
 		Transcription: &transcriptor.Metadata{
 			Transcribed:   true,
@@ -91,12 +91,12 @@ func TestCommandRequestMapsToTaskCommandContext(t *testing.T) {
 		Command:     "ssh {user}@127.0.0.1 hostname",
 		Reasoning:   "Identify the target host",
 		Target:      &CommandTargetRequest{IP: "127.0.0.1"},
-		RequestedBy: "agent-demo",
+		HarnessName: "agent-demo",
 		Metadata:    map[string]any{"source": "test"},
 	}
 
 	context := commandContextFromRequest(request)
-	if context.Command != request.Command || context.Reasoning != request.Reasoning || context.RequestedBy != request.RequestedBy {
+	if context.Command != request.Command || context.Reasoning != request.Reasoning || context.HarnessName != request.HarnessName {
 		t.Fatalf("context = %#v", context)
 	}
 	if context.Target == nil || context.Target.IP != "127.0.0.1" {

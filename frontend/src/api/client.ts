@@ -233,7 +233,7 @@ export type HistoryItem = {
   status: string;
   subject?: string;
   message?: string;
-  requested_by?: string;
+  harness_name?: string;
   approved?: boolean;
   answer?: string;
   responded_by?: string;
