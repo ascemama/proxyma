@@ -40,9 +40,10 @@ current user and project.
 
 ### Install the latest stable release
 
-Run the installer from the root of the project where Codex or Claude Code will
-work. Download it as a file so it can be inspected before execution; do not
-pipe a remote script directly into a shell.
+Run the installer with an explicit project directory. This is the harness
+working directory and the location where `harness/` is installed. Download the
+installer as a file so it can be inspected before execution; do not pipe a
+remote script directly into a shell.
 
 ### Linux or macOS
 
@@ -50,7 +51,8 @@ pipe a remote script directly into a shell.
 curl -fL -o install-proxyma-client.sh \
   https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-client.sh
 bash ./install-proxyma-client.sh
-# Add --harness-type codex or --harness-type claude to install the project adapter.
+# Add --harness-type codex or --harness-type claude to install a project adapter.
+# Use --harness-type generic --skill-dir DIR for another harness.
 ```
 
 The default executable location is `$HOME/.local/bin/proxyma-client`.
@@ -63,7 +65,8 @@ Invoke-WebRequest `
   -OutFile .\install-proxyma-client.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\install-proxyma-client.ps1
-# Add -HarnessType Codex or -HarnessType Claude to install the project adapter.
+# Add -HarnessType Codex or -HarnessType Claude to install a project adapter.
+# Use -HarnessType Generic -SkillDir DIR for another harness.
 ```
 
 The default executable location is
@@ -78,9 +81,12 @@ Both installers:
    verify both SHA-256 hashes.
 4. Reject unsafe archive paths, links, special files, and unsafe install
    destinations.
-5. Install the binary for the current user and create or refresh `./harness`.
+5. Install the binary for the current user and create or refresh `harness/`
+   under `--project-dir`/`-ProjectDir`.
    If `--harness-type codex` or `--harness-type claude` is supplied, install
-   only that selected project adapter at the corresponding root skill path.
+   only that selected project adapter at the corresponding project-root skill
+   path. If `generic` is selected, `--skill-dir`/`-SkillDir` is required and
+   receives the neutral skill.
 
 The installers never request or create a signing key and never modify `PATH`.
 If the user-local binary directory is not already on `PATH`, follow the printed
@@ -281,6 +287,7 @@ your-project/
 └── harness/
     ├── .agents/                 Release copy of the Codex adapter
     ├── .claude/                 Claude Code adapter
+    ├── generic/                 Neutral adapter source
     ├── agent-configuration/     Local credentials and non-secret template
     │   └── agent.example.json   Copy this before creating agent.json
     ├── examples/                Configuration and task examples
@@ -291,10 +298,49 @@ your-project/
     └── RELEASE                  Harness release version and commit
 ```
 
-The `harness/` directory is the shared runtime root. Codex discovers the
-project-root `.agents/skills/proxyma-harness/SKILL.md` adapter, while Claude
-Code discovers `.claude/skills/proxyma-harness/SKILL.md`. Only the adapter
-selected with `--harness-type` is installed automatically.
+The `harness/` directory is the shared runtime root and belongs under the
+project directory where the harness works. A skill directory is separate: it
+is the parent discovery directory into which the selected skill is installed.
+Codex discovers the project-root `.agents/skills/proxyma-harness/SKILL.md`
+adapter, Claude Code discovers `.claude/skills/proxyma-harness/SKILL.md`, and a
+generic harness receives `proxyma-harness/SKILL.md` below the explicit
+`--skill-dir` destination.
+
+For Hermes, install the skill globally while keeping Proxyma configuration and
+state in the project directory:
+
+```bash
+PROJECT_DIR="$HOME/projects/my-proxyma-project"
+SKILL_DIR="$HOME/.hermes/skills"
+
+bash ./install-proxyma-client.sh \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR"
+```
+
+Then trust the project and use it as the Hermes working directory:
+
+```bash
+cd "$PROJECT_DIR"
+hermes skills trust
+```
+
+For scheduled Hermes work, set the same project directory as the cron job's
+working directory and attach the skill:
+
+```bash
+hermes cron create "every 1d at 09:00" \
+  "Check the managed server and report issues." \
+  --workdir "$PROJECT_DIR" \
+  --skill proxyma-harness
+```
+
+Hermes documents `--workdir` as an absolute per-job working directory for
+terminal/file operations and project-skill discovery; see the [Hermes cron
+documentation](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/cron.md).
+
+Only the adapter selected with `--harness-type` is installed automatically.
 
 If the option is omitted, copy the desired adapter from the shared harness
 after installation:
@@ -309,6 +355,11 @@ cp harness/.agents/skills/proxyma-harness/SKILL.md \
 mkdir -p .claude/skills/proxyma-harness
 cp harness/.claude/skills/proxyma-harness/SKILL.md \
   .claude/skills/proxyma-harness/SKILL.md
+
+# Generic harness
+mkdir -p "$HOME/.hermes/skills/proxyma-harness"
+cp harness/generic/skills/proxyma-harness/SKILL.md \
+  "$HOME/.hermes/skills/proxyma-harness/SKILL.md"
 ```
 
 On Windows PowerShell, create the corresponding directory and use
@@ -429,6 +480,19 @@ Edit `harness/proxyma-client.json`:
   "active_poll_interval_seconds": 30
 }
 ```
+
+Set the optional harness identity in the same file when the default adapter
+name is not specific enough for your logs:
+
+```json
+"harness_name": "hermes-nightly"
+```
+
+The adapter passes this value as `harness_name` in every client submission, and
+the Proxyma server records it in task, interaction, audit, and log output. If
+the property is absent, the Codex, Claude Code, and generic adapters use
+`codex`, `claude`, and `default` respectively. Never put credentials or other
+configuration values in the harness name or in a prompt.
 
 Replace the example `proxyma_base_url` value with that server URL. Do this
 before testing the agent or running `proxyma-client doctor`; the agent cannot

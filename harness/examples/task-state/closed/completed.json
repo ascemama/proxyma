@@ -18,7 +18,7 @@
       "payload_kind": "posix_shell",
       "canonical_command": "ssh {user}@192.0.2.10 hostname",
       "reasoning": "Identify the target host",
-      "requested_by": "codex",
+      "harness_name": "codex",
       "proxyma_task_id": "proxyma-task-2",
       "proxyma_status": "completed",
       "prepared_at": "2026-08-30T07:00:00Z",

@@ -26,7 +26,7 @@ operations with shell scripts or raw HTTP.
    Proxyma to make progress.
 7. Submit remote work with one JSON object through
    `proxyma-client submit --input <file-or->`. Supply the user goal, target hostname or
-   IP, remote payload, reasoning, and your harness name in `requested_by`.
+   IP, remote payload, reasoning, and your harness name in `harness_name`.
 8. Use the returned `client_task_id` and `revision` for later `poll`, `task-update`,
    `submit`, or `task-complete` calls. Existing-task mutations require the latest
    revision.
@@ -57,7 +57,7 @@ target, or payload as direct flags.
 For a new task, `submit` input is:
 
 ```json
-{"user_goal":"...","target":{"hostname":"server.example"},"payload":"uptime","reasoning":"...","requested_by":"<harness-name>"}
+{"user_goal":"...","target":{"hostname":"server.example"},"payload":"uptime","reasoning":"...","harness_name":"<harness-name>"}
 ```
 
 Use exactly one target field: `hostname` or `ip`. To extend an existing task, also

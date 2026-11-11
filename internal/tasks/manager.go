@@ -156,7 +156,7 @@ func (m *Manager) SubmitIdempotent(_ context.Context, command CommandContext) (*
 		Target:                cloneTarget(command.Target),
 		Command:               command.Command,
 		Reasoning:             command.Reasoning,
-		RequestedBy:           command.RequestedBy,
+		HarnessName:           command.HarnessName,
 		InteractionInstanceID: normalizeInteractionInstanceID(command.InteractionInstanceID),
 		Metadata:              command.Metadata,
 		Policy:                clonePolicyDecision(command.Policy),

@@ -35,7 +35,7 @@ func (p *approvalProvider) Cancel(_ interaction.Context, _ interaction.Interacti
 
 func TestCommandWaitsForApprovalThenRuns(t *testing.T) {
 	server, provider := newApprovalHarness(t)
-	response, code, elapsed := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test approval"}`)
+	response, code, elapsed := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test approval","harness_name":"test"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("status = %d", code)
 	}
@@ -74,7 +74,7 @@ func TestCommandWaitsForApprovalThenRuns(t *testing.T) {
 
 func TestRejectedCommandApprovalBlocksTask(t *testing.T) {
 	server, provider := newApprovalHarness(t)
-	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test rejection"}`)
+	response, code, _ := submitCommand(t, server, `{"target":{"ip":"127.0.0.1"},"command":"`+quickSSHCommand+`","reasoning":"test rejection","harness_name":"test"}`)
 	if code != http.StatusAccepted {
 		t.Fatalf("status = %d", code)
 	}

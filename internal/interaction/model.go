@@ -45,7 +45,7 @@ type Request struct {
 	ExpectedResponse      string         `json:"expected_response,omitempty"`
 	Subject               string         `json:"subject"`
 	Message               string         `json:"message"`
-	RequestedBy           string         `json:"requested_by,omitempty"`
+	HarnessName           string         `json:"harness_name,omitempty"`
 	Metadata              map[string]any `json:"metadata,omitempty"`
 }
 
@@ -67,7 +67,7 @@ type Interaction struct {
 	ExpectedResponse      string         `json:"expected_response"`
 	Subject               string         `json:"subject"`
 	Message               string         `json:"message"`
-	RequestedBy           string         `json:"requested_by,omitempty"`
+	HarnessName           string         `json:"harness_name,omitempty"`
 	Metadata              map[string]any `json:"metadata,omitempty"`
 	Status                string         `json:"status"`
 	CreatedAt             time.Time      `json:"created_at"`

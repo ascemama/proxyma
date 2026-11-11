@@ -99,7 +99,7 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (Envelope, erro
 		Target:            input.Target,
 		Command:           resolved.CanonicalCommand.Prefix + input.Payload,
 		Reasoning:         input.Reasoning,
-		RequestedBy:       input.RequestedBy,
+		HarnessName:       input.HarnessName,
 		Metadata:          input.Metadata,
 	}
 	requestHash, err := hashCommandRequest(request)
@@ -115,7 +115,7 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (Envelope, erro
 		PayloadKind:      resolved.CanonicalCommand.PayloadKind,
 		CanonicalCommand: request.Command,
 		Reasoning:        input.Reasoning,
-		RequestedBy:      input.RequestedBy,
+		HarnessName:      input.HarnessName,
 		Metadata:         input.Metadata,
 		PreparedAt:       now,
 	})
@@ -143,7 +143,7 @@ func (s *Service) submitOperation(ctx context.Context, task *TaskState, index in
 		Target:            operation.Target,
 		Command:           operation.CanonicalCommand,
 		Reasoning:         operation.Reasoning,
-		RequestedBy:       operation.RequestedBy,
+		HarnessName:       operation.HarnessName,
 		Metadata:          operation.Metadata,
 	})
 	if err != nil {
@@ -472,8 +472,8 @@ func validateSubmitInput(input SubmitInput) error {
 	if (strings.TrimSpace(input.Target.Hostname) == "") == (strings.TrimSpace(input.Target.IP) == "") {
 		return cliError("invalid_input", "target must contain exactly one of hostname or ip", 2)
 	}
-	if strings.TrimSpace(input.Payload) == "" || strings.TrimSpace(input.Reasoning) == "" || strings.TrimSpace(input.RequestedBy) == "" {
-		return cliError("invalid_input", "payload, reasoning, and requested_by are required", 2)
+	if strings.TrimSpace(input.Payload) == "" || strings.TrimSpace(input.Reasoning) == "" || strings.TrimSpace(input.HarnessName) == "" {
+		return cliError("invalid_input", "payload, reasoning, and harness_name are required", 2)
 	}
 	return nil
 }

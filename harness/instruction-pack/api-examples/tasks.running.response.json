@@ -9,7 +9,7 @@
   },
   "command": "ssh {user}@127.0.0.1 hostname",
   "reasoning": "Identify the target host for diagnostics",
-  "requested_by": "agent-demo",
+  "harness_name": "agent-demo",
   "transcription": {
     "transcribed": true,
     "command_family": "ssh_remote_command",

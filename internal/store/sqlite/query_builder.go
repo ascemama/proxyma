@@ -125,7 +125,7 @@ func buildHistoryQuery(query history.HistoryQuery) (historyQueryPlan, error) {
 		SELECT 'command' AS entry_type, c.task_id AS history_id, '' AS interaction_id,
 			c.task_id, c.agent_id, c.agent_name, c.interaction_instance_id, '' AS interaction_instance_creator_user_id,
 			'' AS provider, '' AS kind, '' AS expected_response, c.status, '' AS subject, '' AS message,
-			c.requested_by, NULL AS approved, '' AS answer, '' AS responded_by, '' AS cancel_reason,
+			c.harness_name, NULL AS approved, '' AS answer, '' AS responded_by, '' AS cancel_reason,
 			c.target_id, c.target_hostname, c.target_ip, c.command, c.result_class AS result,
 			c.policy_justification, COALESCE(c.completed_at, c.created_at) AS created_at,
 			c.completed_at, NULL AS expires_at, NULL AS responded_at, c.created_at AS task_created_at
@@ -134,7 +134,7 @@ func buildHistoryQuery(query history.HistoryQuery) (historyQueryPlan, error) {
 		SELECT 'interaction', i.interaction_id, i.interaction_id, i.task_id,
 			COALESCE(c.agent_id, ''), COALESCE(c.agent_name, ''), i.interaction_instance_id,
 			i.interaction_instance_creator_user_id, i.provider, i.kind, i.expected_response, i.status,
-			i.subject, i.message, i.requested_by, i.approved, i.answer, i.responded_by, i.cancel_reason,
+			i.subject, i.message, i.harness_name, i.approved, i.answer, i.responded_by, i.cancel_reason,
 			COALESCE(c.target_id, ''), COALESCE(c.target_hostname, ''), COALESCE(c.target_ip, ''),
 			'', '', '', i.created_at, NULL, i.expires_at, i.responded_at, COALESCE(c.created_at, i.created_at)
 		FROM interactions i
@@ -142,7 +142,7 @@ func buildHistoryQuery(query history.HistoryQuery) (historyQueryPlan, error) {
 	)
 	SELECT entry_type, history_id, interaction_id, task_id, agent_id, agent_name,
 		interaction_instance_id, interaction_instance_creator_user_id, provider, kind, expected_response,
-		status, subject, message, requested_by, approved, answer, responded_by, cancel_reason,
+		status, subject, message, harness_name, approved, answer, responded_by, cancel_reason,
 		target_id, target_hostname, target_ip, command, result, policy_justification,
 		created_at, completed_at, expires_at, responded_at, task_created_at
 	FROM history

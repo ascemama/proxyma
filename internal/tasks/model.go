@@ -41,7 +41,7 @@ type CommandContext struct {
 	AgentName             string                 `json:"-"`
 	Command               string                 `json:"command"`
 	Reasoning             string                 `json:"reasoning"`
-	RequestedBy           string                 `json:"requested_by,omitempty"`
+	HarnessName           string                 `json:"harness_name,omitempty"`
 	InteractionInstanceID string                 `json:"-"`
 	AgentID               string                 `json:"-"`
 	Metadata              map[string]interface{} `json:"metadata,omitempty"`
@@ -72,7 +72,7 @@ type Task struct {
 	Target                *Target                `json:"target,omitempty"`
 	Command               string                 `json:"command"`
 	Reasoning             string                 `json:"reasoning"`
-	RequestedBy           string                 `json:"requested_by,omitempty"`
+	HarnessName           string                 `json:"harness_name,omitempty"`
 	InteractionInstanceID string                 `json:"interaction_instance_id,omitempty"`
 	Metadata              map[string]any         `json:"metadata,omitempty"`
 	Transcription         *transcriptor.Metadata `json:"transcription,omitempty"`

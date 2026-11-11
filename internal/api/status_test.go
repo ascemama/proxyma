@@ -59,7 +59,7 @@ func TestTaskStatusResponses(t *testing.T) {
 
 func TestTaskStatusReturnsSafeTranscriptionMetadata(t *testing.T) {
 	server := testServer(t)
-	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", strings.NewReader(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 echo {password}","reasoning":"test"}`))
+	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", strings.NewReader(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 echo {password}","reasoning":"test","harness_name":"test"}`))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusAccepted {

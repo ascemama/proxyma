@@ -26,7 +26,7 @@ type Evaluator interface {
 // Request contains safe command context used by policy rules.
 type Request struct {
 	TaskID        string
-	RequestedBy   string
+	HarnessName   string
 	Target        Target
 	Command       string
 	RemoteCommand string

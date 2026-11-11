@@ -51,11 +51,13 @@ func TestSubmitCommandValidation(t *testing.T) {
 		body   string
 		status int
 	}{
-		{name: "missing command", body: `{"target":{"ip":"127.0.0.1"},"reasoning":"test"}`, status: http.StatusBadRequest},
-		{name: "missing reasoning", body: `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname"}`, status: http.StatusBadRequest},
-		{name: "missing target", body: `{"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`, status: http.StatusBadRequest},
-		{name: "empty target", body: `{"target":{},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`, status: http.StatusBadRequest},
-		{name: "unknown target", body: `{"target":{"ip":"192.0.2.10"},"command":"ssh {user}@192.0.2.10 hostname","reasoning":"test"}`, status: http.StatusNotFound},
+		{name: "missing command", body: `{"target":{"ip":"127.0.0.1"},"reasoning":"test","harness_name":"test"}`, status: http.StatusBadRequest},
+		{name: "missing reasoning", body: `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","harness_name":"test"}`, status: http.StatusBadRequest},
+		{name: "missing target", body: `{"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`, status: http.StatusBadRequest},
+		{name: "missing harness name", body: `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`, status: http.StatusBadRequest},
+		{name: "obsolete requested by field", body: `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test","requested_by":"legacy"}`, status: http.StatusBadRequest},
+		{name: "empty target", body: `{"target":{},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`, status: http.StatusBadRequest},
+		{name: "unknown target", body: `{"target":{"ip":"192.0.2.10"},"command":"ssh {user}@192.0.2.10 hostname","reasoning":"test","harness_name":"test"}`, status: http.StatusNotFound},
 	}
 	server := testServer(t)
 	for _, tc := range cases {
@@ -218,13 +220,13 @@ func TestSubmitCanonicalSSHValidation(t *testing.T) {
 		{
 			name:   "canonical command created with target ip",
 			server: testServer(t),
-			body:   `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`,
+			body:   `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusAccepted,
 		},
 		{
 			name:   "canonical command created with target hostname",
 			server: testServer(t),
-			body:   `{"target":{"hostname":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`,
+			body:   `{"target":{"hostname":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusAccepted,
 		},
 		{
@@ -233,7 +235,7 @@ func TestSubmitCanonicalSSHValidation(t *testing.T) {
 				{Transport: targets.TransportSSH, Hostname: "127.0.0.1", Username: "u1", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p1")},
 				{Transport: targets.TransportSSH, IP: "127.0.0.1", Username: "u2", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p2")},
 			})),
-			body:   `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`,
+			body:   `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusBadRequest,
 		},
 		{
@@ -242,7 +244,7 @@ func TestSubmitCanonicalSSHValidation(t *testing.T) {
 				{Transport: targets.TransportSSH, Hostname: "127.0.0.1", Username: "u1", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p1")},
 				{Transport: targets.TransportSSH, IP: "127.0.0.1", Username: "u2", AgentIDs: []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43"}, Auth: targets.PasswordAuth("p2")},
 			})),
-			body:   `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`,
+			body:   `{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusAccepted,
 		},
 		{
@@ -251,7 +253,7 @@ func TestSubmitCanonicalSSHValidation(t *testing.T) {
 				{Transport: targets.TransportSSH, Hostname: "alpha.example", IP: "10.0.0.1", Username: "u1", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p1")},
 				{Transport: targets.TransportSSH, Hostname: "beta.example", IP: "10.0.0.2", Username: "u2", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p2")},
 			})),
-			body:   `{"target":{"hostname":"alpha.example","ip":"10.0.0.2"},"command":"ssh {user}@alpha.example hostname","reasoning":"test"}`,
+			body:   `{"target":{"hostname":"alpha.example","ip":"10.0.0.2"},"command":"ssh {user}@alpha.example hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusBadRequest,
 		},
 		{
@@ -260,13 +262,13 @@ func TestSubmitCanonicalSSHValidation(t *testing.T) {
 				{Transport: targets.TransportSSH, Hostname: "alpha.example", IP: "10.0.0.1", Username: "u1", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p1")},
 				{Transport: targets.TransportSSH, Hostname: "beta.example", IP: "10.0.0.2", Username: "u2", AgentIDs: []string{testAgent.ID}, Auth: targets.PasswordAuth("p2")},
 			})),
-			body:   `{"target":{"hostname":"alpha.example"},"command":"ssh {user}@beta.example hostname","reasoning":"test"}`,
+			body:   `{"target":{"hostname":"alpha.example"},"command":"ssh {user}@beta.example hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusBadRequest,
 		},
 		{
 			name:   "helper syntax rejected",
 			server: testServer(t),
-			body:   `{"target":{"ip":"127.0.0.1"},"command":"sshpass -p secret ssh demo@127.0.0.1 hostname","reasoning":"test"}`,
+			body:   `{"target":{"ip":"127.0.0.1"},"command":"sshpass -p secret ssh demo@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusBadRequest,
 			check: func(t *testing.T, rec *httptest.ResponseRecorder) {
 				t.Helper()
@@ -282,7 +284,7 @@ func TestSubmitCanonicalSSHValidation(t *testing.T) {
 		{
 			name:   "bare command rejected",
 			server: testServer(t),
-			body:   `{"target":{"ip":"127.0.0.1"},"command":"ls /home","reasoning":"test"}`,
+			body:   `{"target":{"ip":"127.0.0.1"},"command":"ls /home","reasoning":"test","harness_name":"test"}`,
 			status: http.StatusBadRequest,
 		},
 	}
@@ -340,9 +342,10 @@ func TestPrepareCommandUsesMatchedTargetAuthType(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := testServerWithRegistry(t, targets.NewRegistry([]targets.Target{tc.target}))
 			request := tasks.CommandContext{
-				Target:    &tasks.Target{Hostname: "target.example"},
-				Command:   "ssh {user}@target.example hostname",
-				Reasoning: "test",
+				Target:      &tasks.Target{Hostname: "target.example"},
+				Command:     "ssh {user}@target.example hostname",
+				Reasoning:   "test",
+				HarnessName: "test",
 			}
 
 			if err := server.prepareCommand(&request, testAgent); err != nil {
@@ -370,7 +373,7 @@ func TestPrepareCommandBuildsWinRMPlan(t *testing.T) {
 	}
 	server := testServerWithRegistry(t, targets.NewRegistry([]targets.Target{target}))
 	request := tasks.CommandContext{
-		Target: &tasks.Target{Hostname: "win.example"}, Command: `winrm {user}@win.example Get-ChildItem "C:\Program Files"`, Reasoning: "test",
+		Target: &tasks.Target{Hostname: "win.example"}, Command: `winrm {user}@win.example Get-ChildItem "C:\Program Files"`, Reasoning: "test", HarnessName: "test",
 	}
 	if err := server.prepareCommand(&request, testAgent); err != nil {
 		t.Fatal(err)
@@ -392,9 +395,10 @@ func TestPrepareCommandRejectsPasswordPlaceholderForPrivateKeyTarget(t *testing.
 		{Transport: targets.TransportSSH, Hostname: "target.example", Username: "demo", AgentIDs: []string{testAgent.ID}, Auth: targets.PrivateKeyAuth("secrets/private_keys/demo-key")},
 	}))
 	request := tasks.CommandContext{
-		Target:    &tasks.Target{Hostname: "target.example"},
-		Command:   "ssh {user}@target.example echo {password}",
-		Reasoning: "test",
+		Target:      &tasks.Target{Hostname: "target.example"},
+		Command:     "ssh {user}@target.example echo {password}",
+		Reasoning:   "test",
+		HarnessName: "test",
 	}
 
 	err := server.prepareCommand(&request, testAgent)
@@ -408,7 +412,7 @@ func TestPrepareCommandRejectsPasswordPlaceholderForPrivateKeyTarget(t *testing.
 
 func TestSubmitCommandCreated(t *testing.T) {
 	server := testServer(t)
-	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`)
+	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`)
 	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", body)
 	rec := httptest.NewRecorder()
 	start := time.Now()
@@ -445,7 +449,7 @@ func TestSubmitCommandCreated(t *testing.T) {
 func TestSubmitCommandIdempotencyReplayAndConflict(t *testing.T) {
 	server := testServer(t)
 	operationID := "c7b2de27-a00f-4c6c-bb90-b4cc80d1628f"
-	body := `{"client_operation_id":"` + operationID + `","target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`
+	body := `{"client_operation_id":"` + operationID + `","target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`
 	submit := func(payload string) (int, CommandCreatedResponse, ErrorResponse) {
 		req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", strings.NewReader(payload))
 		rec := httptest.NewRecorder()
@@ -481,7 +485,7 @@ func TestSubmitCommandIdempotencyReplayAndConflict(t *testing.T) {
 
 func TestSubmitCommandRejectsInvalidOperationID(t *testing.T) {
 	server := testServer(t)
-	body := `{"client_operation_id":"not-a-uuid","target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`
+	body := `{"client_operation_id":"not-a-uuid","target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`
 	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
@@ -496,7 +500,7 @@ func TestDebugLogsRequestAndCreatedCommand(t *testing.T) {
 	server.Debug = true
 	server.Logger = log.New(&logs, "", 0)
 
-	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","requested_by":"codex","metadata":{"b":2,"a":1}}`)
+	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"codex","metadata":{"b":2,"a":1}}`)
 	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", body)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
@@ -514,12 +518,12 @@ func TestDebugLogsRequestAndCreatedCommand(t *testing.T) {
 
 	output := logs.String()
 	for _, want := range []string{
-		`debug command request body={"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","requested_by":"codex","metadata":{"b":2,"a":1}}`,
+		`debug command request body={"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"codex","metadata":{"b":2,"a":1}}`,
 		"debug command created",
 		"target=127.0.0.1",
 		"command_family=ssh_remote_command",
 		"strategy=go_ssh_client",
-		"requested_by=\"codex\"",
+		"harness_name=\"codex\"",
 		"metadata_keys=a,b",
 		"debug http request method=POST path=/v1/agent/commands",
 		"status=202",
@@ -559,7 +563,7 @@ func TestDebugLogsCommandRejectionReason(t *testing.T) {
 	server.Debug = true
 	server.Logger = log.New(&logs, "", 0)
 
-	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ls /home","reasoning":"test"}`)
+	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ls /home","reasoning":"test","harness_name":"test"}`)
 	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", body)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
@@ -610,7 +614,7 @@ func TestSubmitCommandRejectsUnauthorizedAgentForTarget(t *testing.T) {
 	server := testServerWithRegistry(t, targets.NewRegistry([]targets.Target{
 		{Transport: targets.TransportSSH, Hostname: "127.0.0.1", IP: "127.0.0.1", Username: "u", AgentIDs: []string{"7937dd2d-0b8a-4880-8afa-0ea60fd65a43"}, Auth: targets.PasswordAuth("p")},
 	}))
-	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test"}`)
+	body := bytes.NewBufferString(`{"target":{"ip":"127.0.0.1"},"command":"ssh {user}@127.0.0.1 hostname","reasoning":"test","harness_name":"test"}`)
 	req := newAuthenticatedRequest(t, http.MethodPost, "/v1/agent/commands", body)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)

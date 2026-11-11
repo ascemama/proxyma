@@ -22,7 +22,7 @@ func TestInteractionStoreSaveUpdateAndRecover(t *testing.T) {
 	created := time.Now().UTC().Truncate(time.Microsecond)
 	record := interaction.Interaction{
 		InteractionID: "interaction-1", TaskID: "task-1", InteractionInstanceID: "local", Kind: interaction.KindApprovalRequest,
-		ExpectedResponse: interaction.ExpectedApproval, Subject: "Approve", Message: "' OR 1=1 --", RequestedBy: "agent-1",
+		ExpectedResponse: interaction.ExpectedApproval, Subject: "Approve", Message: "' OR 1=1 --", HarnessName: "agent-1",
 		Status: interaction.StatusPending, CreatedAt: created,
 	}
 	if err := store.Save(record); err != nil {

@@ -130,7 +130,7 @@ func testInteraction(id string) interaction.Interaction {
 		ExpectedResponse: interaction.ExpectedApproval,
 		Subject:          "Approve command",
 		Message:          "Run command?",
-		RequestedBy:      "agent-demo",
+		HarnessName:      "agent-demo",
 		Metadata: map[string]any{
 			"target":    "127.0.0.1",
 			"command":   "ssh {user}@127.0.0.1 hostname",

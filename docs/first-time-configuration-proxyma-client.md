@@ -3,7 +3,7 @@
 This guide configures `proxyma-client` after the client executable and matching
 harness have been installed. The Proxyma server and agent normally run on
 different machines: the server owns the agent record and signing key, while
-the workstation running Codex or Claude Code stores the client configuration.
+the workstation running the harness stores the client configuration.
 
 Before starting, complete one of the installation guides:
 
@@ -15,9 +15,10 @@ copy a harness from a different version.
 
 ## Where the harness belongs
 
-The harness belongs in the project directory where Codex or Claude Code will
-work. Run the installer from that directory, or pass it explicitly with
-`--project-dir`/`-ProjectDir`:
+The project directory is the harness working directory. It receives the shared
+`harness/` runtime, including the instruction pack, configuration, credentials,
+and task state. Run the installer from that directory, or pass it explicitly
+with `--project-dir`/`-ProjectDir`:
 
 ~~~text
 your-project/
@@ -41,6 +42,26 @@ the selected project directory. Pass `--harness-type codex` (or
 client executable in `$HOME/.local/bin` or
 `%LOCALAPPDATA%\Programs\Proxyma\bin`.
 
+For a neutral harness, define both directories explicitly. `--skill-dir` is
+the parent discovery directory; `--project-dir` is the working directory that
+contains Proxyma's `harness/` directory:
+
+~~~bash
+PROJECT_DIR="$HOME/projects/my-proxyma-project"
+SKILL_DIR="$HOME/.hermes/skills"
+
+bash ./install-proxyma-client.sh \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR"
+~~~
+
+This creates the skill at
+`$HOME/.hermes/skills/proxyma-harness/SKILL.md` and the shared runtime at
+`$PROJECT_DIR/harness/`. Hermes users should then run `hermes skills trust`
+from the project and configure cron jobs with `--workdir "$PROJECT_DIR"` and
+`--skill proxyma-harness`.
+
 If no harness type was supplied, copy the adapter for the harness you use:
 
 ~~~bash
@@ -59,9 +80,9 @@ On Windows, use the equivalent `New-Item` and `Copy-Item` commands. Restart
 Codex or Claude Code after installing or copying the skill.
 
 The adapters reference `harness/instruction-pack/` from the project root. Keep
-the shared `harness/` directory beside `.agents/` or `.claude/`; do not copy
-only `SKILL.md` into an otherwise empty project or move `instruction-pack/`
-inside the adapter directory.
+the shared `harness/` directory under the project directory even when the skill
+is installed globally. Do not copy only `SKILL.md` into an otherwise empty
+project or move `instruction-pack/` inside the skill directory.
 
 For example, to install into an existing project on Linux or macOS:
 
@@ -99,6 +120,17 @@ the agent is installed:
   "active_poll_interval_seconds": 30
 }
 ~~~
+
+The optional `harness_name` identifies the harness in Proxyma requests and
+server logs. For example:
+
+~~~json
+"harness_name": "hermes-nightly"
+~~~
+
+If it is absent, the Codex, Claude Code, and neutral adapters use `codex`,
+`claude`, and `default` respectively. The harness must not expose credentials
+or other configuration values in prompts or submitted metadata.
 
 For a local development server, use a URL such as
 `http://127.0.0.1:8080`. The URL must be reachable from the agent

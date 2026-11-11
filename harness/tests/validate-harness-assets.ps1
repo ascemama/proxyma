@@ -48,31 +48,34 @@ foreach ($file in $examples) {
     foreach ($name in @("schema_version", "client_task_id", "revision", "user_goal", "status", "created_at", "updated_at", "remaining_work", "operations")) { Require-Property $task $name $file.Name }
     if ($null -ne $task -and $task.schema_version -ne "2") { Add-Error "$($file.Name) is not v2" }
     foreach ($operation in @($task.operations)) {
-        foreach ($name in @("operation_id", "request_hash", "phase", "target", "payload", "payload_kind", "canonical_command", "reasoning", "requested_by", "prepared_at")) { Require-Property $operation $name "$($file.Name) operation" }
+        foreach ($name in @("operation_id", "request_hash", "phase", "target", "payload", "payload_kind", "canonical_command", "reasoning", "harness_name", "prepared_at")) { Require-Property $operation $name "$($file.Name) operation" }
     }
 }
 
 $core = "harness/instruction-pack/proxyma-harness.md"
 $codex = "harness/.agents/skills/proxyma-harness/SKILL.md"
 $claude = "harness/.claude/skills/proxyma-harness/SKILL.md"
+$generic = "harness/generic/skills/proxyma-harness/SKILL.md"
 Require-Text $core @("proxyma-client resume", "task-complete", "Never directly use SSH", "Never read or edit", "uncertain submission", "Harness v1")
-Require-Text $codex @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", 'requested_by: "codex"', "task-complete")
-Require-Text $claude @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", 'requested_by: "claude-code"', "task-complete")
+Require-Text $codex @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", "configured", "codex", "task-complete")
+Require-Text $claude @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", "configured", "claude", "task-complete")
+Require-Text $generic @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", "configured", "default", "task-complete")
 
-foreach ($adapter in @($codex, $claude)) {
+foreach ($adapter in @($codex, $claude, $generic)) {
     $length = (Get-Content -LiteralPath (Join-Path $RepoRoot $adapter) -Raw).Length
     if ($length -ge 4000) { Add-Error "$adapter exceeds the 4,000-character adapter budget ($length)" }
 }
 $loadedBudget = (Get-Content -LiteralPath (Join-Path $RepoRoot $core) -Raw).Length + [Math]::Max(
     (Get-Content -LiteralPath (Join-Path $RepoRoot $codex) -Raw).Length,
-    (Get-Content -LiteralPath (Join-Path $RepoRoot $claude) -Raw).Length)
+    [Math]::Max((Get-Content -LiteralPath (Join-Path $RepoRoot $claude) -Raw).Length,
+        (Get-Content -LiteralPath (Join-Path $RepoRoot $generic) -Raw).Length))
 if ($loadedBudget -ge 10000) { Add-Error "Automatically loaded instruction budget exceeds 10,000 characters ($loadedBudget)" }
 
 foreach ($scenario in @("v2-resume-uncertain.md", "v2-completed-result.md", "v2-proxyma-only.md", "v2-revision-conflict.md", "v2-adapter-coverage.md")) {
     if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot "harness/tests/scenarios/$scenario"))) { Add-Error "Missing scenario $scenario" }
 }
 
-$modelFacing = @($core, $codex, $claude)
+$modelFacing = @($core, $codex, $claude, $generic)
 foreach ($file in $modelFacing) {
     $content = Get-Content -LiteralPath (Join-Path $RepoRoot $file) -Raw
     foreach ($forbidden in @("Authorization: Bearer", "new-proxyma-jwt", "POST /v1/agent/commands", "agent_jwt_signing_key")) {

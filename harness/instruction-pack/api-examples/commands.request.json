@@ -5,7 +5,7 @@
   },
   "command": "ssh {user}@20.218.123.238 ls /home",
   "reasoning": "List the contents of /home on the target host",
-  "requested_by": "agent-demo",
+  "harness_name": "agent-demo",
   "metadata": {
     "source": "harness"
   }

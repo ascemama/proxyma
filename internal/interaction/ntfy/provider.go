@@ -243,8 +243,8 @@ func renderMessage(request interaction.Interaction) string {
 	if justification := stringMetadata(request.Metadata, "policy_justification"); justification != "" {
 		lines = append(lines, "LLM justification: "+justification)
 	}
-	if requestedBy := strings.TrimSpace(request.RequestedBy); requestedBy != "" {
-		lines = append(lines, "Requested by: "+requestedBy)
+	if harnessName := strings.TrimSpace(request.HarnessName); harnessName != "" {
+		lines = append(lines, "Harness name: "+harnessName)
 	}
 	if len(lines) == 0 {
 		return strings.TrimSpace(request.Message)

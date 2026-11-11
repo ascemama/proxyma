@@ -30,6 +30,7 @@ create_harness_archive() {
     "$payload/harness/tests" \
     "$payload/harness/.agents/skills/proxyma-harness" \
     "$payload/harness/.claude/skills/proxyma-harness" \
+    "$payload/harness/generic/skills/proxyma-harness" \
     "$payload/harness/agent-configuration" \
     "$payload/harness/task-state/active" \
     "$payload/harness/task-state/blocked" \
@@ -43,6 +44,7 @@ create_harness_archive() {
   printf 'test\n' >"$payload/harness/tests/test.txt"
   printf '%s\n' "$marker" >"$payload/harness/.agents/skills/proxyma-harness/SKILL.md"
   printf '%s\n' "$marker" >"$payload/harness/.claude/skills/proxyma-harness/SKILL.md"
+  printf '%s\n' "$marker" >"$payload/harness/generic/skills/proxyma-harness/SKILL.md"
   tar -C "$payload" -czf "$output" harness
 }
 
@@ -124,6 +126,30 @@ grep -Fx latest "$TEST_ROOT/claude-bin/proxyma-client" >/dev/null || fail "Claud
 grep -Fx latest "$CLAUDE_PROJECT/.claude/skills/proxyma-harness/SKILL.md" >/dev/null || fail "Claude adapter was not installed"
 [[ ! -e "$CLAUDE_PROJECT/.agents/skills/proxyma-harness" ]] || fail "Codex adapter was installed during Claude install"
 
+GENERIC_PROJECT="$TEST_ROOT/generic-project"
+GENERIC_SKILL_DIR="$TEST_ROOT/hermes/skills"
+mkdir -p "$GENERIC_PROJECT"
+GENERIC_OUTPUT="$(
+  PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" \
+  PROXYMA_CLIENT_OS=darwin \
+  PROXYMA_CLIENT_ARCH=arm64 \
+    bash "$ROOT/scripts/install-proxyma-client.sh" \
+      --harness-type generic --skill-dir "$GENERIC_SKILL_DIR" \
+      --project-dir "$GENERIC_PROJECT" --bin-dir "$TEST_ROOT/generic-bin"
+)"
+grep -F "Installed the generic skill" <<<"$GENERIC_OUTPUT" >/dev/null || fail "generic skill was not reported"
+grep -Fx latest "$TEST_ROOT/generic-bin/proxyma-client" >/dev/null || fail "generic install selected the wrong binary"
+grep -Fx latest "$GENERIC_SKILL_DIR/proxyma-harness/SKILL.md" >/dev/null || fail "generic skill was not installed"
+test -f "$GENERIC_PROJECT/harness/generic/skills/proxyma-harness/SKILL.md" || fail "generic source skill is missing"
+[[ ! -e "$GENERIC_PROJECT/.agents/skills/proxyma-harness" ]] || fail "generic install created the Codex adapter"
+[[ ! -e "$GENERIC_PROJECT/.claude/skills/proxyma-harness" ]] || fail "generic install created the Claude adapter"
+
+if PROXYMA_CLIENT_OS=linux PROXYMA_CLIENT_ARCH=amd64 \
+  bash "$ROOT/scripts/install-proxyma-client.sh" --harness-type generic \
+    --project-dir "$TEST_ROOT/missing-skill-project" --bin-dir "$TEST_ROOT/missing-skill-bin" >/dev/null 2>&1; then
+  fail "generic install accepted a missing skill directory"
+fi
+
 DEFAULT_PROJECT="$TEST_ROOT/default-project"
 mkdir -p "$DEFAULT_PROJECT"
 DEFAULT_OUTPUT="$(
@@ -138,6 +164,7 @@ grep -F "No project adapter selected" <<<"$DEFAULT_OUTPUT" >/dev/null || fail "m
 [[ ! -e "$DEFAULT_PROJECT/.claude/skills/proxyma-harness" ]] || fail "Claude adapter was installed without selection"
 test -f "$DEFAULT_PROJECT/harness/.agents/skills/proxyma-harness/SKILL.md" || fail "manual Codex adapter source is missing"
 test -f "$DEFAULT_PROJECT/harness/.claude/skills/proxyma-harness/SKILL.md" || fail "manual Claude adapter source is missing"
+test -f "$DEFAULT_PROJECT/harness/generic/skills/proxyma-harness/SKILL.md" || fail "manual generic skill source is missing"
 
 INVALID_PROJECT="$TEST_ROOT/invalid-project"
 if PROXYMA_CLIENT_OS=linux PROXYMA_CLIENT_ARCH=amd64 \

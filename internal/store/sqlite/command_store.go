@@ -93,7 +93,7 @@ func (s *CommandStore) Save(task tasks.Task) error {
 		INSERT INTO commands (
 			task_id, client_operation_id, client_request_hash, agent_id, agent_name,
 			target_id, target_hostname, target_ip, target_transport, target_os, target_policy_id,
-			command, reasoning, requested_by, interaction_instance_id, status, policy_justification,
+			command, reasoning, harness_name, interaction_instance_id, status, policy_justification,
 			created_at, started_at, completed_at, result_class, record_json
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id) DO UPDATE SET
@@ -109,7 +109,7 @@ func (s *CommandStore) Save(task tasks.Task) error {
 			target_policy_id = excluded.target_policy_id,
 			command = excluded.command,
 			reasoning = excluded.reasoning,
-			requested_by = excluded.requested_by,
+			harness_name = excluded.harness_name,
 			interaction_instance_id = excluded.interaction_instance_id,
 			status = excluded.status,
 			policy_justification = excluded.policy_justification,
@@ -124,7 +124,7 @@ func (s *CommandStore) Save(task tasks.Task) error {
 	_, err = stmt.ExecContext(context.Background(),
 		task.TaskID, task.ClientOperationID, task.ClientRequestHash, task.AgentID, task.AgentName,
 		targetID, hostname, ip, transport, operatingSystem, policyID,
-		task.Command, task.Reasoning, task.RequestedBy, task.InteractionInstanceID, task.Status, policyJustification,
+		task.Command, task.Reasoning, task.HarnessName, task.InteractionInstanceID, task.Status, policyJustification,
 		task.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(task.StartedAt), nullableTime(task.CompletedAt), resultClass, string(record))
 	closeErr := stmt.Close()
 	if err != nil {
@@ -154,11 +154,11 @@ func syncCommandSearch(ctx context.Context, tx *sql.Tx, task tasks.Task, hostnam
 	if err := deleteStmt.Close(); err != nil {
 		return fmt.Errorf("close command search delete: %w", err)
 	}
-	insertStmt, err := tx.PrepareContext(ctx, `INSERT INTO commands_fts(task_id, command, reasoning, requested_by, target_hostname, target_ip, result) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	insertStmt, err := tx.PrepareContext(ctx, `INSERT INTO commands_fts(task_id, command, reasoning, harness_name, target_hostname, target_ip, result) VALUES (?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare command search insert: %w", err)
 	}
-	_, execErr := insertStmt.ExecContext(ctx, task.TaskID, task.Command, task.Reasoning, task.RequestedBy, hostname, ip, resultClass)
+	_, execErr := insertStmt.ExecContext(ctx, task.TaskID, task.Command, task.Reasoning, task.HarnessName, hostname, ip, resultClass)
 	closeErr := insertStmt.Close()
 	if execErr != nil {
 		return fmt.Errorf("insert command search row: %w", execErr)

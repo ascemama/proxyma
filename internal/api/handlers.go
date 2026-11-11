@@ -152,8 +152,8 @@ func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	s.debugf("debug command created task_id=%s target=%s command_family=%s strategy=%s requested_by=%q command_len=%d metadata_keys=%s",
-		task.TaskID, formatTarget(task.Target), transcriptionFamily(task.Transcription), transcriptionStrategy(task.Transcription), request.RequestedBy, len(request.Command), strings.Join(metadataKeys(request.Metadata), ","))
+	s.debugf("debug command created task_id=%s target=%s command_family=%s strategy=%s harness_name=%q command_len=%d metadata_keys=%s",
+		task.TaskID, formatTarget(task.Target), transcriptionFamily(task.Transcription), transcriptionStrategy(task.Transcription), request.HarnessName, len(request.Command), strings.Join(metadataKeys(request.Metadata), ","))
 	writeJSON(w, http.StatusAccepted, CommandCreatedResponse{TaskID: task.TaskID, Status: task.Status, ClientOperationID: task.ClientOperationID, Replayed: replayed})
 }
 
@@ -197,6 +197,8 @@ func (s *Server) prepareCommand(request *tasks.CommandContext, agent agents.Agen
 		return validationError("command is required")
 	case strings.TrimSpace(request.Reasoning) == "":
 		return validationError("reasoning is required")
+	case strings.TrimSpace(request.HarnessName) == "":
+		return validationError("harness_name is required")
 	case request.Target == nil || (strings.TrimSpace(request.Target.Hostname) == "" && strings.TrimSpace(request.Target.IP) == ""):
 		return validationError("target is required")
 	}

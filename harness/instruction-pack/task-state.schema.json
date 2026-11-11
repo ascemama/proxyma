@@ -20,7 +20,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["operation_id", "request_hash", "phase", "target", "payload", "payload_kind", "canonical_command", "reasoning", "requested_by", "prepared_at"],
+        "required": ["operation_id", "request_hash", "phase", "target", "payload", "payload_kind", "canonical_command", "reasoning", "harness_name", "prepared_at"],
         "properties": {
           "operation_id": {"type": "string", "format": "uuid"},
           "request_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -30,7 +30,7 @@
           "payload_kind": {"enum": ["posix_shell", "windows_shell", "powershell"]},
           "canonical_command": {"type": "string", "minLength": 1},
           "reasoning": {"type": "string", "minLength": 1},
-          "requested_by": {"type": "string", "minLength": 1},
+          "harness_name": {"type": "string", "minLength": 1},
           "metadata": {"type": "object"},
           "proxyma_task_id": {"type": "string"},
           "proxyma_status": {"type": "string"},

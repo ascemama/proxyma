@@ -17,7 +17,7 @@ type CommandRequest struct {
 	Command           string                `json:"command"`
 	Reasoning         string                `json:"reasoning"`
 	Target            *CommandTargetRequest `json:"target"`
-	RequestedBy       string                `json:"requested_by,omitempty"`
+	HarnessName       string                `json:"harness_name,omitempty"`
 	Metadata          map[string]any        `json:"metadata,omitempty"`
 }
 
@@ -43,7 +43,7 @@ type TaskStatusResponse struct {
 	Target             *TaskTargetResponse         `json:"target,omitempty"`
 	Command            string                      `json:"command"`
 	Reasoning          string                      `json:"reasoning"`
-	RequestedBy        string                      `json:"requested_by,omitempty"`
+	HarnessName        string                      `json:"harness_name,omitempty"`
 	Metadata           map[string]any              `json:"metadata,omitempty"`
 	Transcription      *TranscriptionResponse      `json:"transcription,omitempty"`
 	Status             string                      `json:"status"`
@@ -514,7 +514,7 @@ type InteractionResponse struct {
 	ExpectedResponse string                       `json:"expected_response"`
 	Subject          string                       `json:"subject"`
 	Message          string                       `json:"message"`
-	RequestedBy      string                       `json:"requested_by,omitempty"`
+	HarnessName      string                       `json:"harness_name,omitempty"`
 	Metadata         map[string]any               `json:"metadata,omitempty"`
 	Status           string                       `json:"status"`
 	CreatedAt        time.Time                    `json:"created_at"`
@@ -546,7 +546,7 @@ func commandContextFromRequest(request CommandRequest) tasks.CommandContext {
 		Command:           request.Command,
 		Reasoning:         request.Reasoning,
 		Target:            taskTargetFromCommandTarget(request.Target),
-		RequestedBy:       request.RequestedBy,
+		HarnessName:       request.HarnessName,
 		Metadata:          request.Metadata,
 	}
 }
@@ -569,7 +569,7 @@ func taskStatusResponseFromTask(task *tasks.Task) TaskStatusResponse {
 		Target:             targetResponseFromTaskTarget(task.Target),
 		Command:            task.Command,
 		Reasoning:          task.Reasoning,
-		RequestedBy:        task.RequestedBy,
+		HarnessName:        task.HarnessName,
 		Metadata:           copyMetadata(task.Metadata),
 		Transcription:      transcriptionResponseFromMetadata(task.Transcription),
 		Status:             task.Status,
@@ -675,7 +675,7 @@ func interactionResponseFromInteraction(record *interaction.Interaction) Interac
 		ExpectedResponse: record.ExpectedResponse,
 		Subject:          record.Subject,
 		Message:          record.Message,
-		RequestedBy:      record.RequestedBy,
+		HarnessName:      record.HarnessName,
 		Metadata:         copyMetadata(record.Metadata),
 		Status:           record.Status,
 		CreatedAt:        record.CreatedAt,

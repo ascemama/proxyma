@@ -87,7 +87,7 @@ Implement `Send`:
 
 - Validate provider configuration early.
 - Render only safe interaction fields into the message: `InteractionID`, `TaskID`,
-  `Subject`, `Message`, `RequestedBy`, and known safe metadata such as target, command,
+  `Subject`, `Message`, `HarnessName`, and known safe metadata such as target, command,
   and reasoning.
 - Include enough correlation data for the response path to recover the
   `InteractionID`.

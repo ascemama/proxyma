@@ -26,7 +26,7 @@ func TestHistoryStoreFiltersSearchesAndPaginatesCanonicalRows(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := interactions.Save(interaction.Interaction{InteractionID: "interaction-1", TaskID: "task-2", InteractionInstanceID: "local", Kind: interaction.KindApprovalRequest, ExpectedResponse: interaction.ExpectedApproval, Subject: "Approve nginx", Message: "Approve nginx restart", RequestedBy: "agent-1", Status: interaction.StatusAnswered, CreatedAt: base.Add(3 * time.Minute)}); err != nil {
+	if err := interactions.Save(interaction.Interaction{InteractionID: "interaction-1", TaskID: "task-2", InteractionInstanceID: "local", Kind: interaction.KindApprovalRequest, ExpectedResponse: interaction.ExpectedApproval, Subject: "Approve nginx", Message: "Approve nginx restart", HarnessName: "agent-1", Status: interaction.StatusAnswered, CreatedAt: base.Add(3 * time.Minute)}); err != nil {
 		t.Fatal(err)
 	}
 	store := database.NewHistoryStore()

@@ -17,7 +17,7 @@
       "payload_kind": "posix_shell",
       "canonical_command": "ssh {user}@linux.example df -h",
       "reasoning": "Inspect filesystem capacity",
-      "requested_by": "claude-code",
+      "harness_name": "claude-code",
       "proxyma_task_id": "proxyma-task-1",
       "proxyma_status": "running",
       "prepared_at": "2026-08-30T08:00:00Z",

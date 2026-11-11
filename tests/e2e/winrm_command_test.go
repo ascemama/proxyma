@@ -47,7 +47,7 @@ func TestSubmitAndPollWinRMCommand(t *testing.T) {
 		manager.Wait()
 	})
 	server := &api.Server{Agents: agents.NewRegistry([]agents.Agent{testAgent}), Targets: targets.NewRegistry([]targets.Target{target}), Tasks: manager, CommandTimeout: time.Second, OutputLimit: 1024}
-	response, status, _ := submitCommand(t, server, `{"target":{"hostname":"win.example"},"command":"winrm {user}@win.example Get-Service","reasoning":"diagnostic"}`)
+	response, status, _ := submitCommand(t, server, `{"target":{"hostname":"win.example"},"command":"winrm {user}@win.example Get-Service","reasoning":"diagnostic","harness_name":"test"}`)
 	if status != http.StatusAccepted {
 		t.Fatalf("status = %d", status)
 	}

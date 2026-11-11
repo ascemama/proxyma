@@ -393,7 +393,7 @@ func validateTaskState(task TaskState) error {
 		if (strings.TrimSpace(operation.Target.Hostname) == "") == (strings.TrimSpace(operation.Target.IP) == "") {
 			return fmt.Errorf("operation target must contain exactly one of hostname or ip")
 		}
-		if strings.TrimSpace(operation.Payload) == "" || strings.TrimSpace(operation.CanonicalCommand) == "" || strings.TrimSpace(operation.Reasoning) == "" || strings.TrimSpace(operation.RequestedBy) == "" {
+		if strings.TrimSpace(operation.Payload) == "" || strings.TrimSpace(operation.CanonicalCommand) == "" || strings.TrimSpace(operation.Reasoning) == "" || strings.TrimSpace(operation.HarnessName) == "" {
 			return fmt.Errorf("operation payload, canonical command, reasoning, and requester are required")
 		}
 		switch operation.PayloadKind {
@@ -405,7 +405,7 @@ func validateTaskState(task TaskState) error {
 			Command:     operation.CanonicalCommand,
 			Reasoning:   operation.Reasoning,
 			Target:      operation.Target,
-			RequestedBy: operation.RequestedBy,
+			HarnessName: operation.HarnessName,
 			Metadata:    operation.Metadata,
 		})
 		if err != nil || expectedHash != operation.RequestHash {

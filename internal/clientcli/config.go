@@ -19,6 +19,7 @@ type Config struct {
 	ProxymaBaseURL            string `json:"proxyma_base_url"`
 	AgentConfig               string `json:"agent_config"`
 	StateDir                  string `json:"state_dir"`
+	HarnessName               string `json:"harness_name,omitempty"`
 	HTTPTimeoutSeconds        int    `json:"http_timeout_seconds,omitempty"`
 	LockTimeoutSeconds        int    `json:"lock_timeout_seconds,omitempty"`
 	ActivePollIntervalSeconds int    `json:"active_poll_interval_seconds,omitempty"`
@@ -38,6 +39,7 @@ type configDocument struct {
 	ProxymaBaseURL            string `json:"proxyma_base_url"`
 	AgentConfig               string `json:"agent_config"`
 	StateDir                  string `json:"state_dir"`
+	HarnessName               string `json:"harness_name,omitempty"`
 	HTTPTimeoutSeconds        *int   `json:"http_timeout_seconds,omitempty"`
 	LockTimeoutSeconds        *int   `json:"lock_timeout_seconds,omitempty"`
 	ActivePollIntervalSeconds *int   `json:"active_poll_interval_seconds,omitempty"`
@@ -61,6 +63,7 @@ func LoadConfig(explicit string) (Config, error) {
 		ProxymaBaseURL: document.ProxymaBaseURL,
 		AgentConfig:    document.AgentConfig,
 		StateDir:       document.StateDir,
+		HarnessName:    strings.TrimSpace(document.HarnessName),
 	}
 	if cfg.SchemaVersion != StateVersion {
 		return Config{}, fmt.Errorf("unsupported harness config schema %q; expected %q", cfg.SchemaVersion, StateVersion)

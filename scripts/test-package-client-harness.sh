@@ -32,7 +32,8 @@ for required in \
   harness/task-state/summaries/.gitkeep \
   harness/instruction-pack/proxyma-harness.md \
   harness/.agents/skills/proxyma-harness/SKILL.md \
-  harness/.claude/skills/proxyma-harness/SKILL.md; do
+  harness/.claude/skills/proxyma-harness/SKILL.md \
+  harness/generic/skills/proxyma-harness/SKILL.md; do
   grep -Fx "$required" "$LISTING" >/dev/null || fail "package is missing $required"
 done
 
