@@ -62,8 +62,6 @@ harness/task-state/.journal/*.json
 harness/task-state/.proxyma-client.lock
 harness/agent-configuration/*.json
 !harness/agent-configuration/agent.example.json
-!harness/agent-configuration/df9ec8bb-1a22-4181-a7c8-126ad553221d.json
-
 target/*.json
 proxyma.config.json
 /proxyma-compose.env

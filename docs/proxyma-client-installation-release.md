@@ -40,37 +40,141 @@ current user and project.
 
 ### Install the latest stable release
 
-Run the installer with an explicit project directory. This is the harness
-working directory and the location where `harness/` is installed. Download the
-installer as a file so it can be inspected before execution; do not pipe a
-remote script directly into a shell.
+Download the installer as a file so it can be inspected before execution; do
+not pipe a remote script directly into a shell. Always choose a harness type
+when installing a new project. In every example, `PROJECT_DIR` is the harness
+working directory and receives the shared `harness/` runtime.
 
-### Linux or macOS
+#### Codex
+
+Linux or macOS:
 
 ```bash
+PROJECT_DIR="$HOME/projects/my-proxyma-project"
 curl -fL -o install-proxyma-client.sh \
   https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-client.sh
-bash ./install-proxyma-client.sh
-# Add --harness-type codex or --harness-type claude to install a project adapter.
-# Use --harness-type generic --skill-dir DIR for another harness.
+bash ./install-proxyma-client.sh \
+  --harness-type codex \
+  --project-dir "$PROJECT_DIR"
 ```
 
-The default executable location is `$HOME/.local/bin/proxyma-client`.
-
-### Windows
+Windows PowerShell:
 
 ```powershell
+$ProjectDir = Join-Path $HOME "projects\my-proxyma-project"
 Invoke-WebRequest `
   https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-client.ps1 `
   -OutFile .\install-proxyma-client.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\install-proxyma-client.ps1
-# Add -HarnessType Codex or -HarnessType Claude to install a project adapter.
-# Use -HarnessType Generic -SkillDir DIR for another harness.
+  -File .\install-proxyma-client.ps1 `
+  -HarnessType Codex `
+  -ProjectDir $ProjectDir
 ```
 
-The default executable location is
-`%LOCALAPPDATA%\Programs\Proxyma\bin\proxyma-client.exe`.
+#### Claude Code
+
+Use the same commands, replacing `codex` with `claude` and `Codex` with
+`Claude`:
+
+```bash
+bash ./install-proxyma-client.sh \
+  --harness-type claude \
+  --project-dir "$PROJECT_DIR"
+```
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\install-proxyma-client.ps1 `
+  -HarnessType Claude `
+  -ProjectDir $ProjectDir
+```
+
+#### Generic harness
+
+The generic adapter requires both a skill discovery directory and a project
+directory. The installer creates `proxyma-harness/SKILL.md` below
+`SKILL_DIR` and creates `harness/` below `PROJECT_DIR`.
+
+Linux or macOS:
+
+```bash
+PROJECT_DIR="$HOME/projects/my-proxyma-project"
+SKILL_DIR="$HOME/.config/proxyma/skills"
+bash ./install-proxyma-client.sh \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR"
+```
+
+Windows PowerShell:
+
+```powershell
+$ProjectDir = Join-Path $HOME "projects\my-proxyma-project"
+$SkillDir = Join-Path $HOME ".config\proxyma\skills"
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\install-proxyma-client.ps1 `
+  -HarnessType Generic `
+  -SkillDir $SkillDir `
+  -ProjectDir $ProjectDir
+```
+
+The default executable locations are `$HOME/.local/bin/proxyma-client` on
+Linux/macOS and `%LOCALAPPDATA%\Programs\Proxyma\bin\proxyma-client.exe` on
+Windows.
+
+### Install for Hermes
+
+Hermes uses the generic adapter. Install the skill in Hermes' global skill
+directory, but keep Proxyma configuration, credentials, and task state in the
+project directory used as Hermes' working directory.
+
+On Linux or macOS:
+
+```bash
+PROJECT_DIR="$HOME/projects/my-proxyma-project"
+SKILL_DIR="$HOME/.hermes/skills"
+curl -fL -o install-proxyma-client.sh \
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-client.sh
+bash ./install-proxyma-client.sh \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR"
+
+cd "$PROJECT_DIR"
+hermes skills trust
+```
+
+For Hermes on Windows:
+
+```powershell
+$ProjectDir = Join-Path $HOME "projects\my-proxyma-project"
+$SkillDir = Join-Path $HOME ".hermes\skills"
+Invoke-WebRequest `
+  https://github.com/ascemama/proxyma/releases/latest/download/install-proxyma-client.ps1 `
+  -OutFile .\install-proxyma-client.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\install-proxyma-client.ps1 `
+  -HarnessType Generic `
+  -SkillDir $SkillDir `
+  -ProjectDir $ProjectDir
+
+Set-Location $ProjectDir
+hermes skills trust
+```
+
+For scheduled Hermes work, use the same project directory and attach the
+skill:
+
+```bash
+hermes cron create "every 1d at 09:00" \
+  "Check the managed server and report issues." \
+  --workdir "$PROJECT_DIR" \
+  --skill proxyma-harness
+```
+
+Hermes documents `--workdir` as an absolute per-job working directory for
+terminal/file operations and project-skill discovery; see the [Hermes cron
+documentation](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/cron.md).
 
 Both installers:
 
@@ -305,40 +409,6 @@ Codex discovers the project-root `.agents/skills/proxyma-harness/SKILL.md`
 adapter, Claude Code discovers `.claude/skills/proxyma-harness/SKILL.md`, and a
 generic harness receives `proxyma-harness/SKILL.md` below the explicit
 `--skill-dir` destination.
-
-For Hermes, install the skill globally while keeping Proxyma configuration and
-state in the project directory:
-
-```bash
-PROJECT_DIR="$HOME/projects/my-proxyma-project"
-SKILL_DIR="$HOME/.hermes/skills"
-
-bash ./install-proxyma-client.sh \
-  --harness-type generic \
-  --skill-dir "$SKILL_DIR" \
-  --project-dir "$PROJECT_DIR"
-```
-
-Then trust the project and use it as the Hermes working directory:
-
-```bash
-cd "$PROJECT_DIR"
-hermes skills trust
-```
-
-For scheduled Hermes work, set the same project directory as the cron job's
-working directory and attach the skill:
-
-```bash
-hermes cron create "every 1d at 09:00" \
-  "Check the managed server and report issues." \
-  --workdir "$PROJECT_DIR" \
-  --skill proxyma-harness
-```
-
-Hermes documents `--workdir` as an absolute per-job working directory for
-terminal/file operations and project-skill discovery; see the [Hermes cron
-documentation](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/cron.md).
 
 Only the adapter selected with `--harness-type` is installed automatically.
 
