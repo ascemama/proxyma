@@ -45,6 +45,10 @@ func (s *Server) handleUserAgent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "agent not found")
 		return
 	}
+	if err := requireUUIDV4(id, "agent_id"); err != nil {
+		writeAgentMutationError(w, err)
+		return
+	}
 	switch r.Method {
 	case http.MethodPut:
 		s.handleUpdateUserAgent(w, r, id)

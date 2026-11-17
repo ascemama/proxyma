@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"proxyma/internal/agents"
-	"proxyma/internal/ids"
 	interactioninstances "proxyma/internal/interaction/instances"
 	"proxyma/internal/users"
 	"sort"
@@ -99,6 +98,12 @@ func (s *Server) handleCreateUserInteraction(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
+	if request.CreatorUserID != "" {
+		if err := requireUUIDV4(request.CreatorUserID, "creator_user_id"); err != nil {
+			writeInteractionMutationError(w, err)
+			return
+		}
+	}
 	instance, err := ntfyFromInteractionMutationRequest(request, user, nil)
 	if err != nil {
 		writeInteractionMutationError(w, err)
@@ -135,6 +140,16 @@ func (s *Server) handleUpdateUserInteraction(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusInternalServerError, "interaction config directory is not configured")
 		return
 	}
+	request, ok := decodeInteractionMutationRequest(w, r)
+	if !ok {
+		return
+	}
+	if request.CreatorUserID != "" {
+		if err := requireUUIDV4(request.CreatorUserID, "creator_user_id"); err != nil {
+			writeInteractionMutationError(w, err)
+			return
+		}
+	}
 	_, existing, err := interactioninstances.FindNtfy(paths.InteractionConfigDir, id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "interaction instance not found")
@@ -142,10 +157,6 @@ func (s *Server) handleUpdateUserInteraction(w http.ResponseWriter, r *http.Requ
 	}
 	if !s.canAccessInteractionInstance(user, existing.Metadata()) {
 		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "interaction instance is not accessible to the current user", Code: "forbidden"})
-		return
-	}
-	request, ok := decodeInteractionMutationRequest(w, r)
-	if !ok {
 		return
 	}
 	updated, err := ntfyFromInteractionMutationRequest(request, user, &existing)
@@ -472,8 +483,8 @@ func (s *Server) validateInteractionCreator(userID string) error {
 	if strings.TrimSpace(userID) == "" {
 		return validationError("creator_user_id is required")
 	}
-	if !ids.IsUUIDV4(strings.TrimSpace(userID)) {
-		return validationError("creator_user_id must be a UUID v4")
+	if err := requireUUIDV4(userID, "creator_user_id"); err != nil {
+		return err
 	}
 	if _, found := s.userRegistry().Find(userID); !found {
 		return validationError(fmt.Sprintf("unknown user id %q", userID))

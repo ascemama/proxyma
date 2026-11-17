@@ -26,10 +26,18 @@ func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/v1/user/users/"), "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 2 && parts[1] == "activation-link" && r.Method == http.MethodPost {
+		if err := requireUUIDV4(parts[0], "user_id"); err != nil {
+			writeUserMutationError(w, err)
+			return
+		}
 		s.handleRegenerateActivationLink(w, r, parts[0])
 		return
 	}
 	if len(parts) == 2 && parts[1] == "password-reset-link" && r.Method == http.MethodPost {
+		if err := requireUUIDV4(parts[0], "user_id"); err != nil {
+			writeUserMutationError(w, err)
+			return
+		}
 		s.handlePasswordResetLink(w, r, parts[0])
 		return
 	}
@@ -38,6 +46,10 @@ func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := parts[0]
+	if err := requireUUIDV4(id, "user_id"); err != nil {
+		writeUserMutationError(w, err)
+		return
+	}
 	switch r.Method {
 	case http.MethodPut:
 		s.handleUpdateUser(w, r, id)

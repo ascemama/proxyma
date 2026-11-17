@@ -61,6 +61,10 @@ func (s *Server) handleTestUserTargetCredentials(w http.ResponseWriter, r *http.
 	if !ok {
 		return
 	}
+	if err := validateTargetReferenceIDs(request); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
 	if request.TargetID != "" {
 		var target targets.Target
 		found := false
@@ -189,6 +193,10 @@ func (s *Server) handleUserTarget(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "target not found")
 		return
 	}
+	if err := requireUUIDV4(id, "target_id"); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
 	switch r.Method {
 	case http.MethodPut:
 		s.handleUpdateUserTarget(w, r, id)
@@ -212,6 +220,10 @@ func (s *Server) handleCreateUserTarget(w http.ResponseWriter, r *http.Request) 
 	}
 	request, ok := decodeTargetMutationRequest(w, r)
 	if !ok {
+		return
+	}
+	if err := validateTargetReferenceIDs(request); err != nil {
+		writeTargetMutationError(w, err)
 		return
 	}
 	if err := storeUploadedTargetPrivateKey(paths, &request); err != nil {
@@ -251,6 +263,14 @@ func (s *Server) handleUpdateUserTarget(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusInternalServerError, "management paths are not configured")
 		return
 	}
+	request, ok := decodeTargetMutationRequest(w, r)
+	if !ok {
+		return
+	}
+	if err := validateTargetReferenceIDs(request); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
 	existing, err := readStoredTarget(paths, id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "target not found")
@@ -258,10 +278,6 @@ func (s *Server) handleUpdateUserTarget(w http.ResponseWriter, r *http.Request, 
 	}
 	if !user.Admin && !containsUserID(existing.UserIDs, user.ID) {
 		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "target is not owned by the current user", Code: "forbidden"})
-		return
-	}
-	request, ok := decodeTargetMutationRequest(w, r)
-	if !ok {
 		return
 	}
 	if err := storeUploadedTargetPrivateKey(paths, &request); err != nil {
@@ -527,6 +543,16 @@ func decodeTargetMutationRequest(w http.ResponseWriter, r *http.Request) (UserTa
 		return UserTargetMutationRequest{}, false
 	}
 	return request, true
+}
+
+func validateTargetReferenceIDs(request UserTargetMutationRequest) error {
+	if err := requireOptionalUUIDV4(request.PolicyID, "policy_id"); err != nil {
+		return err
+	}
+	if err := requireUUIDV4List(request.AgentIDs, "agent_ids"); err != nil {
+		return err
+	}
+	return requireOptionalUUIDV4(request.TargetID, "target_id")
 }
 
 func decodeMultipartTargetMutationRequest(w http.ResponseWriter, r *http.Request) (UserTargetMutationRequest, bool) {

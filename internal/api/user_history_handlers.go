@@ -76,6 +76,12 @@ func userHistoryQuery(r *http.Request, userID string, admin bool, agentRegistry 
 	} else if strings.TrimSpace(values.Get("interaction_instance_creator_user_id")) != "" {
 		return history.InteractionQuery{}, fmt.Errorf("interaction_instance_creator_user_id is admin-only")
 	}
+	if err := requireOptionalUUIDV4(query.AgentID, "agent_id"); err != nil {
+		return history.InteractionQuery{}, err
+	}
+	if err := requireOptionalUUIDV4(query.InteractionInstanceCreatorUserID, "interaction_instance_creator_user_id"); err != nil {
+		return history.InteractionQuery{}, err
+	}
 	if query.AgentID != "" && !admin {
 		agent, ok := agentRegistry.Find(query.AgentID)
 		if !ok || !containsUserID(agent.UserIDs, userID) {

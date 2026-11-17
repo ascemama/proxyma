@@ -2,8 +2,6 @@ package tasks
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -12,6 +10,7 @@ import (
 	"time"
 
 	"proxyma/internal/executor"
+	"proxyma/internal/ids"
 	"proxyma/internal/interaction"
 	"proxyma/internal/remoteexec"
 	"proxyma/internal/sshclient"
@@ -709,9 +708,5 @@ func formatTarget(target *Target) string {
 }
 
 func newID() (string, error) {
-	var buf [16]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf[:]), nil
+	return ids.NewUUIDV4()
 }
