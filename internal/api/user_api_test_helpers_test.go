@@ -95,25 +95,6 @@ func userTargetMutationRequest(t *testing.T, server *Server, method string, path
 					payload["os"] = targets.OSLinux
 				}
 			}
-			if path != "/v1/user/targets/test-credentials" && (method == http.MethodPost || method == http.MethodPut) {
-				encoded, err := json.Marshal(payload)
-				if err != nil {
-					t.Fatal(err)
-				}
-				var request UserTargetMutationRequest
-				if err := json.Unmarshal(encoded, &request); err != nil {
-					t.Fatal(err)
-				}
-				targetID := ""
-				if method == http.MethodPut {
-					targetID = strings.TrimPrefix(path, "/v1/user/targets/")
-				}
-				token, err := server.targetCredentialProofs().issue(testUser.ID, targetID, credentialRequestDigest(request))
-				if err != nil {
-					t.Fatal(err)
-				}
-				payload["credential_test_token"] = token
-			}
 			if encoded, err := json.Marshal(payload); err == nil {
 				body = string(encoded)
 			}
@@ -142,22 +123,6 @@ func userTargetMultipartMutationRequest(t *testing.T, server *Server, method str
 		} else {
 			fields["os"] = []string{targets.OSLinux}
 		}
-	}
-	if path != "/v1/user/targets/test-credentials" && (method == http.MethodPost || method == http.MethodPut) {
-		request := UserTargetMutationRequest{
-			Transport: firstFormValue(fields, "transport"), Hostname: firstFormValue(fields, "hostname"), IP: firstFormValue(fields, "ip"),
-			Username: firstFormValue(fields, "username"), AuthType: firstFormValue(fields, "auth_type"), Password: firstFormValue(fields, "password"),
-			PrivateKeyUpload: privateKey,
-		}
-		targetID := ""
-		if method == http.MethodPut {
-			targetID = strings.TrimPrefix(path, "/v1/user/targets/")
-		}
-		token, err := server.targetCredentialProofs().issue(testUser.ID, targetID, credentialRequestDigest(request))
-		if err != nil {
-			t.Fatal(err)
-		}
-		fields["credential_test_token"] = []string{token}
 	}
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)

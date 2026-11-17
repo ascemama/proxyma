@@ -165,12 +165,7 @@ func (s *Server) handleTestUserTargetCredentials(w http.ResponseWriter, r *http.
 		return
 	}
 	throttle.recordTargetSuccess(targetThrottleKey)
-	proof, err := s.targetCredentialProofs().issue(user.ID, strings.TrimSpace(request.TargetID), credentialRequestDigest(request))
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "credential test proof could not be created", Code: "credential_test_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, UserTargetCredentialTestResponse{Status: "success", Message: label + " connection verified", CredentialTestToken: proof})
+	writeJSON(w, http.StatusOK, UserTargetCredentialTestResponse{Status: "success", Message: label + " connection verified"})
 }
 
 func formatCredentialTestExitStatus(status *int) string {
@@ -555,7 +550,6 @@ func decodeMultipartTargetMutationRequest(w http.ResponseWriter, r *http.Request
 		Password:                   firstFormValue(form.Value, "password"),
 		TargetID:                   firstFormValue(form.Value, "target_id"),
 		ApprovedHostKeyFingerprint: firstFormValue(form.Value, "approved_host_key_fingerprint"),
-		CredentialTestToken:        firstFormValue(form.Value, "credential_test_token"),
 	}
 	files := form.File["private_key_file"]
 	if len(files) > 1 {

@@ -64,17 +64,6 @@ type Server struct {
 	interactionProvidersMu    sync.Mutex
 	throttle                  *loginThrottle
 	credentialTestThrottle    *credentialTestThrottle
-	credentialProofsMu        sync.Mutex
-	credentialProofs          *credentialProofStore
-}
-
-func (s *Server) targetCredentialProofs() *credentialProofStore {
-	s.credentialProofsMu.Lock()
-	defer s.credentialProofsMu.Unlock()
-	if s.credentialProofs == nil {
-		s.credentialProofs = newCredentialProofStore()
-	}
-	return s.credentialProofs
 }
 
 func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {

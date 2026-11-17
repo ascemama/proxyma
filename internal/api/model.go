@@ -318,7 +318,6 @@ type UserTargetMutationRequest struct {
 	WinRM                      *UserTargetWinRM `json:"winrm,omitempty"`
 	TargetID                   string           `json:"target_id,omitempty"`
 	ApprovedHostKeyFingerprint string           `json:"approved_host_key_fingerprint,omitempty"`
-	CredentialTestToken        string           `json:"credential_test_token,omitempty"`
 }
 
 // UserTargetWinRM contains safe WinRM endpoint settings.
@@ -330,9 +329,8 @@ type UserTargetWinRM struct {
 
 // UserTargetCredentialTestResponse reports a safe SSH credential-test outcome.
 type UserTargetCredentialTestResponse struct {
-	Status              string `json:"status"`
-	Message             string `json:"message,omitempty"`
-	CredentialTestToken string `json:"credential_test_token"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
 }
 
 // UserInteractionsResponse lists interaction instances visible to the logged-in GUI user.

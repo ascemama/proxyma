@@ -759,7 +759,7 @@ test('user can manage targets from the target tab', async ({ page }) => {
     if (path === '/v1/user/targets/test-credentials') {
       await route.fulfill({
         contentType: 'application/json',
-        body: JSON.stringify({ status: 'success', message: 'SSH connection verified', credential_test_token: 'target-management-proof' })
+			body: JSON.stringify({ status: 'success', message: 'SSH connection verified' })
       });
       return;
     }

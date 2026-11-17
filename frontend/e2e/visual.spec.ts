@@ -91,7 +91,7 @@ test('desktop login and dashboard screenshots are visually usable', async ({ pag
 	}
     await route.fulfill({
       contentType: 'application/json',
-	  body: JSON.stringify({ status: 'success', message: 'SSH connection verified', credential_test_token: 'visual-proof-token' })
+		body: JSON.stringify({ status: 'success', message: 'SSH connection verified' })
     });
   });
   await page.getByRole('button', { name: 'Add Target' }).click();
