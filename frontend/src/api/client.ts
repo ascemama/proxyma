@@ -90,7 +90,6 @@ export type TargetMutationInput = {
 	winrm?: WinRMSettings;
 	target_id?: string;
 	approved_host_key_fingerprint?: string;
-	credential_test_token?: string;
 };
 
 export type SSHHostKeyInfo = {
@@ -534,7 +533,6 @@ export type TargetCredentialTestInput = Pick<TargetMutationInput, 'transport' | 
 export type TargetCredentialTestResponse = {
   status: string;
   message?: string;
-	credential_test_token: string;
 };
 
 export function testTargetCredentials(
@@ -569,7 +567,6 @@ function targetMutationRequest(input: TargetMutationInput, csrfToken: string): {
 	appendFormValue(form, 'password', input.password);
 	appendFormValue(form, 'target_id', input.target_id);
 	appendFormValue(form, 'approved_host_key_fingerprint', input.approved_host_key_fingerprint);
-	appendFormValue(form, 'credential_test_token', input.credential_test_token);
 	if (input.policy_id) {
 		form.append('policy_id', input.policy_id);
 	}

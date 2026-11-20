@@ -76,7 +76,11 @@ func (s *Server) handleUserLLMProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "LLM profile not found")
 		return
 	}
-	id := strings.TrimSpace(parts[0])
+	id := parts[0]
+	if err := requireUUIDV4(id, "llm_profile_id"); err != nil {
+		writeUserMutationError(w, err)
+		return
+	}
 	paths, configured := s.managementPaths()
 	if !configured || strings.TrimSpace(paths.LLMProfileDir) == "" {
 		writeError(w, http.StatusInternalServerError, "LLM profile directory is not configured")

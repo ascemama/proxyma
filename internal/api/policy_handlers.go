@@ -31,6 +31,10 @@ func (s *Server) handleUserPolicy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "policy not found")
 		return
 	}
+	if err := requireUUIDV4(id, "policy_id"); err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
 	if suffix == "targets" {
 		if r.Method == http.MethodPut {
 			s.assignUserPolicyTargets(w, r, id)
@@ -125,6 +129,10 @@ func (s *Server) createUserPolicy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if err := validatePolicyReferenceIDs(request); err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
 	item, err := policyFromMutationRequest(request, user.ID)
 	if err != nil {
 		writePolicyMutationError(w, err)
@@ -167,6 +175,14 @@ func (s *Server) updateUserPolicy(w http.ResponseWriter, r *http.Request, id str
 		writeError(w, http.StatusInternalServerError, "management paths are not configured")
 		return
 	}
+	request, ok := decodePolicyMutationRequest(w, r)
+	if !ok {
+		return
+	}
+	if err := validatePolicyReferenceIDs(request); err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
 	existing, err := readPolicy(paths, id)
 	if err != nil {
 		writePolicyMutationError(w, err)
@@ -174,10 +190,6 @@ func (s *Server) updateUserPolicy(w http.ResponseWriter, r *http.Request, id str
 	}
 	if !users.CanModifyPolicy(existing, user.ID, user.Admin) {
 		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "only the policy owner or an administrator may modify this policy", Code: "forbidden"})
-		return
-	}
-	request, ok := decodePolicyMutationRequest(w, r)
-	if !ok {
 		return
 	}
 	item, err := policyFromMutationRequest(request, existing.OwnerUserID)
@@ -301,6 +313,10 @@ func (s *Server) assignUserPolicyTargets(w http.ResponseWriter, r *http.Request,
 	if !decodeStrictJSON(w, r, &request, maxPolicyBodyBytes, "invalid JSON policy target assignment") {
 		return
 	}
+	if err := requireUUIDV4List(request.TargetIDs, "target_ids"); err != nil {
+		writePolicyMutationError(w, err)
+		return
+	}
 	if err := users.AssignPolicyTargets(paths, id, user.ID, user.Admin, request.TargetIDs); err != nil {
 		writePolicyMutationError(w, err)
 		return
@@ -389,6 +405,13 @@ func policyFromMutationRequest(request UserPolicyMutationRequest, ownerID string
 		}
 	}
 	return item, nil
+}
+
+func validatePolicyReferenceIDs(request UserPolicyMutationRequest) error {
+	if request.LLM == nil {
+		return nil
+	}
+	return requireOptionalUUIDV4(request.LLM.ProfileID, "profile_id")
 }
 
 func readPolicy(paths users.Paths, id string) (policy.Policy, error) {
@@ -485,6 +508,10 @@ func (s *Server) evaluateUserPolicy(w http.ResponseWriter, r *http.Request, poli
 	}
 	if strings.TrimSpace(request.Command) == "" || strings.TrimSpace(request.TargetID) == "" {
 		writeError(w, http.StatusBadRequest, "target_id and command are required")
+		return
+	}
+	if err := requireUUIDV4(request.TargetID, "target_id"); err != nil {
+		writePolicyMutationError(w, err)
 		return
 	}
 	target, err := findTargetForPolicyEvaluation(paths, request.TargetID, user)

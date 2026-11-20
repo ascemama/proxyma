@@ -41,6 +41,15 @@ token, and `build.version` and `build.commit` metadata.
 
 State-changing authenticated user requests require the current CSRF token.
 
+## User Target Management
+
+User target creation and update requests must upload SSH private keys as
+`private_key_file` multipart content when private-key authentication is
+selected. Proxyma stores each uploaded key on the server under a generated
+UUID-based filename. The user API does not accept `private_key_path`; that
+field is reserved for administrator-managed target configuration. Updating a
+private-key target without a new upload keeps its existing key.
+
 ## Unified History
 
 Authenticated users query the canonical SQLite command and interaction history with:

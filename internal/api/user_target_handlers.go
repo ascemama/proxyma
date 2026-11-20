@@ -61,6 +61,10 @@ func (s *Server) handleTestUserTargetCredentials(w http.ResponseWriter, r *http.
 	if !ok {
 		return
 	}
+	if err := validateTargetReferenceIDs(request); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
 	if request.TargetID != "" {
 		var target targets.Target
 		found := false
@@ -165,12 +169,7 @@ func (s *Server) handleTestUserTargetCredentials(w http.ResponseWriter, r *http.
 		return
 	}
 	throttle.recordTargetSuccess(targetThrottleKey)
-	proof, err := s.targetCredentialProofs().issue(user.ID, strings.TrimSpace(request.TargetID), credentialRequestDigest(request))
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "credential test proof could not be created", Code: "credential_test_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, UserTargetCredentialTestResponse{Status: "success", Message: label + " connection verified", CredentialTestToken: proof})
+	writeJSON(w, http.StatusOK, UserTargetCredentialTestResponse{Status: "success", Message: label + " connection verified"})
 }
 
 func formatCredentialTestExitStatus(status *int) string {
@@ -192,6 +191,10 @@ func (s *Server) handleUserTarget(w http.ResponseWriter, r *http.Request) {
 	id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/v1/user/targets/"), "/")
 	if id == "" || strings.Contains(id, "/") {
 		writeError(w, http.StatusNotFound, "target not found")
+		return
+	}
+	if err := requireUUIDV4(id, "target_id"); err != nil {
+		writeTargetMutationError(w, err)
 		return
 	}
 	switch r.Method {
@@ -219,20 +222,28 @@ func (s *Server) handleCreateUserTarget(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	if err := storeUploadedTargetPrivateKey(paths, &request); err != nil {
+	if err := validateTargetReferenceIDs(request); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
+	uploadCleanup, err := storeUploadedTargetPrivateKey(paths, &request)
+	if err != nil {
 		writeTargetMutationError(w, err)
 		return
 	}
 	target, err := targetFromMutationRequest(paths, request, user.ID, nil)
 	if err != nil {
+		cleanupUploadedPrivateKey(uploadCleanup)
 		writeTargetMutationError(w, err)
 		return
 	}
 	result, err := users.CreateTarget(paths, target, nil)
 	if err != nil {
+		cleanupUploadedPrivateKey(uploadCleanup)
 		writeTargetMutationError(w, err)
 		return
 	}
+	uploadCleanup = nil
 	created, err := readStoredTarget(paths, result.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "created target could not be read")
@@ -256,6 +267,14 @@ func (s *Server) handleUpdateUserTarget(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusInternalServerError, "management paths are not configured")
 		return
 	}
+	request, ok := decodeTargetMutationRequest(w, r)
+	if !ok {
+		return
+	}
+	if err := validateTargetReferenceIDs(request); err != nil {
+		writeTargetMutationError(w, err)
+		return
+	}
 	existing, err := readStoredTarget(paths, id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "target not found")
@@ -265,22 +284,25 @@ func (s *Server) handleUpdateUserTarget(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "target is not owned by the current user", Code: "forbidden"})
 		return
 	}
-	request, ok := decodeTargetMutationRequest(w, r)
-	if !ok {
-		return
-	}
-	if err := storeUploadedTargetPrivateKey(paths, &request); err != nil {
+	uploadCleanup, err := storeUploadedTargetPrivateKey(paths, &request)
+	if err != nil {
 		writeTargetMutationError(w, err)
 		return
 	}
 	target, err := targetFromMutationRequest(paths, request, user.ID, &existing)
 	if err != nil {
+		cleanupUploadedPrivateKey(uploadCleanup)
 		writeTargetMutationError(w, err)
 		return
 	}
 	if _, err := users.UpdateTarget(paths, id, target); err != nil {
+		cleanupUploadedPrivateKey(uploadCleanup)
 		writeTargetMutationError(w, err)
 		return
+	}
+	uploadCleanup = nil
+	if request.privateKeyPath != "" {
+		s.cleanupReplacedTargetPrivateKey(paths, existing, id)
 	}
 	updated, err := readStoredTarget(paths, id)
 	if err != nil {
@@ -318,6 +340,7 @@ func (s *Server) handleDeleteUserTarget(w http.ResponseWriter, r *http.Request, 
 		writeTargetMutationError(w, err)
 		return
 	}
+	s.cleanupReplacedTargetPrivateKey(paths, existing, id)
 	if err := s.refreshTargetRegistry(paths); err != nil {
 		writeTargetMutationError(w, err)
 		return
@@ -534,6 +557,16 @@ func decodeTargetMutationRequest(w http.ResponseWriter, r *http.Request) (UserTa
 	return request, true
 }
 
+func validateTargetReferenceIDs(request UserTargetMutationRequest) error {
+	if err := requireOptionalUUIDV4(request.PolicyID, "policy_id"); err != nil {
+		return err
+	}
+	if err := requireUUIDV4List(request.AgentIDs, "agent_ids"); err != nil {
+		return err
+	}
+	return requireOptionalUUIDV4(request.TargetID, "target_id")
+}
+
 func decodeMultipartTargetMutationRequest(w http.ResponseWriter, r *http.Request) (UserTargetMutationRequest, bool) {
 	defer r.Body.Close()
 	r.Body = http.MaxBytesReader(w, r.Body, maxTargetBodyBytes)
@@ -542,6 +575,10 @@ func decodeMultipartTargetMutationRequest(w http.ResponseWriter, r *http.Request
 		return UserTargetMutationRequest{}, false
 	}
 	form := r.MultipartForm
+	if len(form.Value["private_key_path"]) > 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "private_key_path is not accepted by the user target API; upload private_key_file instead", Code: "invalid_target"})
+		return UserTargetMutationRequest{}, false
+	}
 	request := UserTargetMutationRequest{
 		Transport:                  firstFormValue(form.Value, "transport"),
 		OS:                         firstFormValue(form.Value, "os"),
@@ -555,7 +592,6 @@ func decodeMultipartTargetMutationRequest(w http.ResponseWriter, r *http.Request
 		Password:                   firstFormValue(form.Value, "password"),
 		TargetID:                   firstFormValue(form.Value, "target_id"),
 		ApprovedHostKeyFingerprint: firstFormValue(form.Value, "approved_host_key_fingerprint"),
-		CredentialTestToken:        firstFormValue(form.Value, "credential_test_token"),
 	}
 	files := form.File["private_key_file"]
 	if len(files) > 1 {
@@ -658,7 +694,7 @@ func targetAuthFromMutationRequest(request UserTargetMutationRequest, existing *
 		}
 		return targets.PasswordAuth("")
 	case targets.AuthTypePrivateKey:
-		privateKeyPath := strings.TrimSpace(request.PrivateKeyPath)
+		privateKeyPath := strings.TrimSpace(request.privateKeyPath)
 		if privateKeyPath != "" {
 			return targets.PrivateKeyAuth(privateKeyPath)
 		}
@@ -679,31 +715,89 @@ func cloneTargetAuth(auth *targets.TargetAuth) *targets.TargetAuth {
 	return &cloned
 }
 
-func storeUploadedTargetPrivateKey(paths users.Paths, request *UserTargetMutationRequest) error {
+func storeUploadedTargetPrivateKey(paths users.Paths, request *UserTargetMutationRequest) (func(), error) {
 	if request == nil || len(request.PrivateKeyUpload) == 0 {
-		return nil
+		return nil, nil
 	}
 	if strings.TrimSpace(request.AuthType) != targets.AuthTypePrivateKey {
-		return validationError("private key file can only be uploaded for private key targets")
+		return nil, validationError("private key file can only be uploaded for private key targets")
 	}
 	keyID, err := ids.NewUUIDV4()
 	if err != nil {
-		return fmt.Errorf("generate private key id: %w", err)
+		return nil, fmt.Errorf("generate private key id: %w", err)
 	}
 	relativePath := filepath.ToSlash(filepath.Join(targets.PrivateKeyDirectory, keyID))
 	privateKeyPath, err := targetPrivateKeyAbsolutePath(paths, relativePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Dir(privateKeyPath), 0o700); err != nil {
-		return fmt.Errorf("create private key directory: %w", err)
+		return nil, fmt.Errorf("create private key directory: %w", err)
 	}
 	if err := os.WriteFile(privateKeyPath, request.PrivateKeyUpload, 0o600); err != nil {
-		return fmt.Errorf("write private key file: %w", err)
+		return nil, fmt.Errorf("write private key file: %w", err)
 	}
-	request.PrivateKeyPath = relativePath
+	request.privateKeyPath = relativePath
 	request.PrivateKeyUpload = nil
-	return nil
+	return func() {
+		_ = os.Remove(privateKeyPath)
+	}, nil
+}
+
+func cleanupUploadedPrivateKey(cleanup func()) {
+	if cleanup != nil {
+		cleanup()
+	}
+}
+
+func (s *Server) cleanupReplacedTargetPrivateKey(paths users.Paths, existing targets.Target, targetID string) {
+	if existing.Auth == nil || existing.Auth.Type != targets.AuthTypePrivateKey {
+		return
+	}
+	oldPath, ok := managedPrivateKeyPath(paths, existing.Auth.PrivateKeyPath)
+	if !ok {
+		return
+	}
+	registry, diagnostics, err := targets.LoadDir(paths.TargetDir)
+	if err != nil || len(diagnostics) > 0 {
+		s.debugf("debug private key cleanup skipped target_id=%s path=%s error=%v diagnostics=%d", targetID, oldPath, err, len(diagnostics))
+		return
+	}
+	for _, candidate := range registry.All() {
+		if candidate.ID == targetID || candidate.Auth == nil || candidate.Auth.Type != targets.AuthTypePrivateKey {
+			continue
+		}
+		candidatePath, candidateManaged := managedPrivateKeyPath(paths, candidate.Auth.PrivateKeyPath)
+		if candidateManaged && candidatePath == oldPath {
+			return
+		}
+	}
+	if err := os.Remove(oldPath); err != nil && !os.IsNotExist(err) {
+		s.debugf("debug private key cleanup failed target_id=%s path=%s error=%v", targetID, oldPath, err)
+	}
+}
+
+func managedPrivateKeyPath(paths users.Paths, rawPath string) (string, bool) {
+	rawPath = strings.TrimSpace(rawPath)
+	if rawPath == "" {
+		return "", false
+	}
+	absolutePath := rawPath
+	if !filepath.IsAbs(absolutePath) {
+		resolved, err := targetPrivateKeyAbsolutePath(paths, absolutePath)
+		if err != nil {
+			return "", false
+		}
+		absolutePath = resolved
+	} else {
+		absolutePath = filepath.Clean(absolutePath)
+	}
+	keyRoot := filepath.Clean(filepath.Join(targets.ProjectRootForDir(paths.TargetDir), filepath.FromSlash(targets.PrivateKeyDirectory)))
+	relativePath, err := filepath.Rel(keyRoot, absolutePath)
+	if err != nil || relativePath == "." || filepath.IsAbs(relativePath) || filepath.Base(relativePath) != relativePath || !ids.IsUUIDV4(relativePath) {
+		return "", false
+	}
+	return absolutePath, true
 }
 
 func validateRuntimeTargetCredential(paths users.Paths, target targets.Target) error {

@@ -96,7 +96,7 @@ func TestTaskStatusReturnsSafeTranscriptionMetadata(t *testing.T) {
 
 func TestTaskStatusNotFound(t *testing.T) {
 	server := testServer(t)
-	req := newAuthenticatedRequest(t, http.MethodGet, "/v1/agent/tasks/missing", nil)
+	req := newAuthenticatedRequest(t, http.MethodGet, "/v1/agent/tasks/6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c", nil)
 	rec := httptest.NewRecorder()
 	server.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {

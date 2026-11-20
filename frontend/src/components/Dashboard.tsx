@@ -3149,7 +3149,6 @@ function TargetFormModal({
   const [localError, setLocalError] = useState('');
   const [credentialTestStatus, setCredentialTestStatus] = useState<CredentialTestStatus>('idle');
   const [credentialTestError, setCredentialTestError] = useState('');
-	const [credentialTestToken, setCredentialTestToken] = useState('');
 	const [pendingHostKey, setPendingHostKey] = useState<SSHHostKeyInfo | null>(null);
   const policyOptions = useMemo(() => policySelectOptions(policies, selectedPolicyID), [policies, selectedPolicyID]);
   const agentOptions = useMemo(() => agentSelectOptions(agents, selectedAgentIDs), [agents, selectedAgentIDs]);
@@ -3187,9 +3186,6 @@ function TargetFormModal({
       agent_ids: selectedAgentIDs,
       auth_type: authType
     };
-	if (credentialTestToken) {
-		input.credential_test_token = credentialTestToken;
-	}
 		if (transport === 'winrm') {
 			input.auth_type = 'password';
 			input.password = password;
@@ -3223,7 +3219,6 @@ function TargetFormModal({
   function clearCredentialTest() {
     setCredentialTestStatus('idle');
     setCredentialTestError('');
-	setCredentialTestToken('');
 	setPendingHostKey(null);
   }
 
@@ -3273,8 +3268,7 @@ function TargetFormModal({
       input.password = password;
     }
     try {
-	  const result = await onTestCredentials(input);
-	  setCredentialTestToken(result.credential_test_token);
+	  await onTestCredentials(input);
 	  setPendingHostKey(null);
       setCredentialTestStatus('success');
     } catch (err) {

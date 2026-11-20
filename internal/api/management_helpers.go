@@ -189,6 +189,9 @@ func writeUserMutationError(w http.ResponseWriter, err error) {
 
 func writeAgentMutationError(w http.ResponseWriter, err error) {
 	if status, payload := errorResponse(err); status != http.StatusInternalServerError {
+		if payload.Code == "" {
+			payload.Code = "invalid_agent"
+		}
 		writeJSON(w, status, payload)
 		return
 	}
@@ -197,6 +200,9 @@ func writeAgentMutationError(w http.ResponseWriter, err error) {
 
 func writeTargetMutationError(w http.ResponseWriter, err error) {
 	if status, payload := errorResponse(err); status != http.StatusInternalServerError {
+		if payload.Code == "" {
+			payload.Code = "invalid_target"
+		}
 		writeJSON(w, status, payload)
 		return
 	}
@@ -214,6 +220,9 @@ func writeInteractionMutationError(w http.ResponseWriter, err error) {
 
 func writePolicyMutationError(w http.ResponseWriter, err error) {
 	if status, payload := errorResponse(err); status != http.StatusInternalServerError {
+		if payload.Code == "" {
+			payload.Code = "invalid_policy"
+		}
 		writeJSON(w, status, payload)
 		return
 	}

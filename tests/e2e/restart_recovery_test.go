@@ -55,7 +55,7 @@ func TestNonFinalTasksBecomeAbandonedAfterRestart(t *testing.T) {
 	t.Cleanup(func() { _ = database.Close() })
 	now := time.Now().UTC()
 	task := tasks.Task{
-		TaskID:    "created-task",
+		TaskID:    "6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
 		AgentID:   testAgent.ID,
 		Command:   quickSSHCommand,
 		Reasoning: "diagnostic",

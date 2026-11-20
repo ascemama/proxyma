@@ -124,8 +124,7 @@ test('captures the current first-time configuration GUI', async ({ page }) => {
       contentType: 'application/json',
       body: JSON.stringify({
         status: 'success',
-        message: 'SSH connection verified',
-        credential_test_token: 'documentation-proof-token'
+		message: 'SSH connection verified'
       })
     });
   });
