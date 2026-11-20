@@ -23,7 +23,7 @@ API. Do not expose the local Vite/HTTP development setup to untrusted networks.
 ## Prerequisites
 
 - Git.
-- Go 1.27.3 or the project-pinned Go version from `go.mod`.
+- Go 1.27.4 or the project-pinned Go version from `go.mod`.
 - Node.js and npm.
 
 ## First Installation
