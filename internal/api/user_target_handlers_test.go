@@ -294,6 +294,10 @@ func TestUserTargetMutationsUploadPrivateKeyWithGUIDStorage(t *testing.T) {
 	}
 	assertGUIDPrivateKeyPath(t, stored.Auth.PrivateKeyPath)
 	assertPrivateKeyFile(t, paths, stored.Auth.PrivateKeyPath, "PRIVATE KEY TWO")
+	firstAbsolutePath := filepath.Join(targets.ProjectRootForDir(paths.TargetDir), filepath.FromSlash(firstPath))
+	if _, err := os.Stat(firstAbsolutePath); !os.IsNotExist(err) {
+		t.Fatalf("replaced private key still exists: err=%v path=%q", err, firstAbsolutePath)
+	}
 
 	emptyRec := userTargetMultipartMutationRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, map[string][]string{
 		"hostname":  {"KEY-SRV-EMPTY"},
@@ -304,6 +308,85 @@ func TestUserTargetMutationsUploadPrivateKeyWithGUIDStorage(t *testing.T) {
 	}, []byte{})
 	if emptyRec.Code != http.StatusBadRequest {
 		t.Fatalf("empty upload status = %d body=%s", emptyRec.Code, emptyRec.Body.String())
+	}
+
+	secondPath := stored.Auth.PrivateKeyPath
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/v1/user/targets/"+created.ID, nil)
+	deleteReq.AddCookie(cookie)
+	deleteReq.Header.Set(userSessionCSRFHeader, session.CSRFToken)
+	deleteRec := httptest.NewRecorder()
+	server.Routes().ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d body=%s", deleteRec.Code, deleteRec.Body.String())
+	}
+	secondAbsolutePath := filepath.Join(targets.ProjectRootForDir(paths.TargetDir), filepath.FromSlash(secondPath))
+	if _, err := os.Stat(secondAbsolutePath); !os.IsNotExist(err) {
+		t.Fatalf("deleted private key still exists: err=%v path=%q", err, secondAbsolutePath)
+	}
+}
+
+func TestUserTargetMutationRejectsPrivateKeyPath(t *testing.T) {
+	server, _ := testTargetMutationServer(t, nil)
+	cookie, session := loginSession(t, server)
+
+	rec := userTargetMutationRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, `{
+		"hostname":"path-target",
+		"username":"fixture-key",
+		"policy_id":"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c",
+		"agent_ids":["`+testAgent.ID+`"],
+		"auth_type":"private_key",
+		"private_key_path":"secrets/private_keys/team-prod"
+	}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "invalid_target") {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUserTargetMultipartMutationRejectsPrivateKeyPath(t *testing.T) {
+	server, _ := testTargetMutationServer(t, nil)
+	cookie, session := loginSession(t, server)
+
+	rec := userTargetMultipartMutationRequest(t, server, http.MethodPost, "/v1/user/targets", cookie, session.CSRFToken, map[string][]string{
+		"hostname":         {"path-target"},
+		"username":         {"fixture-key"},
+		"policy_id":        {"6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"},
+		"agent_ids":        {testAgent.ID},
+		"auth_type":        {targets.AuthTypePrivateKey},
+		"private_key_path": {"secrets/private_keys/team-prod"},
+	}, []byte("PRIVATE KEY ONE"))
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "private_key_path") {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestManagedPrivateKeyPathOnlyMatchesGeneratedKeyFiles(t *testing.T) {
+	paths := users.Paths{TargetDir: filepath.Join(t.TempDir(), "targets")}
+	projectRoot := targets.ProjectRootForDir(paths.TargetDir)
+	validRelativePath := targets.PrivateKeyDirectory + "/6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c"
+	validAbsolutePath := filepath.Join(projectRoot, filepath.FromSlash(validRelativePath))
+
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{name: "generated relative path", path: validRelativePath, want: true},
+		{name: "generated absolute path", path: validAbsolutePath, want: true},
+		{name: "named key", path: targets.PrivateKeyDirectory + "/team-prod", want: false},
+		{name: "nested generated key", path: targets.PrivateKeyDirectory + "/archive/6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c", want: false},
+		{name: "outside key directory", path: "secrets/other/6e05e4a3-2e06-4d8e-92dd-7d5a4b0e0e4c", want: false},
+		{name: "uppercase UUID", path: targets.PrivateKeyDirectory + "/6E05E4A3-2E06-4D8E-92DD-7D5A4B0E0E4C", want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotPath, got := managedPrivateKeyPath(paths, test.path)
+			if got != test.want {
+				t.Fatalf("managedPrivateKeyPath(%q) = (%q, %t), want managed=%t", test.path, gotPath, got, test.want)
+			}
+			if test.want && gotPath != validAbsolutePath {
+				t.Fatalf("managedPrivateKeyPath(%q) = %q, want %q", test.path, gotPath, validAbsolutePath)
+			}
+		})
 	}
 }
 
