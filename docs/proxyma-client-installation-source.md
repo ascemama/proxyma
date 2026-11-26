@@ -116,8 +116,10 @@ POSIX shell script):
 ```
 
 The package includes the optional vulnerability-management assets under
-`harness/workflows/vulnerability-management/`. It does not include workflow
-databases, downloaded reports, Proxyma credentials, or client task state.
+`harness/workflows/vulnerability-management/`. The client installer does not
+copy those assets unless explicitly requested with `--with-vm-workflow` (or
+`-WithVMWorkflow` on Windows). It does not include workflow databases,
+downloaded reports, Proxyma credentials, or client task state.
 
 ## Build the optional `vm-workflow` executable
 
@@ -213,12 +215,43 @@ $SkillDir = Join-Path $HOME ".hermes\skills"
   -BinDir $BinDir
 ```
 
-The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
+To also install the optional vulnerability-management assets into
+`$PROJECT_DIR/harness/workflows/vulnerability-management/`, add the opt-in
+flag and the locally built vm-workflow binary to the installer. POSIX:
+
+```bash
+VM_WORKFLOW_ASSET="dist/vm-workflow-$(go env GOOS)-$(go env GOARCH)"
+bash ./scripts/install-proxyma-client.sh \
+  --binary "$ASSET" \
+  --harness "$PWD/dist/proxyma-client-harness.tar.gz" \
+  --vm-workflow "$VM_WORKFLOW_ASSET" \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR" \
+  --with-vm-workflow
+```
+
+Windows PowerShell:
+
+```powershell
+$VmAsset = ".\dist\vm-workflow-$(& go env GOOS)-$(& go env GOARCH).exe"
+.\scripts\install-proxyma-client.ps1 `
+  -Binary $Asset `
+  -Harness ".\dist\proxyma-client-harness.tar.gz" `
+  -VMWorkflow $VmAsset `
+  -HarnessType Generic `
+  -SkillDir $SkillDir `
+  -ProjectDir $ProjectDir `
+  -WithVMWorkflow
+```
+
+The installer places `vm-workflow` in the same binary directory as
+`proxyma-client` when the opt-in flag is used. The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
 Linux or macOS, or `%LOCALAPPDATA%\Programs\Proxyma\bin` on Windows, to
 `PATH`, then open a new terminal and restart Codex or Claude Code.
 
-Install the optional workflow executable in the same binary directory as the
-client. Linux or macOS:
+If the workflow was not installed through the opt-in installer, it can still
+be installed manually in the same binary directory as the client. Linux or macOS:
 
 ```bash
 install -m 0755 "dist/vm-workflow-$(go env GOOS)-$(go env GOARCH)" \
@@ -235,16 +268,16 @@ Copy-Item $VmAsset $VmPath -Force
 & $VmPath version
 ```
 
-The client installer does not install or configure `vm-workflow`. Configure it
-with the existing client configuration and keep its database outside the
-tracked checkout:
+Configure the workflow with the existing client configuration and keep its
+database outside the tracked checkout:
 
 ```bash
-VM_DB="$HOME/.local/state/proxyma-vulnerability-management/workflow.sqlite"
-PROJECT_DIR="$PWD"
+PROJECT_DIR="$PWD"                         # change this to the installed project directory
+VM_DB="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"
 PROFILE="$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json"
 PROXYMA_CONFIG="$PROJECT_DIR/harness/proxyma-client.json"
-mkdir -p "$(dirname "$VM_DB")"
+sudo install -d -m 0750 "$(dirname "$VM_DB")"
+sudo chown "$USER":"$(id -gn)" "$(dirname "$VM_DB")"
 vm-workflow --db "$VM_DB" status
 vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" doctor --check-proxyma
 vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.csv

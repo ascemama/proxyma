@@ -43,11 +43,29 @@ grep -F 'vulnerability-management/README.md' "$source_doc" >/dev/null || fail "s
 grep -F 'vulnerability-management-workflow.md' "$source_doc" >/dev/null || fail "source guide omits workflow documentation link"
 grep -F 'vulnerability-management-workflow.md#operational-setup' "$release_doc" >/dev/null || fail "release guide omits operational setup link"
 grep -F 'vulnerability-management-workflow.md#operational-setup' "$source_doc" >/dev/null || fail "source guide omits operational setup link"
+grep -F -- '--with-vm-workflow' "$release_doc" >/dev/null || fail "release guide omits POSIX workflow opt-in flag"
+grep -F -- '-WithVMWorkflow' "$release_doc" >/dev/null || fail "release guide omits PowerShell workflow opt-in flag"
+grep -F -- '--with-vm-workflow' "$source_doc" >/dev/null || fail "source guide omits POSIX workflow opt-in flag"
+grep -F -- '-WithVMWorkflow' "$source_doc" >/dev/null || fail "source guide omits PowerShell workflow opt-in flag"
+for doc in "$release_doc" "$source_doc"; do
+  grep -F '/var/lib/proxyma-client-vulnerability-management/workflow.sqlite' "$doc" >/dev/null || fail "installation guide omits canonical workflow database path: $doc"
+  if grep -F '$HOME/.local/state/proxyma-vulnerability-management/workflow.sqlite' "$doc" >/dev/null; then
+    fail "installation guide contains the obsolete user-local workflow database path: $doc"
+  fi
+done
+source_project_line=$(grep -nF 'PROJECT_DIR="$PWD"' "$source_doc" | tail -n 1 | cut -d: -f1)
+source_db_line=$(grep -nF 'VM_DB="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"' "$source_doc" | tail -n 1 | cut -d: -f1)
+[[ -n "$source_project_line" && -n "$source_db_line" && "$source_project_line" -lt "$source_db_line" ]] \
+  || fail "source guide must define PROJECT_DIR before the workflow database and derived paths"
 grep -F 'SHA256SUMS' "$testing_doc" >/dev/null || fail "release testing guide omits checksum coverage"
 grep -F 'vm-workflow version' "$testing_doc" >/dev/null || fail "release testing guide omits workflow smoke check"
 
-grep -F 'client installers do not install or configure `vm-workflow`' "$release_doc" >/dev/null || fail "release guide does not separate installers"
-grep -F 'client installer does not install or configure `vm-workflow`' "$source_doc" >/dev/null || fail "source guide does not separate installers"
+grep -F 'By default, the client installers do not install `vm-workflow`' "$release_doc" >/dev/null || fail "release guide does not document default opt-in behavior"
+grep -F 'client installer does not' "$source_doc" >/dev/null || fail "source guide does not document default opt-in behavior"
+grep -F -- '--vm-workflow' "$source_doc" >/dev/null || fail "source guide omits local vm-workflow installer argument"
+grep -F -- '-VMWorkflow' "$source_doc" >/dev/null || fail "source guide omits PowerShell vm-workflow argument"
+grep -F 'same directory as `proxyma-client`' "$release_doc" >/dev/null || fail "release guide omits shared binary directory"
+grep -F 'same binary directory as' "$source_doc" >/dev/null || fail "source guide omits shared binary directory"
 
 grep -F '/var/lib/proxyma-client-vulnerability-management/workflow.sqlite' "$workflow_doc" >/dev/null || fail "workflow documentation omits canonical database path"
 grep -F '/var/lib/proxyma-client-vulnerability-management/workflow.sqlite' "$cron_example" >/dev/null || fail "cron example omits canonical database path"

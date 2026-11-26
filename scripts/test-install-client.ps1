@@ -12,7 +12,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     $harness = Join-Path $payload "harness"
     foreach ($relative in @(
         "instruction-pack", "examples", "tests", ".agents\skills\proxyma-harness",
-        ".claude\skills\proxyma-harness", "generic\skills\proxyma-harness", "agent-configuration", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries"
+        ".claude\skills\proxyma-harness", "generic\skills\proxyma-harness", "workflows\vulnerability-management", "agent-configuration", "task-state\active", "task-state\blocked", "task-state\closed", "task-state\summaries"
     )) {
         New-Item -ItemType Directory -Force -Path (Join-Path $harness $relative) | Out-Null
     }
@@ -25,6 +25,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     Set-Content -LiteralPath (Join-Path $harness ".agents\skills\proxyma-harness\SKILL.md") -Value $Marker
     Set-Content -LiteralPath (Join-Path $harness ".claude\skills\proxyma-harness\SKILL.md") -Value $Marker
     Set-Content -LiteralPath (Join-Path $harness "generic\skills\proxyma-harness\SKILL.md") -Value $Marker
+    Set-Content -LiteralPath (Join-Path $harness "workflows\vulnerability-management\prompt.md") -Value $Marker
     & tar -czf $Output -C $payload harness
     if ($LASTEXITCODE -ne 0) { Fail "could not create harness fixture" }
 }
@@ -33,8 +34,9 @@ function New-Release([string]$ReleaseDir, [string]$Arch, [string]$Marker) {
     New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
     $binaryName = "proxyma-client-windows-$Arch.exe"
     Set-Content -LiteralPath (Join-Path $ReleaseDir $binaryName) -Value $Marker
+    Copy-Item -LiteralPath (Join-Path $TestRoot "vm-workflow-fixture.exe") -Destination (Join-Path $ReleaseDir "vm-workflow-windows-$Arch.exe")
     New-HarnessArchive (Join-Path $ReleaseDir "proxyma-client-harness.tar.gz") $Marker
-    $lines = foreach ($name in @($binaryName, "proxyma-client-harness.tar.gz")) {
+    $lines = foreach ($name in @($binaryName, "proxyma-client-harness.tar.gz", "vm-workflow-windows-$Arch.exe")) {
         $hash = (Get-FileHash -LiteralPath (Join-Path $ReleaseDir $name) -Algorithm SHA256).Hash.ToLowerInvariant()
         "$hash  $name"
     }
@@ -52,10 +54,16 @@ $oldBase = $env:PROXYMA_RELEASE_BASE_URL
 $oldOS = $env:PROXYMA_CLIENT_OS
 $oldArch = $env:PROXYMA_CLIENT_ARCH
 $originalPath = $env:PATH
+$oldGoCache = $env:GOCACHE
+$testGoCache = Join-Path $TestRoot "go-cache"
+New-Item -ItemType Directory -Force -Path $testGoCache | Out-Null
 try {
+    $env:GOCACHE = $testGoCache
     $env:PROXYMA_RELEASE_BASE_URL = ([Uri]::new($TestRoot)).AbsoluteUri.TrimEnd('/')
     $env:PROXYMA_CLIENT_OS = "windows"
     $env:PROXYMA_CLIENT_ARCH = "x64"
+    & go build -o (Join-Path $TestRoot "vm-workflow-fixture.exe") ./cmd/vm-workflow
+    if ($LASTEXITCODE -ne 0) { Fail "could not build vm-workflow test fixture" }
     $exact = Join-Path $TestRoot "releases\download\v1.2.3"
     New-Release $exact "amd64" "first"
     $project = Join-Path $TestRoot "project"
@@ -64,12 +72,14 @@ try {
     & $Installer -Version v1.2.3 -HarnessType codex -ProjectDir $project -BinDir $bin
     if ($env:PATH -ne $originalPath) { Fail "installer changed PATH" }
     if ((Get-Content -LiteralPath (Join-Path $bin "proxyma-client.exe") -Raw).Trim() -ne "first") { Fail "wrong binary was installed" }
+    if (Test-Path -LiteralPath (Join-Path $bin "vm-workflow.exe")) { Fail "vm-workflow was installed without opt-in" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\instruction-pack\proxyma-harness.md") -Raw).Trim() -ne "first") { Fail "harness was not installed" }
     if (-not (Test-Path -LiteralPath (Join-Path $project ".agents\skills\proxyma-harness\SKILL.md"))) { Fail "Codex adapter was not installed" }
     if (Test-Path -LiteralPath (Join-Path $project ".claude\skills\proxyma-harness")) { Fail "Claude adapter was installed during Codex install" }
     $examplePath = Join-Path $project "harness\agent-configuration\agent.example.json"
     if (-not (Test-Path -LiteralPath $examplePath -PathType Leaf)) { Fail "installer omitted credential example" }
     if ((Get-Content -LiteralPath $examplePath -Raw) -notlike '*TOBECHANGED*') { Fail "credential example is incorrect" }
+    if (Test-Path -LiteralPath (Join-Path $project "harness\workflows")) { Fail "workflow assets installed without opt-in flag" }
 
     Set-Content -LiteralPath (Join-Path $project "harness\proxyma-client.json") -Value "preserved-config"
     Set-Content -LiteralPath (Join-Path $project "harness\agent-configuration\agent.json") -Value "preserved-secret"
@@ -82,6 +92,18 @@ try {
     if ((Get-Content -LiteralPath $examplePath -Raw).Trim() -ne "custom-example") { Fail "credential example was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\task-state\active\task.json") -Raw).Trim() -ne "preserved-state") { Fail "task state was overwritten" }
     if ((Get-Content -LiteralPath (Join-Path $project "harness\instruction-pack\proxyma-harness.md") -Raw).Trim() -ne "second") { Fail "release-owned content was not refreshed" }
+
+    $vmProject = Join-Path $TestRoot "vm-project"
+    New-Item -ItemType Directory -Path $vmProject | Out-Null
+    & $Installer -Version v1.2.3 -WithVMWorkflow -ProjectDir $vmProject -BinDir (Join-Path $TestRoot "vm-bin")
+    $vmPrompt = Join-Path $vmProject "harness\workflows\vulnerability-management\prompt.md"
+    if ((Get-Content -LiteralPath $vmPrompt -Raw).Trim() -ne "second") { Fail "opt-in workflow assets were not installed" }
+    if (-not (Test-Path -LiteralPath (Join-Path $TestRoot "vm-bin\vm-workflow.exe"))) { Fail "opt-in vm-workflow was not installed" }
+    Set-Content -LiteralPath $vmPrompt -Value "local-workflow"
+    & $Installer -Version v1.2.3 -ProjectDir $vmProject -BinDir (Join-Path $TestRoot "vm-bin")
+    if ((Get-Content -LiteralPath $vmPrompt -Raw).Trim() -ne "local-workflow") { Fail "unflagged reinstall modified workflow assets" }
+    & $Installer -Version v1.2.3 -WithVMWorkflow -ProjectDir $vmProject -BinDir (Join-Path $TestRoot "vm-bin")
+    if ((Get-Content -LiteralPath $vmPrompt -Raw).Trim() -ne "second") { Fail "flagged reinstall did not refresh workflow assets" }
 
     $env:PROXYMA_CLIENT_ARCH = "arm64"
     $latest = Join-Path $TestRoot "releases\latest\download"
@@ -132,6 +154,9 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $localProject ".claude\skills\proxyma-harness\SKILL.md"))) { Fail "local Claude adapter was not installed" }
     if (Test-Path -LiteralPath (Join-Path $localProject ".agents\skills\proxyma-harness")) { Fail "local install created the wrong adapter" }
     Invoke-ExpectedFailure { & $Installer -Binary (Join-Path $localRelease "proxyma-client-windows-arm64.exe") -ProjectDir $localProject -BinDir $localBin } "local mode accepted only one artifact"
+    Invoke-ExpectedFailure { & $Installer -Binary (Join-Path $localRelease "proxyma-client-windows-arm64.exe") -Harness (Join-Path $localRelease "proxyma-client-harness.tar.gz") -WithVMWorkflow -ProjectDir $localProject -BinDir $localBin } "local workflow install accepted a missing vm-workflow path"
+    & $Installer -Binary (Join-Path $localRelease "proxyma-client-windows-arm64.exe") -Harness (Join-Path $localRelease "proxyma-client-harness.tar.gz") -VMWorkflow (Join-Path $localRelease "vm-workflow-windows-arm64.exe") -WithVMWorkflow -ProjectDir $localProject -BinDir $localBin
+    if (-not (Test-Path -LiteralPath (Join-Path $localBin "vm-workflow.exe"))) { Fail "local vm-workflow was not installed" }
 
     $env:PROXYMA_CLIENT_ARCH = "amd64"
     $bad = Join-Path $TestRoot "releases\download\v1.2.4"
@@ -197,5 +222,6 @@ finally {
     $env:PROXYMA_CLIENT_OS = $oldOS
     $env:PROXYMA_CLIENT_ARCH = $oldArch
     $env:PATH = $originalPath
+    $env:GOCACHE = $oldGoCache
     if (Test-Path -LiteralPath $TestRoot) { Remove-Item -LiteralPath $TestRoot -Recurse -Force }
 }
