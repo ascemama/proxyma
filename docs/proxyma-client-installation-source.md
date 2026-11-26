@@ -287,7 +287,10 @@ See the [workflow README](../harness/workflows/vulnerability-management/README.m
 [Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
 [cron example](../harness/workflows/vulnerability-management/cron.example),
 and [workflow documentation](vulnerability-management-workflow.md#install-and-enable-the-workflow) for report
-imports, access reconciliation, scheduled pulses, backups, and recovery.
+imports, access reconciliation, scheduled pulses, backups, and recovery. On
+POSIX, the opt-in installer generates a project-local configured `cron` file;
+review it and copy it into `crontab -e`. On Windows, configure equivalent
+Task Scheduler actions.
 
 After installation, first edit `harness/proxyma-client.json` and replace the
 example `proxyma_base_url` value with the URL of the running Proxyma server.

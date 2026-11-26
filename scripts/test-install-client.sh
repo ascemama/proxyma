@@ -47,6 +47,8 @@ create_harness_archive() {
   printf '%s\n' "$marker" >"$payload/harness/.claude/skills/proxyma-harness/SKILL.md"
   printf '%s\n' "$marker" >"$payload/harness/generic/skills/proxyma-harness/SKILL.md"
   printf '%s\n' "$marker" >"$payload/harness/workflows/vulnerability-management/prompt.md"
+  cp "$ROOT/harness/workflows/vulnerability-management/cron.example" \
+    "$payload/harness/workflows/vulnerability-management/cron.example"
   tar -C "$payload" -czf "$output" harness
 }
 
@@ -109,7 +111,7 @@ grep -Fx 'custom-example' "$PROJECT_DIR/harness/agent-configuration/agent.exampl
 grep -Fx 'preserved-state' "$PROJECT_DIR/harness/task-state/active/task.json" >/dev/null || fail "task state was overwritten"
 grep -Fx 'second' "$PROJECT_DIR/harness/instruction-pack/proxyma-harness.md" >/dev/null || fail "release-owned harness content was not refreshed"
 
-VM_PROJECT="$TEST_ROOT/vm-project"
+VM_PROJECT="$TEST_ROOT/vm project"
 mkdir -p "$VM_PROJECT"
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_CLIENT_OS=linux PROXYMA_CLIENT_ARCH=amd64 \
   bash "$ROOT/scripts/install-proxyma-client.sh" --version v1.2.3 --with-vm-workflow \
@@ -117,14 +119,20 @@ PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_CLIENT_OS=linux PROXYMA_CLIENT
 grep -Fx 'second' "$VM_PROJECT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "opt-in workflow assets were not installed"
 "$TEST_ROOT/vm-bin/vm-workflow" version >/dev/null || fail "installed vm-workflow failed version check"
 printf 'local-workflow\n' >"$VM_PROJECT/harness/workflows/vulnerability-management/prompt.md"
+printf 'custom-cron\n' >"$VM_PROJECT/harness/workflows/vulnerability-management/cron"
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_CLIENT_OS=linux PROXYMA_CLIENT_ARCH=amd64 \
   bash "$ROOT/scripts/install-proxyma-client.sh" --version v1.2.3 \
     --project-dir "$VM_PROJECT" --bin-dir "$TEST_ROOT/vm-bin" >/dev/null
 grep -Fx 'local-workflow' "$VM_PROJECT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "unflagged reinstall modified workflow assets"
+grep -Fx 'custom-cron' "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null || fail "unflagged reinstall modified configured workflow cron"
 PROXYMA_RELEASE_BASE_URL="$TEST_BASE_URL" PROXYMA_CLIENT_OS=linux PROXYMA_CLIENT_ARCH=amd64 \
   bash "$ROOT/scripts/install-proxyma-client.sh" --version v1.2.3 --with-vm-workflow \
     --project-dir "$VM_PROJECT" --bin-dir "$TEST_ROOT/vm-bin" >/dev/null
 grep -Fx 'second' "$VM_PROJECT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "flagged reinstall did not refresh workflow assets"
+grep -F "PROJECT_DIR=$(printf '%q' "$VM_PROJECT")" "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null || fail "configured workflow cron omitted project directory"
+grep -F "VM_WORKFLOW_BIN=$(printf '%q' "$TEST_ROOT/vm-bin/vm-workflow")" "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null || fail "configured workflow cron omitted vm-workflow path"
+grep -F '__PROJECT_DIR__' "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null && fail "configured workflow cron contains unresolved project placeholder"
+grep -F '/srv/' "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null && fail "configured workflow cron contains obsolete /srv path"
 
 mkdir -p "$TEST_ROOT/vm-link-project" "$TEST_ROOT/vm-link-target"
 ln -s "$TEST_ROOT/vm-link-target" "$TEST_ROOT/vm-link-project/harness"

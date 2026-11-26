@@ -99,9 +99,19 @@ grep -F 'VM_WORKFLOW_DB' "$worker_launcher" >/dev/null || fail "worker launcher 
 grep -F 'VM_WORKFLOW_PROXYMA_CONFIG' "$worker_launcher" >/dev/null || fail "worker launcher omits Proxyma config contract"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$worker_launcher" >/dev/null || fail "worker launcher omits worker ID contract"
 grep -F 'run-hermes-worker.sh' "$cron_example" >/dev/null || fail "cron example does not use worker launcher"
+grep -F 'PROJECT_DIR=__PROJECT_DIR__' "$cron_example" >/dev/null || fail "cron example omits project directory placeholder"
+if grep -F '/srv/' "$cron_example" "$worker_launcher" "$workflow_doc" >/dev/null; then
+  fail "workflow assets or documentation contain obsolete /srv paths"
+fi
 grep -F 'VM_WORKFLOW_LAUNCHER' "$cron_example" >/dev/null || fail "cron example omits launcher path"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$workflow_doc" >/dev/null || fail "workflow documentation omits worker ID contract"
+grep -F 'generates a configured `cron` file' "$workflow_doc" >/dev/null || fail "workflow documentation omits configured cron output"
+grep -F 'installer does not modify the active crontab' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab safety"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker ID contract"
+grep -F 'PROJECT_DIR must identify' "$worker_launcher" >/dev/null || fail "worker launcher does not require PROJECT_DIR"
+if env -u PROJECT_DIR bash "$worker_launcher" >/dev/null 2>&1; then
+  fail "worker launcher accepted a missing PROJECT_DIR"
+fi
 if grep -F '<worker-id>' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null; then
   fail "workflow prompt contains unresolved worker ID placeholder"
 fi

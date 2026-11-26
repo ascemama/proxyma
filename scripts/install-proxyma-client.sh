@@ -348,6 +348,42 @@ replace_path() {
   [[ ! -e "$backup_path" ]] || rm -rf "$backup_path"
 }
 
+render_workflow_cron() {
+  local template_path="$1"
+  local destination_path="$2"
+  local rendered_path="$TEMP_DIR/configured-cron"
+  local content
+  local project_q bin_q db_q config_q prompt_q launcher_q profile_q report_q
+
+  project_q="$(printf '%q' "$PROJECT_DIR")"
+  bin_q="$(printf '%q' "$INSTALLED_VM_WORKFLOW")"
+  db_q="$(printf '%q' "/var/lib/proxyma-client-vulnerability-management/workflow.sqlite")"
+  config_q="$(printf '%q' "$PROJECT_DIR/harness/proxyma-client.json")"
+  prompt_q="$(printf '%q' "$PROJECT_DIR/harness/workflows/vulnerability-management/prompt.md")"
+  launcher_q="$(printf '%q' "$PROJECT_DIR/harness/workflows/vulnerability-management/run-hermes-worker.sh")"
+  profile_q="$(printf '%q' "$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json")"
+  report_q="$(printf '%q' "/var/lib/proxyma-client-vulnerability-management/incoming/latest.csv")"
+  content="$(<"$template_path")"
+  content="${content//__PROJECT_DIR__/$project_q}"
+  content="${content//__VM_WORKFLOW_BIN__/$bin_q}"
+  content="${content//__VM_WORKFLOW_DB__/$db_q}"
+  content="${content//__VM_WORKFLOW_PROXYMA_CONFIG__/$config_q}"
+  content="${content//__VM_WORKFLOW_PROMPT__/$prompt_q}"
+  content="${content//__VM_WORKFLOW_LAUNCHER__/$launcher_q}"
+  content="${content//__VM_WORKFLOW_PROFILE__/$profile_q}"
+  content="${content//__VM_WORKFLOW_REPORT__/$report_q}"
+  if [[ "$content" == *__*__* ]]; then
+    echo "Workflow cron template contains an unresolved placeholder: $template_path" >&2
+    exit 1
+  fi
+  printf '%s\n' "$content" >"$rendered_path"
+  if [[ -L "$destination_path" || -e "$destination_path" ]]; then
+    echo "Refusing unsafe or conflicting configured cron path: $destination_path" >&2
+    exit 1
+  fi
+  install -m 0640 "$rendered_path" "$destination_path"
+}
+
 INSTALLED_BINARY="$BIN_DIR/proxyma-client"
 INSTALLED_VM_WORKFLOW="$BIN_DIR/vm-workflow"
 HARNESS_DIR="$PROJECT_DIR/harness"
@@ -494,6 +530,9 @@ for owned in instruction-pack examples tests .agents .claude generic RELEASE; do
 done
 if [[ "$WITH_VM_WORKFLOW" == true ]]; then
   replace_path "$PAYLOAD_DIR/workflows" "$HARNESS_DIR/workflows"
+  render_workflow_cron \
+    "$HARNESS_DIR/workflows/vulnerability-management/cron.example" \
+    "$HARNESS_DIR/workflows/vulnerability-management/cron"
 fi
 
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
@@ -510,6 +549,10 @@ fi
 echo "Installed proxyma-client at $INSTALLED_BINARY"
 echo "Project directory: $PROJECT_DIR"
 echo "Installed the matching harness at $HARNESS_DIR"
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  echo "Installed vm-workflow at $INSTALLED_VM_WORKFLOW"
+  echo "Generated configured workflow cron file at $HARNESS_DIR/workflows/vulnerability-management/cron"
+fi
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
   echo "Installed the Codex adapter at $ROOT_ADAPTER_PATH"
 elif [[ "$HARNESS_TYPE" == "claude" ]]; then
