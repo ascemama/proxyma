@@ -51,6 +51,7 @@ for required in \
   "$ROOT/harness/.agents" \
   "$ROOT/harness/.claude" \
   "$ROOT/harness/generic" \
+  "$ROOT/harness/workflows" \
   "$ROOT/harness/examples" \
   "$ROOT/harness/instruction-pack" \
   "$ROOT/harness/tests" \
@@ -131,6 +132,7 @@ if [[ "$SOURCE_MODE" == true ]]; then
   copy_worktree_tree harness/.agents
   copy_worktree_tree harness/.claude
   copy_worktree_tree harness/generic
+  copy_worktree_tree harness/workflows
   copy_worktree_tree harness/examples
   copy_worktree_tree harness/instruction-pack
   copy_worktree_tree harness/tests
@@ -138,6 +140,7 @@ else
   copy_tracked_tree harness/.agents
   copy_tracked_tree harness/.claude
   copy_tracked_tree harness/generic
+  copy_tracked_tree harness/workflows
   copy_tracked_tree harness/examples
   copy_tracked_tree harness/instruction-pack
   copy_tracked_tree harness/tests

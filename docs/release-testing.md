@@ -29,10 +29,11 @@ not required.
 
 ### Before publication
 
-The workflow first builds the server, Docker, agent, harness, and installer
-assets. It then assembles one complete `release-assets` workflow artifact,
-generates `SHA256SUMS`, and checks that every expected asset exists and matches
-its checksum.
+The workflow first builds the server, Docker, agent, harness, installer, and
+standalone `vm-workflow` assets. It then assembles one complete
+`release-assets` workflow artifact, generates `SHA256SUMS`, and checks that
+every expected asset exists and matches its checksum. The six
+`vm-workflow` binaries cover Linux, macOS, and Windows on AMD64 and ARM64.
 
 The staged client installer is tested on Ubuntu, macOS, and Windows before a
 GitHub release is created. These tests:
@@ -48,6 +49,12 @@ GitHub release is created. These tests:
 
 If any pre-publication check fails, the publication job is skipped and no
 GitHub release is created.
+
+The client installer smoke test intentionally does not install
+`vm-workflow`: it is an optional companion binary and is not part of the
+`proxyma-client` installer contract. Validate a downloaded workflow binary
+separately with its matching `vm-workflow version` command after verifying its
+entry in `SHA256SUMS`.
 
 ARM64 assets are included in the manifest and checksum checks. They are not
 executed unless a matching ARM64 runner is available.

@@ -12,9 +12,9 @@ The Proxyma server and `proxyma-client` normally run on different machines:
   workstation where Codex or Claude Code runs.
 
 The standalone server installers remain server-only. Every GitHub release
-publishes the client binaries and `proxyma-client-harness.tar.gz` together so the
-client executable, instruction pack, schemas, and adapters come from the same
-release.
+publishes the client binaries, the optional `vm-workflow` binaries, and
+`proxyma-client-harness.tar.gz` together so the client executable, workflow
+binary, instruction pack, schemas, and adapters can come from the same release.
 
 ## Supported client platforms
 
@@ -23,6 +23,15 @@ release.
 | Linux | `proxyma-client-linux-amd64` | `proxyma-client-linux-arm64` | `install-proxyma-client.sh` |
 | macOS | `proxyma-client-darwin-amd64` | `proxyma-client-darwin-arm64` | `install-proxyma-client.sh` |
 | Windows | `proxyma-client-windows-amd64.exe` | `proxyma-client-windows-arm64.exe` | `install-proxyma-client.ps1` |
+
+The optional vulnerability-management workflow has matching standalone
+artifacts:
+
+| Platform | AMD64 asset | ARM64 asset |
+|---|---|---|
+| Linux | `vm-workflow-linux-amd64` | `vm-workflow-linux-arm64` |
+| macOS | `vm-workflow-darwin-amd64` | `vm-workflow-darwin-arm64` |
+| Windows | `vm-workflow-windows-amd64.exe` | `vm-workflow-windows-arm64.exe` |
 
 The POSIX installer requires `curl`, `tar`, `mktemp`, and either `sha256sum` or
 `shasum`. The Windows installer supports Windows PowerShell 5.1 and PowerShell
@@ -195,6 +204,84 @@ Both installers:
 The installers never request or create a signing key and never modify `PATH`.
 If the user-local binary directory is not already on `PATH`, follow the printed
 instruction and restart Codex or Claude Code so it inherits the new environment.
+
+The client installers do not install or configure `vm-workflow`. Install that
+optional companion binary separately, using the same release version as the
+client executable and harness.
+
+### Install the optional `vm-workflow`
+
+`vm-workflow` is useful when Hermes or another harness is managing recurring
+CSV/XLSX vulnerability reports. It owns the workflow database, leases, plans,
+and audit state, while the existing Proxyma client configuration remains the
+source of Proxyma credentials and connectivity. The workflow database,
+downloaded reports, and cron runtime state are deployment data and should not
+be placed in the tracked project or harness package.
+
+The following example installs the Linux AMD64 binary. Replace the asset name
+for macOS, Windows, or ARM64, and use the same exact release as the client and
+harness:
+
+```bash
+version=v1.2.3
+asset=vm-workflow-linux-amd64
+base="https://github.com/ascemama/proxyma/releases/download/$version"
+bin_dir="$HOME/.local/bin"
+mkdir -p "$bin_dir"
+curl -fL -o "$asset" "$base/$asset"
+curl -fL -o SHA256SUMS "$base/SHA256SUMS"
+grep "  $asset$" SHA256SUMS | sha256sum --check
+install -m 0755 "$asset" "$bin_dir/vm-workflow"
+vm-workflow version
+```
+
+On Windows PowerShell:
+
+```powershell
+$Version = "v1.2.3"
+$Asset = "vm-workflow-windows-amd64.exe"
+$Base = "https://github.com/ascemama/proxyma/releases/download/$Version"
+$BinDir = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin"
+$Downloaded = Join-Path $PWD $Asset
+$Checksums = Join-Path $PWD "SHA256SUMS"
+New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+Invoke-WebRequest "$Base/$Asset" -OutFile $Downloaded
+Invoke-WebRequest "$Base/SHA256SUMS" -OutFile $Checksums
+$Expected = (Select-String -Path $Checksums -Pattern "  $([regex]::Escape($Asset))$").Line.Split(' ')[0]
+$Actual = (Get-FileHash $Downloaded -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($Expected.ToLowerInvariant() -ne $Actual) { throw "SHA-256 verification failed" }
+Copy-Item $Downloaded (Join-Path $BinDir "vm-workflow.exe") -Force
+& (Join-Path $BinDir "vm-workflow.exe") version
+```
+
+Install the binary in the same user-local binary directory as
+`proxyma-client`. The workflow binary does not need a second credential file.
+It uses the existing `harness/proxyma-client.json` and its referenced agent
+configuration when `--proxyma-config` is supplied.
+
+After installing the harness and workflow binary, initialize or inspect the
+workflow database outside the repository. For example:
+
+```bash
+PROJECT_DIR="$HOME/projects/my-proxyma-project"
+VM_DB="$HOME/.local/state/proxyma-vulnerability-management/workflow.sqlite"
+PROFILE="$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json"
+PROXYMA_CONFIG="$PROJECT_DIR/harness/proxyma-client.json"
+mkdir -p "$(dirname "$VM_DB")"
+vm-workflow --db "$VM_DB" status
+vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" doctor --check-proxyma
+vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.csv
+vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" reconcile-access
+```
+
+The optional workflow assets are included below
+`harness/workflows/vulnerability-management/` in the harness package. Review
+the [workflow README](../harness/workflows/vulnerability-management/README.md),
+[Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
+[cron example](../harness/workflows/vulnerability-management/cron.example),
+and [workflow documentation](vulnerability-management-workflow.md#operational-setup) before
+enabling scheduled remediation. The cron example runs the static `pulse`
+readiness gate and starts Hermes only when actionable work exists.
 
 ### Install a pinned release or custom location
 
@@ -396,6 +483,7 @@ your-project/
     │   └── agent.example.json   Copy this before creating agent.json
     ├── examples/                Configuration and task examples
     ├── instruction-pack/        Harness policy, CLI contract, schemas, and examples
+    ├── workflows/               Optional vulnerability-management profiles and prompt
     ├── task-state/              CLI-owned durable task state
     ├── tests/                   Validation material and scenarios
     ├── proxyma-client.json       Local harness configuration

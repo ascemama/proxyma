@@ -36,6 +36,17 @@ for required in \
   harness/generic/skills/proxyma-harness/SKILL.md; do
   grep -Fx "$required" "$LISTING" >/dev/null || fail "package is missing $required"
 done
+for required in \
+  harness/workflows/vulnerability-management/README.md \
+  harness/workflows/vulnerability-management/prompt.md \
+  harness/workflows/vulnerability-management/cron.example \
+  harness/workflows/vulnerability-management/run-hermes-worker.sh \
+  harness/workflows/vulnerability-management/schema.sql \
+  harness/workflows/vulnerability-management/profile.schema.json \
+  harness/workflows/vulnerability-management/profiles/nessus-detailed.json \
+  harness/workflows/vulnerability-management/tests/fixtures/nessus-detailed-sample.csv; do
+  grep -Fx "$required" "$LISTING" >/dev/null || fail "package is missing $required"
+done
 
 if grep -F 'df9ec8bb-1a22-4181-a7c8-126ad553221d.json' "$LISTING" >/dev/null; then
   fail "package contains the development credential"

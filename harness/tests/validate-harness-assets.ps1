@@ -61,6 +61,23 @@ Require-Text $codex @("harness/instruction-pack/proxyma-harness.md", "proxyma-cl
 Require-Text $claude @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", "configured", "claude", "task-complete")
 Require-Text $generic @("harness/instruction-pack/proxyma-harness.md", "proxyma-client resume", "configured", "default", "task-complete")
 
+$workflowProfile = Read-Json "harness/workflows/vulnerability-management/profiles/nessus-detailed.json"
+Read-Json "harness/workflows/vulnerability-management/profile.schema.json" | Out-Null
+foreach ($name in @("schema_version", "profile_id", "profile_version", "formats", "columns", "identity_fields", "preserve_unmapped_columns")) {
+    Require-Property $workflowProfile $name "Nessus workflow profile"
+}
+if ($null -ne $workflowProfile -and $workflowProfile.profile_id -ne "nessus-detailed") { Add-Error "Unexpected Nessus workflow profile id" }
+Require-Text "harness/workflows/vulnerability-management/schema.sql" @("reports", "asset_access", "findings", "finding_observations", "instance_key", "remediation_plans", "remediation_steps", "finding_operations", "client_operation_id", "finding_events", "cvss_v4_base_score")
+Require-Text "harness/workflows/vulnerability-management/prompt.md" @("vm-workflow", "operation execute", "remediation plan", "verification", "VM_WORKFLOW_WORKER_ID")
+Require-Text "harness/workflows/vulnerability-management/cron.example" @("flock", "vm-workflow", "proxyma-client", "reconcile-access", "action-required")
+Require-Text "harness/workflows/vulnerability-management/run-hermes-worker.sh" @("VM_WORKFLOW_BIN", "VM_WORKFLOW_DB", "VM_WORKFLOW_PROXYMA_CONFIG", "VM_WORKFLOW_WORKER_ID")
+Require-Text "harness/workflows/vulnerability-management/profiles/nessus-detailed.json" @("Plugin", "Host ID", "CVSS V4 Base Score", "CVSS V3 Base Score")
+
+$workflowSchemaText = Get-Content -LiteralPath (Join-Path $RepoRoot "harness/workflows/vulnerability-management/schema.sql") -Raw
+foreach ($forbiddenCvss in @("cvss_v2_", "cvss_v3_")) {
+    if ($workflowSchemaText.Contains($forbiddenCvss)) { Add-Error "Workflow schema must not normalize $forbiddenCvss fields" }
+}
+
 foreach ($adapter in @($codex, $claude, $generic)) {
     $length = (Get-Content -LiteralPath (Join-Path $RepoRoot $adapter) -Raw).Length
     if ($length -ge 4000) { Add-Error "$adapter exceeds the 4,000-character adapter budget ($length)" }

@@ -201,6 +201,15 @@ type commandError struct {
 
 func (e *commandError) Error() string { return e.message }
 
+// ErrorCode exposes the stable machine-readable code to in-process workflow
+// integrations without changing the proxyma-client CLI envelope.
+func ErrorCode(err error) string {
+	if typed, ok := err.(*commandError); ok {
+		return typed.code
+	}
+	return ""
+}
+
 func cliError(code, message string, exitCode int) *commandError {
 	return &commandError{code: code, message: message, exitCode: exitCode}
 }

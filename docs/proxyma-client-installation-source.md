@@ -115,6 +115,33 @@ POSIX shell script):
 & bash ./scripts/package-client-harness.sh
 ```
 
+The package includes the optional vulnerability-management assets under
+`harness/workflows/vulnerability-management/`. It does not include workflow
+databases, downloaded reports, Proxyma credentials, or client task state.
+
+## Build the optional `vm-workflow` executable
+
+`vm-workflow` is a separate optional companion to `proxyma-client`. Build it
+from the same checkout and revision as the client and harness so their release
+metadata and workflow contract stay aligned.
+
+Linux or macOS:
+
+```bash
+OUT_DIR="$PWD/dist" bash ./scripts/build-vm-workflow-release.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\build-vm-workflow-release.ps1 -OutDir .\dist
+```
+
+The expected local output is `dist/vm-workflow-linux-amd64`,
+`dist/vm-workflow-darwin-arm64`, or the matching `windows`/architecture name.
+The scripts also accept `GOOS`, `GOARCH`, `PROXYMA_VERSION`, and
+`PROXYMA_COMMIT` for cross-platform or reproducible builds.
+
 The same automatic source metadata behavior applies on Windows. Set the
 corresponding environment variables before invoking the script when custom or
 reproducible metadata is required.
@@ -189,6 +216,45 @@ $SkillDir = Join-Path $HOME ".hermes\skills"
 The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
 Linux or macOS, or `%LOCALAPPDATA%\Programs\Proxyma\bin` on Windows, to
 `PATH`, then open a new terminal and restart Codex or Claude Code.
+
+Install the optional workflow executable in the same binary directory as the
+client. Linux or macOS:
+
+```bash
+install -m 0755 "dist/vm-workflow-$(go env GOOS)-$(go env GOARCH)" \
+  "$HOME/.local/bin/vm-workflow"
+vm-workflow version
+```
+
+Windows PowerShell:
+
+```powershell
+$VmAsset = ".\dist\vm-workflow-$(& go env GOOS)-$(& go env GOARCH).exe"
+$VmPath = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin\vm-workflow.exe"
+Copy-Item $VmAsset $VmPath -Force
+& $VmPath version
+```
+
+The client installer does not install or configure `vm-workflow`. Configure it
+with the existing client configuration and keep its database outside the
+tracked checkout:
+
+```bash
+VM_DB="$HOME/.local/state/proxyma-vulnerability-management/workflow.sqlite"
+PROJECT_DIR="$PWD"
+PROFILE="$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json"
+PROXYMA_CONFIG="$PROJECT_DIR/harness/proxyma-client.json"
+mkdir -p "$(dirname "$VM_DB")"
+vm-workflow --db "$VM_DB" status
+vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" doctor --check-proxyma
+vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.csv
+```
+
+See the [workflow README](../harness/workflows/vulnerability-management/README.md),
+[Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
+[cron example](../harness/workflows/vulnerability-management/cron.example),
+and [workflow documentation](vulnerability-management-workflow.md#operational-setup) for report
+imports, access reconciliation, scheduled pulses, backups, and recovery.
 
 After installation, first edit `harness/proxyma-client.json` and replace the
 example `proxyma_base_url` value with the URL of the running Proxyma server.
