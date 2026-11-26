@@ -286,7 +286,7 @@ vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.cs
 See the [workflow README](../harness/workflows/vulnerability-management/README.md),
 [Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
 [cron example](../harness/workflows/vulnerability-management/cron.example),
-and [workflow documentation](vulnerability-management-workflow.md#operational-setup) for report
+and [workflow documentation](vulnerability-management-workflow.md#install-and-enable-the-workflow) for report
 imports, access reconciliation, scheduled pulses, backups, and recovery.
 
 After installation, first edit `harness/proxyma-client.json` and replace the

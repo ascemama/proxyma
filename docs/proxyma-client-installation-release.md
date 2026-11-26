@@ -318,7 +318,7 @@ After this opt-in installation, review
 the [workflow README](../harness/workflows/vulnerability-management/README.md),
 [Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
 [cron example](../harness/workflows/vulnerability-management/cron.example),
-and [workflow documentation](vulnerability-management-workflow.md#operational-setup) before
+and [workflow documentation](vulnerability-management-workflow.md#install-and-enable-the-workflow) before
 enabling scheduled remediation. The cron example runs the static `pulse`
 readiness gate and starts Hermes only when actionable work exists.
 
