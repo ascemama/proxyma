@@ -152,6 +152,10 @@ grep -F 'VM_WORKFLOW_WORKER_ID' "$workflow_doc" >/dev/null || fail "workflow doc
 grep -F 'generates the' "$workflow_doc" >/dev/null || fail "workflow documentation omits configured cron output"
 grep -F 'installer does not modify the active' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab safety"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker ID contract"
+grep -F 'The values are inherited by the shell used for terminal commands' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt does not explain inherited environment"
+grep -F 'test -n "${VM_WORKFLOW_BIN:-}"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits binary environment preflight"
+grep -F 'test -n "${VM_WORKFLOW_WORKER_ID:-}"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker environment preflight"
+grep -F 'test -x "$VM_WORKFLOW_BIN"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits binary validation"
 grep -F 'PROJECT_DIR must identify' "$worker_launcher" >/dev/null || fail "worker launcher does not require PROJECT_DIR"
 if env -u PROJECT_DIR bash "$worker_launcher" >/dev/null 2>&1; then
   fail "worker launcher accepted a missing PROJECT_DIR"
