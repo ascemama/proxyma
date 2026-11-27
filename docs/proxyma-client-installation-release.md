@@ -189,9 +189,10 @@ Both installers:
 
 1. Detect the native operating system and AMD64 or ARM64 architecture.
 2. Download that binary, `proxyma-client-harness.tar.gz`, and `SHA256SUMS` from
-   one release.
+   one release. With `--with-vm-workflow`/`-WithVMWorkflow`, they also download
+   the matching `vm-workflow` asset.
 3. Require exactly one valid checksum entry for each downloaded payload and
-   verify both SHA-256 hashes.
+   verify every SHA-256 hash.
 4. Reject unsafe archive paths, links, special files, and unsafe install
    destinations.
 5. Install the binary for the current user and create or refresh `harness/`
@@ -205,9 +206,12 @@ The installers never request or create a signing key and never modify `PATH`.
 If the user-local binary directory is not already on `PATH`, follow the printed
 instruction and restart Codex or Claude Code so it inherits the new environment.
 
-The client installers do not install or configure `vm-workflow`. Install that
-optional companion binary separately, using the same release version as the
-client executable and harness.
+By default, the client installers do not install `vm-workflow` or copy the
+optional workflow assets. When `--with-vm-workflow`/`-WithVMWorkflow` is used,
+the installer installs the matching `vm-workflow` executable beside
+`proxyma-client` and copies the workflow assets into the project harness.
+The opt-in workflow components must come from the same release as the client
+executable and harness.
 
 ### Install the optional `vm-workflow`
 
@@ -218,9 +222,21 @@ source of Proxyma credentials and connectivity. The workflow database,
 downloaded reports, and cron runtime state are deployment data and should not
 be placed in the tracked project or harness package.
 
-The following example installs the Linux AMD64 binary. Replace the asset name
-for macOS, Windows, or ARM64, and use the same exact release as the client and
-harness:
+The installer can perform the complete opt-in installation. For example:
+
+```bash
+bash ./install-proxyma-client.sh \
+  --version v1.2.3 \
+  --project-dir "$PROJECT_DIR" \
+  --with-vm-workflow
+```
+
+This installs the matching binary in the same directory as `proxyma-client`
+and copies `harness/workflows/vulnerability-management/` into the project.
+
+If the binary must be downloaded manually, use the following fallback. Replace
+the asset name for macOS, Windows, or ARM64, and use the same exact release as
+the client executable and harness:
 
 ```bash
 version=v1.2.3
@@ -264,10 +280,11 @@ workflow database outside the repository. For example:
 
 ```bash
 PROJECT_DIR="$HOME/projects/my-proxyma-project"
-VM_DB="$HOME/.local/state/proxyma-vulnerability-management/workflow.sqlite"
+VM_DB="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"
 PROFILE="$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json"
 PROXYMA_CONFIG="$PROJECT_DIR/harness/proxyma-client.json"
-mkdir -p "$(dirname "$VM_DB")"
+sudo install -d -m 0750 "$(dirname "$VM_DB")"
+sudo chown "$USER":"$(id -gn)" "$(dirname "$VM_DB")"
 vm-workflow --db "$VM_DB" status
 vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" doctor --check-proxyma
 vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.csv
@@ -275,13 +292,38 @@ vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" reconcile-access
 ```
 
 The optional workflow assets are included below
-`harness/workflows/vulnerability-management/` in the harness package. Review
+`harness/workflows/vulnerability-management/` in the harness package, but the
+client installer does not copy them unless explicitly requested. To install
+them into the project harness, add `--with-vm-workflow` to the POSIX installer:
+
+```bash
+bash ./install-proxyma-client.sh \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR" \
+  --with-vm-workflow
+```
+
+On Windows PowerShell, use `-WithVMWorkflow`:
+
+```powershell
+.\install-proxyma-client.ps1 `
+  -HarnessType Generic `
+  -SkillDir $SkillDir `
+  -ProjectDir $ProjectDir `
+  -WithVMWorkflow
+```
+
+After this opt-in installation, review
 the [workflow README](../harness/workflows/vulnerability-management/README.md),
 [Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
 [cron example](../harness/workflows/vulnerability-management/cron.example),
-and [workflow documentation](vulnerability-management-workflow.md#operational-setup) before
-enabling scheduled remediation. The cron example runs the static `pulse`
-readiness gate and starts Hermes only when actionable work exists.
+and [workflow documentation](vulnerability-management-workflow.md#install-and-enable-the-workflow) before
+enabling scheduled remediation. On POSIX, the opt-in installer also generates
+a project-local configured `cron` file; review it and copy it into `crontab -e`.
+On Windows, configure equivalent Task Scheduler actions.
+The cron example runs the static `pulse` readiness gate and starts Hermes only
+when actionable work exists.
 
 ### Install a pinned release or custom location
 

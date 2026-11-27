@@ -116,8 +116,10 @@ POSIX shell script):
 ```
 
 The package includes the optional vulnerability-management assets under
-`harness/workflows/vulnerability-management/`. It does not include workflow
-databases, downloaded reports, Proxyma credentials, or client task state.
+`harness/workflows/vulnerability-management/`. The client installer does not
+copy those assets unless explicitly requested with `--with-vm-workflow` (or
+`-WithVMWorkflow` on Windows). It does not include workflow databases,
+downloaded reports, Proxyma credentials, or client task state.
 
 ## Build the optional `vm-workflow` executable
 
@@ -153,6 +155,12 @@ directory receives `harness/` and must be used as the harness working directory.
 For a neutral harness, also set `SKILL_DIR` to the parent skill discovery
 directory. Use a separate project directory if the source checkout is only a
 build checkout.
+
+Choose one of the following installation paths before running the installer.
+The first path installs only `proxyma-client`; the second path installs the
+optional `vm-workflow` executable and vulnerability-management assets as well.
+
+### Install without `vm-workflow`
 
 Linux or macOS:
 
@@ -213,12 +221,56 @@ $SkillDir = Join-Path $HOME ".hermes\skills"
   -BinDir $BinDir
 ```
 
-The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
+### Install with `vm-workflow`
+
+Choose this path when the project will use the vulnerability-management
+workflow. It installs the matching `vm-workflow` executable beside
+`proxyma-client` and copies the workflow assets into
+`$PROJECT_DIR/harness/workflows/vulnerability-management/`. POSIX:
+
+```bash
+PROJECT_DIR="$PWD"                         # change this when needed
+BIN_DIR="$HOME/.local/bin"
+ASSET="dist/proxyma-client-$(go env GOOS)-$(go env GOARCH)"
+SKILL_DIR="$HOME/.hermes/skills"
+VM_WORKFLOW_ASSET="dist/vm-workflow-$(go env GOOS)-$(go env GOARCH)"
+
+bash ./scripts/install-proxyma-client.sh \
+  --binary "$ASSET" \
+  --harness "$PWD/dist/proxyma-client-harness.tar.gz" \
+  --vm-workflow "$VM_WORKFLOW_ASSET" \
+  --harness-type generic \
+  --skill-dir "$SKILL_DIR" \
+  --project-dir "$PROJECT_DIR" \
+  --with-vm-workflow
+```
+
+Windows PowerShell:
+
+```powershell
+$ProjectDir = (Get-Location).Path       # change this when needed
+$BinDir = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin"
+$Asset = ".\dist\proxyma-client-$(& go env GOOS)-$(& go env GOARCH).exe"
+$SkillDir = Join-Path $HOME ".hermes\skills"
+$VmAsset = ".\dist\vm-workflow-$(& go env GOOS)-$(& go env GOARCH).exe"
+
+.\scripts\install-proxyma-client.ps1 `
+  -Binary $Asset `
+  -Harness ".\dist\proxyma-client-harness.tar.gz" `
+  -VMWorkflow $VmAsset `
+  -HarnessType Generic `
+  -SkillDir $SkillDir `
+  -ProjectDir $ProjectDir `
+  -WithVMWorkflow
+```
+
+The installer places `vm-workflow` in the same binary directory as
+`proxyma-client` when the opt-in flag is used. The source installation does not modify `PATH`. Add `$HOME/.local/bin` on
 Linux or macOS, or `%LOCALAPPDATA%\Programs\Proxyma\bin` on Windows, to
 `PATH`, then open a new terminal and restart Codex or Claude Code.
 
-Install the optional workflow executable in the same binary directory as the
-client. Linux or macOS:
+If the workflow was not installed through the opt-in installer, it can still
+be installed manually in the same binary directory as the client. Linux or macOS:
 
 ```bash
 install -m 0755 "dist/vm-workflow-$(go env GOOS)-$(go env GOARCH)" \
@@ -235,16 +287,16 @@ Copy-Item $VmAsset $VmPath -Force
 & $VmPath version
 ```
 
-The client installer does not install or configure `vm-workflow`. Configure it
-with the existing client configuration and keep its database outside the
-tracked checkout:
+Configure the workflow with the existing client configuration and keep its
+database outside the tracked checkout:
 
 ```bash
-VM_DB="$HOME/.local/state/proxyma-vulnerability-management/workflow.sqlite"
-PROJECT_DIR="$PWD"
+PROJECT_DIR="$PWD"                         # change this to the installed project directory
+VM_DB="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"
 PROFILE="$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json"
 PROXYMA_CONFIG="$PROJECT_DIR/harness/proxyma-client.json"
-mkdir -p "$(dirname "$VM_DB")"
+sudo install -d -m 0750 "$(dirname "$VM_DB")"
+sudo chown "$USER":"$(id -gn)" "$(dirname "$VM_DB")"
 vm-workflow --db "$VM_DB" status
 vm-workflow --db "$VM_DB" --proxyma-config "$PROXYMA_CONFIG" doctor --check-proxyma
 vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.csv
@@ -253,8 +305,11 @@ vm-workflow --db "$VM_DB" import --profile "$PROFILE" --input /path/to/report.cs
 See the [workflow README](../harness/workflows/vulnerability-management/README.md),
 [Hermes prompt](../harness/workflows/vulnerability-management/prompt.md),
 [cron example](../harness/workflows/vulnerability-management/cron.example),
-and [workflow documentation](vulnerability-management-workflow.md#operational-setup) for report
-imports, access reconciliation, scheduled pulses, backups, and recovery.
+and [workflow documentation](vulnerability-management-workflow.md#install-and-enable-the-workflow) for report
+imports, access reconciliation, scheduled pulses, backups, and recovery. On
+POSIX, the opt-in installer generates a project-local configured `cron` file;
+review it and copy it into `crontab -e`. On Windows, configure equivalent
+Task Scheduler actions.
 
 After installation, first edit `harness/proxyma-client.json` and replace the
 example `proxyma_base_url` value with the URL of the running Proxyma server.
@@ -267,6 +322,61 @@ Then copy `harness/agent-configuration/agent.example.json` to `agent.json`
 and fill in the agent UUID and signing key created in the Proxyma GUI. The
 example is included with the harness package; the real credential file is
 local-only.
+
+## Remove the source installation
+
+Stop any Hermes workers before removing the installed components. Disable the
+workflow's cron entries or Windows Task Scheduler jobs so they cannot start a
+new worker while the installation is being removed. The detailed workflow
+cleanup choices are documented in [workflow uninstallation](vulnerability-management-workflow.md#5-uninstall).
+
+The source installation has two separate parts: executables installed in the
+configured binary directory, and the source checkout/project harness. Remove
+only the parts that are no longer needed. For a POSIX installation using the
+variables from this guide:
+
+```bash
+PROJECT_DIR="$PWD"
+BIN_DIR="$HOME/.local/bin"
+
+rm -f "$BIN_DIR/proxyma-client"
+rm -f "$BIN_DIR/vm-workflow"
+```
+
+For a Windows PowerShell installation:
+
+```powershell
+Remove-Item -LiteralPath (Join-Path $BinDir "proxyma-client.exe") -Force
+Remove-Item -LiteralPath (Join-Path $BinDir "vm-workflow.exe") -Force
+```
+
+The `vm-workflow` removal is needed only when the optional workflow was
+installed. Removing these binaries does not remove the source checkout,
+`dist/` build artifacts, the project harness, the workflow database, downloaded
+reports, backups, Proxyma credentials, or Proxyma client state. Remove the
+project harness/adapters only when the project no longer uses them. Keep the
+source checkout and `dist/` unless you explicitly want to remove the build
+checkout; deleting the checkout is independent from uninstalling the binaries.
+
+### Optional workflow cleanup
+
+Choose the cleanup level deliberately:
+
+- **Safe cleanup:** remove the scheduled jobs and installed binaries, but
+  preserve `workflow.sqlite`, reports, backups, and
+  `harness/workflows/vulnerability-management/`. A later reinstall can then
+  resume the existing workflow state.
+- **Complete workflow purge:** back up the database first, then remove
+  `harness/workflows/vulnerability-management/` and remove the workflow state
+  directory only after explicit confirmation. This deletes remediation plans,
+  audit history, report observations, downloaded reports, and Proxyma operation
+  links. Follow the detailed [complete workflow purge guidance](vulnerability-management-workflow.md#5-uninstall)
+  before doing so.
+
+Treat the workflow database, reports, backups, and Proxyma client
+configuration as deployment data, not source-installation binaries. Preserve
+or remove them separately according to the retention and recovery requirements
+of the deployment.
 
 ## After installation
 

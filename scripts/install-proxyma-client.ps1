@@ -6,7 +6,9 @@ param(
     [string]$Binary = "",
     [string]$Harness = "",
     [string]$HarnessType = "",
-    [string]$SkillDir = ""
+    [string]$SkillDir = "",
+    [switch]$WithVMWorkflow,
+    [string]$VMWorkflow = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,6 +21,9 @@ if ($HarnessType -eq "generic" -and [string]::IsNullOrWhiteSpace($SkillDir)) {
 }
 if ($HarnessType -ne "generic" -and -not [string]::IsNullOrWhiteSpace($SkillDir)) {
     throw "-SkillDir is only valid with -HarnessType Generic."
+}
+if (-not [string]::IsNullOrWhiteSpace($VMWorkflow) -and -not $WithVMWorkflow) {
+    throw "-VMWorkflow requires -WithVMWorkflow."
 }
 $RepositoryUrl = if ($env:PROXYMA_RELEASE_BASE_URL) { $env:PROXYMA_RELEASE_BASE_URL.TrimEnd('/') } else { "https://github.com/ascemama/proxyma" }
 $ArchiveName = "proxyma-client-harness.tar.gz"
@@ -98,6 +103,24 @@ function Replace-InstalledPath([string]$Source, [string]$Destination) {
     if (Test-Path -LiteralPath $backupPath) { Remove-Item -LiteralPath $backupPath -Recurse -Force }
 }
 
+function ConvertTo-ShellSingleQuoted([string]$Value) {
+    return "'" + $Value.Replace("'", "'\''") + "'"
+}
+
+function Render-WorkflowPrompt([string]$Template, [string]$Destination, [string]$InstalledVmWorkflow, [string]$WorkflowDb, [string]$ProxymaConfig) {
+    $content = Get-Content -LiteralPath $Template -Raw
+    $content = $content.Replace("__VM_WORKFLOW_BIN__", (ConvertTo-ShellSingleQuoted $InstalledVmWorkflow))
+    $content = $content.Replace("__VM_WORKFLOW_DB__", (ConvertTo-ShellSingleQuoted $WorkflowDb))
+    $content = $content.Replace("__VM_WORKFLOW_PROXYMA_CONFIG__", (ConvertTo-ShellSingleQuoted $ProxymaConfig))
+    if ($content.Contains("__VM_WORKFLOW_BIN__") -or $content.Contains("__VM_WORKFLOW_DB__") -or $content.Contains("__VM_WORKFLOW_PROXYMA_CONFIG__")) {
+        throw "Workflow prompt contains an unresolved static placeholder: $Template"
+    }
+    if (-not $content.Contains("__VM_WORKFLOW_WORKER_ID__")) {
+        throw "Workflow prompt is missing the worker-ID marker: $Template"
+    }
+    Set-Content -LiteralPath $Destination -Value $content -NoNewline
+}
+
 $localMode = -not [string]::IsNullOrWhiteSpace($Binary) -or -not [string]::IsNullOrWhiteSpace($Harness)
 if ($localMode) {
     if ([string]::IsNullOrWhiteSpace($Binary) -or [string]::IsNullOrWhiteSpace($Harness)) {
@@ -105,11 +128,15 @@ if ($localMode) {
     }
     if (-not (Test-Path -LiteralPath $Binary -PathType Leaf)) { throw "Local binary must be a regular file: $Binary" }
     if (-not (Test-Path -LiteralPath $Harness -PathType Leaf)) { throw "Local harness archive must be a regular file: $Harness" }
+    if ($WithVMWorkflow -and [string]::IsNullOrWhiteSpace($VMWorkflow)) { throw "Local -WithVMWorkflow installation requires -VMWorkflow PATH." }
+    if ($WithVMWorkflow -and -not (Test-Path -LiteralPath $VMWorkflow -PathType Leaf)) { throw "Local vm-workflow must be a regular file: $VMWorkflow" }
     Assert-NotReparsePoint $Binary "Local binary"
     Assert-NotReparsePoint $Harness "Local harness archive"
+    if ($WithVMWorkflow) { Assert-NotReparsePoint $VMWorkflow "Local vm-workflow" }
 }
 else {
     Test-Version $Version
+    if ($WithVMWorkflow -and -not [string]::IsNullOrWhiteSpace($VMWorkflow)) { throw "-VMWorkflow is only valid with local -Binary and -Harness artifacts." }
 }
 if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA) -and [string]::IsNullOrWhiteSpace($BinDir)) {
     throw "LOCALAPPDATA is required when -BinDir is not supplied."
@@ -150,25 +177,31 @@ New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 $BinDir = (Resolve-Path -LiteralPath $BinDir).Path
 
 $binaryName = "proxyma-client-windows-$targetArch.exe"
+$vmWorkflowName = if ($WithVMWorkflow) { "vm-workflow-windows-$targetArch.exe" } else { "" }
 $tempDir = Join-Path ([IO.Path]::GetTempPath()) ("proxyma-client-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 try {
     $binaryPath = Join-Path $tempDir $binaryName
     $archivePath = Join-Path $tempDir $ArchiveName
     $checksumPath = Join-Path $tempDir "SHA256SUMS"
+    $vmWorkflowPath = if ($WithVMWorkflow) { Join-Path $tempDir $vmWorkflowName } else { "" }
     if (-not [string]::IsNullOrWhiteSpace($Binary)) {
         Copy-Item -LiteralPath $Binary -Destination $binaryPath
         Copy-Item -LiteralPath $Harness -Destination $archivePath
+        if ($WithVMWorkflow) { Copy-Item -LiteralPath $VMWorkflow -Destination $vmWorkflowPath }
         Write-Host "Installing local proxyma-client artifacts for windows/$targetArch..."
     }
     else {
         $releaseUrl = if ($Version -eq "latest") { "$RepositoryUrl/releases/latest/download" } else { "$RepositoryUrl/releases/download/$Version" }
         Write-Host "Downloading proxyma-client $Version for windows/$targetArch..."
-        foreach ($assetName in @($binaryName, $ArchiveName, "SHA256SUMS")) {
+        $assets = @($binaryName, $ArchiveName, "SHA256SUMS")
+        if ($WithVMWorkflow) { $assets += $vmWorkflowName }
+        foreach ($assetName in $assets) {
             Copy-ReleaseAsset "$releaseUrl/$assetName" (Join-Path $tempDir $assetName)
         }
         Confirm-Checksum $checksumPath $binaryPath $binaryName
         Confirm-Checksum $checksumPath $archivePath $ArchiveName
+        if ($WithVMWorkflow) { Confirm-Checksum $checksumPath $vmWorkflowPath $vmWorkflowName }
     }
 
     $entries = @(& tar -tzf $archivePath)
@@ -202,8 +235,14 @@ try {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Harness archive is missing required file: $relative" }
         Assert-NotReparsePoint $required "Harness payload file"
     }
+    $workflowPayload = Join-Path $payloadDir "workflows"
+    if ($WithVMWorkflow -and -not (Test-Path -LiteralPath $workflowPayload -PathType Container)) {
+        throw "Harness archive is missing optional workflow assets: workflows"
+    }
+    if ($WithVMWorkflow) { Assert-NotReparsePoint $workflowPayload "Workflow harness payload" }
 
     $installedBinary = Join-Path $BinDir "proxyma-client.exe"
+    $installedVMWorkflow = Join-Path $BinDir "vm-workflow.exe"
     $harnessDir = Join-Path $ProjectDir "harness"
     $rootAdapterDir = ""
     $rootAdapterPath = ""
@@ -226,6 +265,12 @@ try {
     Assert-NotReparsePoint $installedBinary "Installed binary"
     if ((Test-Path -LiteralPath $installedBinary) -and -not (Test-Path -LiteralPath $installedBinary -PathType Leaf)) {
         throw "Installed binary target must be a regular file: $installedBinary"
+    }
+    if ($WithVMWorkflow) {
+        Assert-NotReparsePoint $installedVMWorkflow "Installed vm-workflow"
+        if ((Test-Path -LiteralPath $installedVMWorkflow) -and -not (Test-Path -LiteralPath $installedVMWorkflow -PathType Leaf)) {
+            throw "Installed vm-workflow target must be a regular file: $installedVMWorkflow"
+        }
     }
     Assert-NotReparsePoint $harnessDir "Harness target"
     if ((Test-Path -LiteralPath $harnessDir) -and -not (Test-Path -LiteralPath $harnessDir -PathType Container)) {
@@ -276,6 +321,8 @@ try {
         (Join-Path $harnessDir "RELEASE"),
         $installedBinary
     )
+    if ($WithVMWorkflow) { $ownedDestinations += $installedVMWorkflow }
+    if ($WithVMWorkflow) { $ownedDestinations += (Join-Path $harnessDir "workflows") }
     if ($HarnessType) { $ownedDestinations += $rootAdapterPath }
     foreach ($destination in $ownedDestinations) {
         Assert-NotReparsePoint $destination "Install destination"
@@ -284,7 +331,21 @@ try {
         }
     }
 
+    if ($WithVMWorkflow) {
+        $workflowStateRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Proxyma\vulnerability-management" } else { Join-Path $ProjectDir "workflow-state" }
+        $workflowDb = Join-Path $workflowStateRoot "workflow.sqlite"
+        $proxymaConfig = Join-Path $ProjectDir "harness\proxyma-client.json"
+        $configuredPrompt = Join-Path $tempDir "configured-prompt.md"
+        Render-WorkflowPrompt (Join-Path $workflowPayload "vulnerability-management\prompt.md") $configuredPrompt $installedVMWorkflow $workflowDb $proxymaConfig
+        Copy-Item -LiteralPath $configuredPrompt -Destination (Join-Path $workflowPayload "vulnerability-management\prompt.md") -Force
+    }
+
     Replace-InstalledPath $binaryPath $installedBinary
+    if ($WithVMWorkflow) {
+        Replace-InstalledPath $vmWorkflowPath $installedVMWorkflow
+        $versionOutput = & $installedVMWorkflow version
+        if ($LASTEXITCODE -ne 0) { throw "Installed vm-workflow failed its version check: $installedVMWorkflow" }
+    }
     New-Item -ItemType Directory -Force -Path $harnessDir | Out-Null
     if (-not (Test-Path -LiteralPath $configPath)) {
         Copy-Item -LiteralPath (Join-Path $payloadDir "proxyma-client.json") -Destination $configPath
@@ -297,6 +358,9 @@ try {
     }
     foreach ($owned in @("instruction-pack", "examples", "tests", ".agents", ".claude", "generic", "RELEASE")) {
         Replace-InstalledPath (Join-Path $payloadDir $owned) (Join-Path $harnessDir $owned)
+    }
+    if ($WithVMWorkflow) {
+        Replace-InstalledPath $workflowPayload (Join-Path $harnessDir "workflows")
     }
     if ($HarnessType) {
         New-Item -ItemType Directory -Force -Path $rootAdapterDir | Out-Null

@@ -10,8 +10,10 @@ TARGET_ARCH="${PROXYMA_CLIENT_ARCH:-}"
 ARCHIVE_NAME="proxyma-client-harness.tar.gz"
 LOCAL_BINARY=""
 LOCAL_HARNESS=""
+LOCAL_VM_WORKFLOW=""
 HARNESS_TYPE=""
 SKILL_DIR=""
+WITH_VM_WORKFLOW=false
 
 usage() {
   cat <<'EOF'
@@ -27,8 +29,10 @@ Options:
   --bin-dir DIR        Install proxyma-client in DIR (default: $HOME/.local/bin).
   --binary PATH        Install this locally built executable instead of downloading one.
   --harness PATH       Install this locally built harness archive instead of downloading one.
+  --vm-workflow PATH   Install this locally built vm-workflow executable.
   --harness-type TYPE  Install the adapter for codex, claude, or generic (optional).
   --skill-dir DIR      Install the generic skill below DIR (required for generic).
+  --with-vm-workflow   Install vm-workflow and copy optional workflow assets.
   -h, --help           Show this help text.
 
 The installer does not accept credentials and does not modify PATH.
@@ -91,6 +95,12 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --harness=*) LOCAL_HARNESS="${1#*=}"; shift ;;
+    --vm-workflow)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "--vm-workflow requires a path." >&2; exit 2; }
+      LOCAL_VM_WORKFLOW="$2"
+      shift 2
+      ;;
+    --vm-workflow=*) LOCAL_VM_WORKFLOW="${1#*=}"; shift ;;
     --harness-type)
       [[ $# -ge 2 && -n "$2" ]] || { echo "--harness-type requires codex, claude, or generic." >&2; exit 2; }
       HARNESS_TYPE="$2"
@@ -103,10 +113,16 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --skill-dir=*) SKILL_DIR="${1#*=}"; shift ;;
+    --with-vm-workflow) WITH_VM_WORKFLOW=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+if [[ -n "$LOCAL_VM_WORKFLOW" && "$WITH_VM_WORKFLOW" != true ]]; then
+  echo "--vm-workflow requires --with-vm-workflow." >&2
+  exit 2
+fi
 
 case "$HARNESS_TYPE" in
   ""|codex|claude|generic) ;;
@@ -128,6 +144,14 @@ if [[ -n "$LOCAL_BINARY" || -n "$LOCAL_HARNESS" ]]; then
   }
 else
   validate_version "$VERSION"
+fi
+if [[ "$WITH_VM_WORKFLOW" == true && -n "$LOCAL_BINARY" && -z "$LOCAL_VM_WORKFLOW" ]]; then
+  echo "local --with-vm-workflow installation requires --vm-workflow PATH." >&2
+  exit 2
+fi
+if [[ "$WITH_VM_WORKFLOW" == true && -z "$LOCAL_BINARY" && -n "$LOCAL_VM_WORKFLOW" ]]; then
+  echo "--vm-workflow is only valid with local --binary and --harness artifacts." >&2
+  exit 2
 fi
 
 for command_name in tar mktemp; do
@@ -194,12 +218,25 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 BINARY_PATH="$TEMP_DIR/$BINARY_NAME"
 ARCHIVE_PATH="$TEMP_DIR/$ARCHIVE_NAME"
 CHECKSUM_PATH="$TEMP_DIR/SHA256SUMS"
+VM_WORKFLOW_BINARY_NAME=""
+VM_WORKFLOW_BINARY_PATH=""
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  VM_WORKFLOW_BINARY_NAME="vm-workflow-$TARGET_OS-$TARGET_ARCH"
+  [[ "$TARGET_OS" == "windows" ]] && VM_WORKFLOW_BINARY_NAME+=".exe"
+  VM_WORKFLOW_BINARY_PATH="$TEMP_DIR/$VM_WORKFLOW_BINARY_NAME"
+fi
 
 if [[ -n "$LOCAL_BINARY" ]]; then
   [[ -f "$LOCAL_BINARY" && ! -L "$LOCAL_BINARY" ]] || { echo "Local binary must be a regular file and not a symbolic link: $LOCAL_BINARY" >&2; exit 1; }
   [[ -f "$LOCAL_HARNESS" && ! -L "$LOCAL_HARNESS" ]] || { echo "Local harness archive must be a regular file and not a symbolic link: $LOCAL_HARNESS" >&2; exit 1; }
+  if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+    [[ -f "$LOCAL_VM_WORKFLOW" && ! -L "$LOCAL_VM_WORKFLOW" && -x "$LOCAL_VM_WORKFLOW" ]] || { echo "Local vm-workflow must be an executable regular file and not a symbolic link: $LOCAL_VM_WORKFLOW" >&2; exit 1; }
+  fi
   cp "$LOCAL_BINARY" "$BINARY_PATH"
   cp "$LOCAL_HARNESS" "$ARCHIVE_PATH"
+  if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+    cp "$LOCAL_VM_WORKFLOW" "$VM_WORKFLOW_BINARY_PATH"
+  fi
   echo "Installing local proxyma-client artifacts for $TARGET_OS/$TARGET_ARCH..."
 else
   if [[ "$VERSION" == "latest" ]]; then
@@ -208,7 +245,11 @@ else
     RELEASE_URL="$REPOSITORY_URL/releases/download/$VERSION"
   fi
   echo "Downloading proxyma-client $VERSION for $TARGET_OS/$TARGET_ARCH..."
-  for asset_name in "$BINARY_NAME" "$ARCHIVE_NAME" "SHA256SUMS"; do
+  release_assets=("$BINARY_NAME" "$ARCHIVE_NAME" "SHA256SUMS")
+  if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+    release_assets+=("$VM_WORKFLOW_BINARY_NAME")
+  fi
+  for asset_name in "${release_assets[@]}"; do
     curl --fail --location --silent --show-error --retry 3 \
       --output "$TEMP_DIR/$asset_name" "$RELEASE_URL/$asset_name"
   done
@@ -243,6 +284,9 @@ verify_checksum() {
 if [[ -z "$LOCAL_BINARY" ]]; then
   verify_checksum "$BINARY_NAME" "$BINARY_PATH"
   verify_checksum "$ARCHIVE_NAME" "$ARCHIVE_PATH"
+  if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+    verify_checksum "$VM_WORKFLOW_BINARY_NAME" "$VM_WORKFLOW_BINARY_PATH"
+  fi
 fi
 
 while IFS= read -r entry; do
@@ -278,6 +322,10 @@ for required in \
     exit 1
   fi
 done
+if [[ "$WITH_VM_WORKFLOW" == true && ! -d "$PAYLOAD_DIR/workflows" ]]; then
+  echo "Harness archive is missing optional workflow assets: $PAYLOAD_DIR/workflows" >&2
+  exit 1
+fi
 
 replace_path() {
   local source_path="$1"
@@ -300,7 +348,66 @@ replace_path() {
   [[ ! -e "$backup_path" ]] || rm -rf "$backup_path"
 }
 
+render_workflow_cron() {
+  local template_path="$1"
+  local destination_path="$2"
+  local content
+  local project_q bin_q db_q config_q prompt_q launcher_q profile_q report_q
+
+  project_q="$(printf '%q' "$PROJECT_DIR")"
+  bin_q="$(printf '%q' "$INSTALLED_VM_WORKFLOW")"
+  db_q="$(printf '%q' "/var/lib/proxyma-client-vulnerability-management/workflow.sqlite")"
+  config_q="$(printf '%q' "$PROJECT_DIR/harness/proxyma-client.json")"
+  prompt_q="$(printf '%q' "$PROJECT_DIR/harness/workflows/vulnerability-management/prompt.md")"
+  launcher_q="$(printf '%q' "$PROJECT_DIR/harness/workflows/vulnerability-management/run-hermes-worker.sh")"
+  profile_q="$(printf '%q' "$PROJECT_DIR/harness/workflows/vulnerability-management/profiles/nessus-detailed.json")"
+  report_q="$(printf '%q' "/var/lib/proxyma-client-vulnerability-management/incoming/latest.csv")"
+  content="$(<"$template_path")"
+  content="${content//__PROJECT_DIR__/$project_q}"
+  content="${content//__VM_WORKFLOW_BIN__/$bin_q}"
+  content="${content//__VM_WORKFLOW_DB__/$db_q}"
+  content="${content//__VM_WORKFLOW_PROXYMA_CONFIG__/$config_q}"
+  content="${content//__VM_WORKFLOW_PROMPT__/$prompt_q}"
+  content="${content//__VM_WORKFLOW_LAUNCHER__/$launcher_q}"
+  content="${content//__VM_WORKFLOW_PROFILE__/$profile_q}"
+  content="${content//__VM_WORKFLOW_REPORT__/$report_q}"
+  if [[ "$content" == *__*__* ]]; then
+    echo "Workflow cron template contains an unresolved placeholder: $template_path" >&2
+    exit 1
+  fi
+  printf '%s\n' "$content" >"$destination_path"
+  chmod 0640 "$destination_path"
+}
+
+render_workflow_prompt() {
+  local template_path="$1"
+  local destination_path="$2"
+  local content value
+
+  content="$(<"$template_path")"
+  value="$INSTALLED_VM_WORKFLOW"
+  value="${value//\'/\'\\\'\'}"
+  content="${content//__VM_WORKFLOW_BIN__/$value}"
+  value="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"
+  value="${value//\'/\'\\\'\'}"
+  content="${content//__VM_WORKFLOW_DB__/$value}"
+  value="$PROJECT_DIR/harness/proxyma-client.json"
+  value="${value//\'/\'\\\'\'}"
+  content="${content//__VM_WORKFLOW_PROXYMA_CONFIG__/$value}"
+  if [[ "$content" == *__VM_WORKFLOW_BIN__* || "$content" == *__VM_WORKFLOW_DB__* || "$content" == *__VM_WORKFLOW_PROXYMA_CONFIG__* ]]; then
+    echo "Workflow prompt contains an unresolved static placeholder: $template_path" >&2
+    exit 1
+  fi
+  if [[ "$content" != *__VM_WORKFLOW_WORKER_ID__* ]]; then
+    echo "Workflow prompt is missing the worker-ID marker: $template_path" >&2
+    exit 1
+  fi
+  printf '%s\n' "$content" >"$destination_path"
+  chmod 0644 "$destination_path"
+}
+
 INSTALLED_BINARY="$BIN_DIR/proxyma-client"
+INSTALLED_VM_WORKFLOW="$BIN_DIR/vm-workflow"
 HARNESS_DIR="$PROJECT_DIR/harness"
 ROOT_ADAPTER_DIR=""
 ROOT_ADAPTER_PATH=""
@@ -316,6 +423,10 @@ elif [[ "$HARNESS_TYPE" == "generic" ]]; then
 fi
 if [[ -e "$INSTALLED_BINARY" && ( ! -f "$INSTALLED_BINARY" || -L "$INSTALLED_BINARY" ) ]]; then
   echo "Installed binary target must be a regular file and not a symbolic link: $INSTALLED_BINARY" >&2
+  exit 1
+fi
+if [[ "$WITH_VM_WORKFLOW" == true && -e "$INSTALLED_VM_WORKFLOW" && ( ! -f "$INSTALLED_VM_WORKFLOW" || -L "$INSTALLED_VM_WORKFLOW" ) ]]; then
+  echo "Installed vm-workflow target must be a regular file and not a symbolic link: $INSTALLED_VM_WORKFLOW" >&2
   exit 1
 fi
 if [[ -e "$HARNESS_DIR" && ( ! -d "$HARNESS_DIR" || -L "$HARNESS_DIR" ) ]]; then
@@ -372,6 +483,10 @@ owned_destinations=(
   "$HARNESS_DIR/.claude"
   "$HARNESS_DIR/RELEASE"
 )
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  owned_destinations+=("$HARNESS_DIR/workflows")
+  owned_destinations+=("$INSTALLED_VM_WORKFLOW")
+fi
 if [[ -n "$ROOT_ADAPTER_PATH" ]]; then
   owned_destinations+=("$ROOT_ADAPTER_PATH")
 fi
@@ -387,6 +502,27 @@ if [[ -e "$NEW_BINARY" || -e "$BACKUP_BINARY" ]]; then
   echo "Refusing conflicting binary transaction path for $INSTALLED_BINARY" >&2
   exit 1
 fi
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  NEW_VM_WORKFLOW="${INSTALLED_VM_WORKFLOW}.proxyma-new.$$"
+  BACKUP_VM_WORKFLOW="${INSTALLED_VM_WORKFLOW}.proxyma-backup.$$"
+  if [[ -e "$NEW_VM_WORKFLOW" || -e "$BACKUP_VM_WORKFLOW" ]]; then
+    echo "Refusing conflicting vm-workflow transaction path for $INSTALLED_VM_WORKFLOW" >&2
+    exit 1
+  fi
+fi
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  render_workflow_prompt \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/prompt.md" \
+    "$TEMP_DIR/configured-prompt"
+  install -m 0644 "$TEMP_DIR/configured-prompt" \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/prompt.md"
+  render_workflow_cron \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/cron.example" \
+    "$TEMP_DIR/configured-cron"
+  install -m 0640 "$TEMP_DIR/configured-cron" \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/cron"
+fi
+
 install -m 0755 "$BINARY_PATH" "$NEW_BINARY"
 if [[ -e "$INSTALLED_BINARY" ]]; then mv "$INSTALLED_BINARY" "$BACKUP_BINARY"; fi
 if ! mv "$NEW_BINARY" "$INSTALLED_BINARY"; then
@@ -394,6 +530,19 @@ if ! mv "$NEW_BINARY" "$INSTALLED_BINARY"; then
   exit 1
 fi
 [[ ! -e "$BACKUP_BINARY" ]] || rm -f "$BACKUP_BINARY"
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  install -m 0755 "$VM_WORKFLOW_BINARY_PATH" "$NEW_VM_WORKFLOW"
+  if [[ -e "$INSTALLED_VM_WORKFLOW" ]]; then mv "$INSTALLED_VM_WORKFLOW" "$BACKUP_VM_WORKFLOW"; fi
+  if ! mv "$NEW_VM_WORKFLOW" "$INSTALLED_VM_WORKFLOW"; then
+    [[ ! -e "$BACKUP_VM_WORKFLOW" ]] || mv "$BACKUP_VM_WORKFLOW" "$INSTALLED_VM_WORKFLOW"
+    exit 1
+  fi
+  [[ ! -e "$BACKUP_VM_WORKFLOW" ]] || rm -f "$BACKUP_VM_WORKFLOW"
+  if ! "$INSTALLED_VM_WORKFLOW" version >/dev/null; then
+    echo "Installed vm-workflow failed its version check: $INSTALLED_VM_WORKFLOW" >&2
+    exit 1
+  fi
+fi
 
 mkdir -p "$HARNESS_DIR"
 if [[ ! -e "$HARNESS_DIR/proxyma-client.json" ]]; then
@@ -414,6 +563,9 @@ fi
 for owned in instruction-pack examples tests .agents .claude generic RELEASE; do
   replace_path "$PAYLOAD_DIR/$owned" "$HARNESS_DIR/$owned"
 done
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  replace_path "$PAYLOAD_DIR/workflows" "$HARNESS_DIR/workflows"
+fi
 
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
   mkdir -p "$ROOT_ADAPTER_DIR"
@@ -429,6 +581,10 @@ fi
 echo "Installed proxyma-client at $INSTALLED_BINARY"
 echo "Project directory: $PROJECT_DIR"
 echo "Installed the matching harness at $HARNESS_DIR"
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  echo "Installed vm-workflow at $INSTALLED_VM_WORKFLOW"
+  echo "Generated configured workflow cron file at $HARNESS_DIR/workflows/vulnerability-management/cron"
+fi
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
   echo "Installed the Codex adapter at $ROOT_ADAPTER_PATH"
 elif [[ "$HARNESS_TYPE" == "claude" ]]; then

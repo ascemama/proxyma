@@ -70,7 +70,9 @@ if ($null -ne $workflowProfile -and $workflowProfile.profile_id -ne "nessus-deta
 Require-Text "harness/workflows/vulnerability-management/schema.sql" @("reports", "asset_access", "findings", "finding_observations", "instance_key", "remediation_plans", "remediation_steps", "finding_operations", "client_operation_id", "finding_events", "cvss_v4_base_score")
 Require-Text "harness/workflows/vulnerability-management/prompt.md" @("vm-workflow", "operation execute", "remediation plan", "verification", "VM_WORKFLOW_WORKER_ID")
 Require-Text "harness/workflows/vulnerability-management/cron.example" @("flock", "vm-workflow", "proxyma-client", "reconcile-access", "action-required")
-Require-Text "harness/workflows/vulnerability-management/run-hermes-worker.sh" @("VM_WORKFLOW_BIN", "VM_WORKFLOW_DB", "VM_WORKFLOW_PROXYMA_CONFIG", "VM_WORKFLOW_WORKER_ID")
+Require-Text "harness/workflows/vulnerability-management/run-hermes-worker.sh" @("VM_WORKFLOW_BIN", "VM_WORKFLOW_DB", "VM_WORKFLOW_PROXYMA_CONFIG", "VM_WORKFLOW_WORKER_ID", "--toolsets terminal,file,skills")
+Require-Text "harness/workflows/vulnerability-management/configure-hermes-worker-prompt.sh" @("__VM_WORKFLOW_BIN__", "__VM_WORKFLOW_DB__", "__VM_WORKFLOW_PROXYMA_CONFIG__", "__VM_WORKFLOW_WORKER_ID__")
+Require-Text "harness/workflows/vulnerability-management/configure-hermes-worker-prompt.ps1" @("__VM_WORKFLOW_BIN__", "__VM_WORKFLOW_DB__", "__VM_WORKFLOW_PROXYMA_CONFIG__", "__VM_WORKFLOW_WORKER_ID__")
 Require-Text "harness/workflows/vulnerability-management/profiles/nessus-detailed.json" @("Plugin", "Host ID", "CVSS V4 Base Score", "CVSS V3 Base Score")
 
 $workflowSchemaText = Get-Content -LiteralPath (Join-Path $RepoRoot "harness/workflows/vulnerability-management/schema.sql") -Raw

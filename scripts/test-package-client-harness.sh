@@ -41,6 +41,8 @@ for required in \
   harness/workflows/vulnerability-management/prompt.md \
   harness/workflows/vulnerability-management/cron.example \
   harness/workflows/vulnerability-management/run-hermes-worker.sh \
+  harness/workflows/vulnerability-management/configure-hermes-worker-prompt.sh \
+  harness/workflows/vulnerability-management/configure-hermes-worker-prompt.ps1 \
   harness/workflows/vulnerability-management/schema.sql \
   harness/workflows/vulnerability-management/profile.schema.json \
   harness/workflows/vulnerability-management/profiles/nessus-detailed.json \
