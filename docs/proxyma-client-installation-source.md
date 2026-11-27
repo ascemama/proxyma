@@ -304,6 +304,61 @@ and fill in the agent UUID and signing key created in the Proxyma GUI. The
 example is included with the harness package; the real credential file is
 local-only.
 
+## Remove the source installation
+
+Stop any Hermes workers before removing the installed components. Disable the
+workflow's cron entries or Windows Task Scheduler jobs so they cannot start a
+new worker while the installation is being removed. The detailed workflow
+cleanup choices are documented in [workflow uninstallation](vulnerability-management-workflow.md#5-uninstall).
+
+The source installation has two separate parts: executables installed in the
+configured binary directory, and the source checkout/project harness. Remove
+only the parts that are no longer needed. For a POSIX installation using the
+variables from this guide:
+
+```bash
+PROJECT_DIR="$PWD"
+BIN_DIR="$HOME/.local/bin"
+
+rm -f "$BIN_DIR/proxyma-client"
+rm -f "$BIN_DIR/vm-workflow"
+```
+
+For a Windows PowerShell installation:
+
+```powershell
+Remove-Item -LiteralPath (Join-Path $BinDir "proxyma-client.exe") -Force
+Remove-Item -LiteralPath (Join-Path $BinDir "vm-workflow.exe") -Force
+```
+
+The `vm-workflow` removal is needed only when the optional workflow was
+installed. Removing these binaries does not remove the source checkout,
+`dist/` build artifacts, the project harness, the workflow database, downloaded
+reports, backups, Proxyma credentials, or Proxyma client state. Remove the
+project harness/adapters only when the project no longer uses them. Keep the
+source checkout and `dist/` unless you explicitly want to remove the build
+checkout; deleting the checkout is independent from uninstalling the binaries.
+
+### Optional workflow cleanup
+
+Choose the cleanup level deliberately:
+
+- **Safe cleanup:** remove the scheduled jobs and installed binaries, but
+  preserve `workflow.sqlite`, reports, backups, and
+  `harness/workflows/vulnerability-management/`. A later reinstall can then
+  resume the existing workflow state.
+- **Complete workflow purge:** back up the database first, then remove
+  `harness/workflows/vulnerability-management/` and remove the workflow state
+  directory only after explicit confirmation. This deletes remediation plans,
+  audit history, report observations, downloaded reports, and Proxyma operation
+  links. Follow the detailed [complete workflow purge guidance](vulnerability-management-workflow.md#5-uninstall)
+  before doing so.
+
+Treat the workflow database, reports, backups, and Proxyma client
+configuration as deployment data, not source-installation binaries. Preserve
+or remove them separately according to the retention and recovery requirements
+of the deployment.
+
 ## After installation
 
 The project layout, harness configuration, credential handling, validation

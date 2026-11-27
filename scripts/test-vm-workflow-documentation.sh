@@ -53,8 +53,8 @@ for doc in "$release_doc" "$source_doc"; do
     fail "installation guide contains the obsolete user-local workflow database path: $doc"
   fi
 done
-source_project_line=$(grep -nF 'PROJECT_DIR="$PWD"' "$source_doc" | tail -n 1 | cut -d: -f1)
 source_db_line=$(grep -nF 'VM_DB="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"' "$source_doc" | tail -n 1 | cut -d: -f1)
+source_project_line=$(awk -v db_line="$source_db_line" '/PROJECT_DIR="\$PWD"/ && NR < db_line { line = NR } END { print line }' "$source_doc")
 [[ -n "$source_project_line" && -n "$source_db_line" && "$source_project_line" -lt "$source_db_line" ]] \
   || fail "source guide must define PROJECT_DIR before the workflow database and derived paths"
 grep -F 'SHA256SUMS' "$testing_doc" >/dev/null || fail "release testing guide omits checksum coverage"
@@ -66,6 +66,16 @@ grep -F -- '--vm-workflow' "$source_doc" >/dev/null || fail "source guide omits 
 grep -F -- '-VMWorkflow' "$source_doc" >/dev/null || fail "source guide omits PowerShell vm-workflow argument"
 grep -F 'same directory as `proxyma-client`' "$release_doc" >/dev/null || fail "release guide omits shared binary directory"
 grep -F 'same binary directory as' "$source_doc" >/dev/null || fail "source guide omits shared binary directory"
+grep -F '## Remove the source installation' "$source_doc" >/dev/null || fail "source guide omits source uninstallation heading"
+grep -F 'rm -f "$BIN_DIR/proxyma-client"' "$source_doc" >/dev/null || fail "source guide omits POSIX proxyma-client removal command"
+grep -F 'rm -f "$BIN_DIR/vm-workflow"' "$source_doc" >/dev/null || fail "source guide omits POSIX vm-workflow removal command"
+grep -F 'Join-Path $BinDir "proxyma-client.exe"' "$source_doc" >/dev/null || fail "source guide omits PowerShell proxyma-client removal command"
+grep -F 'Join-Path $BinDir "vm-workflow.exe"' "$source_doc" >/dev/null || fail "source guide omits PowerShell vm-workflow removal command"
+grep -F "workflow's cron entries or Windows Task Scheduler jobs" "$source_doc" >/dev/null || fail "source guide omits scheduled-job shutdown guidance"
+grep -F 'preserve `workflow.sqlite`, reports, backups' "$source_doc" >/dev/null || fail "source guide omits workflow-state preservation guidance"
+grep -F 'vulnerability-management-workflow.md#5-uninstall' "$source_doc" >/dev/null || fail "source guide omits workflow uninstallation link"
+grep -F '**Safe cleanup:**' "$source_doc" >/dev/null || fail "source guide omits safe cleanup choice"
+grep -F '**Complete workflow purge:**' "$source_doc" >/dev/null || fail "source guide omits complete purge choice"
 
 grep -F 'VM_WORKFLOW_STATE_DIR="${VM_WORKFLOW_STATE_DIR:-/var/lib/proxyma-client-vulnerability-management}"' "$workflow_doc" >/dev/null || fail "workflow documentation omits canonical workflow state directory"
 grep -F 'PROJECT_DIR="${PROJECT_DIR:?Set PROJECT_DIR to the Proxyma project directory}"' "$workflow_doc" >/dev/null || fail "workflow documentation does not mark PROJECT_DIR as required"
