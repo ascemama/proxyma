@@ -178,5 +178,49 @@ fi
 if grep -F 'vm-workflow claim' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null; then
   fail "workflow prompt contains an unconfigured vm-workflow claim command"
 fi
+prompt="$ROOT/harness/workflows/vulnerability-management/prompt.md"
+for command_text in \
+  'status' \
+  'claim --worker-id' \
+  '--kind finding --finding-key' \
+  '--kind plan --finding-key' \
+  '--kind events --finding-key' \
+  '--kind operation --operation-id' \
+  '--kind access --asset-id' \
+  'lease-renew --finding-key' \
+  'lease-release --finding-key' \
+  'plan create' \
+  'plan revise' \
+  'step start' \
+  'step complete' \
+  'step block' \
+  'step skip' \
+  'operation execute' \
+  'finding resolve' \
+  'finding block' \
+  'finding unsupported' \
+  'finding fail' \
+  'finding requeue' \
+  'pulse'; do
+  grep -F -- "$command_text" "$prompt" >/dev/null || fail "workflow prompt omits command reference: $command_text"
+done
+grep -F 'Do not substitute `finding show`' "$prompt" >/dev/null || fail "workflow prompt does not correct finding show syntax"
+grep -F 'vm-workflow` has no interactive help flow' "$prompt" >/dev/null || fail "workflow prompt does not discourage help probing"
+grep -F 'inspect Go source' "$prompt" >/dev/null || fail "workflow prompt does not prohibit source inspection"
+grep -F 'similar exploratory' "$prompt" >/dev/null || fail "workflow prompt does not prohibit repository exploration"
+grep -F 'Use the local terminal only to execute `vm-workflow`' "$prompt" >/dev/null || fail "workflow prompt does not constrain local terminal use"
+grep -F 'input files under the worker scratch directory' "$prompt" >/dev/null || fail "workflow prompt omits temporary JSON guidance"
+grep -F 'payloads submitted by' "$prompt" >/dev/null || fail "workflow prompt does not require operation payloads"
+grep -F 'no_work` is a normal stop condition' "$prompt" >/dev/null || fail "workflow prompt omits no-work stop guidance"
+grep -F 'result_summary' "$prompt" >/dev/null || fail "workflow prompt omits step result JSON shape"
+grep -F 'verification_evidence' "$prompt" >/dev/null || fail "workflow prompt omits verification evidence JSON shape"
+grep -F 'same `--worker-id "$VM_WORKFLOW_WORKER_ID"`' "$prompt" >/dev/null || fail "workflow prompt omits worker ID reuse guidance"
+if grep -E 'finding show[[:space:]]+--|vm-workflow[[:space:]]+finding[[:space:]]+show' "$prompt" >/dev/null; then
+  fail "workflow prompt contains an unsupported finding show command"
+fi
+grep -F 'agent-facing `vm-workflow` command contract' "$ROOT/harness/workflows/vulnerability-management/README.md" >/dev/null || fail "workflow README omits command-contract guidance"
+grep -F 'no source checkout' "$workflow_doc" >/dev/null || fail "workflow documentation omits source-checkout guidance"
+grep -F 'vm-workflow --help' "$workflow_doc" >/dev/null || fail "workflow documentation omits help-probing guidance"
+grep -F 'finding show` is not' "$workflow_doc" >/dev/null || fail "workflow documentation omits finding syntax correction"
 
 echo "vm-workflow documentation validation passed."
