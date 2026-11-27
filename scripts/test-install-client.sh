@@ -133,6 +133,10 @@ grep -F "PROJECT_DIR=$(printf '%q' "$VM_PROJECT")" "$VM_PROJECT/harness/workflow
 grep -F "VM_WORKFLOW_BIN=$(printf '%q' "$TEST_ROOT/vm-bin/vm-workflow")" "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null || fail "configured workflow cron omitted vm-workflow path"
 grep -F '__PROJECT_DIR__' "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null && fail "configured workflow cron contains unresolved project placeholder"
 grep -F '/srv/' "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null && fail "configured workflow cron contains obsolete /srv path"
+if grep -n '\\$' "$VM_PROJECT/harness/workflows/vulnerability-management/cron" >/dev/null; then
+  fail "configured workflow cron contains a physical-line continuation"
+fi
+[[ "$(grep -Ec '^(0 2|15 2|\*/5)' "$VM_PROJECT/harness/workflows/vulnerability-management/cron")" -eq 3 ]] || fail "configured workflow cron does not contain three single-line scheduled entries"
 
 mkdir -p "$TEST_ROOT/vm-link-project" "$TEST_ROOT/vm-link-target"
 ln -s "$TEST_ROOT/vm-link-target" "$TEST_ROOT/vm-link-project/harness"

@@ -108,6 +108,15 @@ grep -F 'exits `0`' "$workflow_doc" >/dev/null || fail "workflow documentation o
 grep -F 'Exit `1`' "$workflow_doc" >/dev/null || fail "workflow documentation omits pulse exit code 1"
 grep -F '2` or higher' "$workflow_doc" >/dev/null || fail "workflow documentation omits pulse error exit codes"
 grep -F 'crontab -e' "$workflow_doc" >/dev/null || fail "workflow documentation omits cron installation"
+grep -F '$PROJECT_DIR/harness/workflows/vulnerability-management/cron' "$workflow_doc" >/dev/null || fail "workflow documentation omits generated cron path"
+grep -F 'CRON_FILE="$PROJECT_DIR/harness/workflows/vulnerability-management/cron"' "$workflow_doc" >/dev/null || fail "workflow documentation omits CRON_FILE setup"
+grep -F 'crontab "$CRON_FILE"' "$workflow_doc" >/dev/null || fail "workflow documentation omits generated crontab installation"
+grep -F 'replaces the current user crontab' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab replacement warning"
+grep -F 'crontab -l > "$PROJECT_DIR/harness/workflows/vulnerability-management/crontab.backup"' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab backup command"
+grep -F "grep -nE '^[^#[:space:]]' \"\$CRON_FILE\"" "$workflow_doc" >/dev/null || fail "workflow documentation omits generated cron verification"
+if grep -F 'Install the POSIX examples from' "$workflow_doc" >/dev/null; then
+  fail "workflow documentation still presents cron.example as the primary installation file"
+fi
 grep -F 'Task' "$workflow_doc" >/dev/null || fail "workflow documentation omits Windows scheduling"
 grep -F 'Weekly report import' "$workflow_doc" >/dev/null || fail "workflow documentation omits weekly cron explanation"
 grep -F 'Optional immediate worker kickoff' "$workflow_doc" >/dev/null || fail "workflow documentation omits worker kickoff explanation"
@@ -127,9 +136,13 @@ if grep -F '/srv/' "$cron_example" "$worker_launcher" "$workflow_doc" >/dev/null
   fail "workflow assets or documentation contain obsolete /srv paths"
 fi
 grep -F 'VM_WORKFLOW_LAUNCHER' "$cron_example" >/dev/null || fail "cron example omits launcher path"
+if grep -n '\\$' "$cron_example" >/dev/null; then
+  fail "cron example contains a physical-line continuation"
+fi
+[[ "$(grep -Ec '^(0 2|15 2|\*/5)' "$cron_example")" -eq 3 ]] || fail "cron example does not contain three single-line scheduled entries"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$workflow_doc" >/dev/null || fail "workflow documentation omits worker ID contract"
-grep -F 'generates a configured `cron` file' "$workflow_doc" >/dev/null || fail "workflow documentation omits configured cron output"
-grep -F 'installer does not modify the active crontab' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab safety"
+grep -F 'generates the' "$workflow_doc" >/dev/null || fail "workflow documentation omits configured cron output"
+grep -F 'installer does not modify the active' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab safety"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker ID contract"
 grep -F 'PROJECT_DIR must identify' "$worker_launcher" >/dev/null || fail "worker launcher does not require PROJECT_DIR"
 if env -u PROJECT_DIR bash "$worker_launcher" >/dev/null 2>&1; then
