@@ -117,6 +117,7 @@ grep -F 'Safe uninstall' "$workflow_doc" >/dev/null || fail "workflow documentat
 grep -F 'Complete purge' "$workflow_doc" >/dev/null || fail "workflow documentation omits complete purge"
 grep -F 'preserve the database' "$workflow_doc" >/dev/null || fail "workflow documentation omits uninstall data preservation"
 grep -F 'VM_WORKFLOW_BIN' "$worker_launcher" >/dev/null || fail "worker launcher omits binary contract"
+grep -F ': "${VM_WORKFLOW_BIN:=${HOME}/.local/bin/vm-workflow}"' "$worker_launcher" >/dev/null || fail "worker launcher default does not match installer binary location"
 grep -F 'VM_WORKFLOW_DB' "$worker_launcher" >/dev/null || fail "worker launcher omits database contract"
 grep -F 'VM_WORKFLOW_PROXYMA_CONFIG' "$worker_launcher" >/dev/null || fail "worker launcher omits Proxyma config contract"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$worker_launcher" >/dev/null || fail "worker launcher omits worker ID contract"
