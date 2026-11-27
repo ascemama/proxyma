@@ -64,6 +64,8 @@ grep -F 'By default, the client installers do not install `vm-workflow`' "$relea
 grep -F 'client installer does not' "$source_doc" >/dev/null || fail "source guide does not document default opt-in behavior"
 grep -F -- '--vm-workflow' "$source_doc" >/dev/null || fail "source guide omits local vm-workflow installer argument"
 grep -F -- '-VMWorkflow' "$source_doc" >/dev/null || fail "source guide omits PowerShell vm-workflow argument"
+grep -F '### Install without `vm-workflow`' "$source_doc" >/dev/null || fail "source guide omits client-only installation subsection"
+grep -F '### Install with `vm-workflow`' "$source_doc" >/dev/null || fail "source guide omits workflow installation subsection"
 grep -F 'same directory as `proxyma-client`' "$release_doc" >/dev/null || fail "release guide omits shared binary directory"
 grep -F 'same binary directory as' "$source_doc" >/dev/null || fail "source guide omits shared binary directory"
 grep -F '## Remove the source installation' "$source_doc" >/dev/null || fail "source guide omits source uninstallation heading"

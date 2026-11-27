@@ -156,6 +156,12 @@ For a neutral harness, also set `SKILL_DIR` to the parent skill discovery
 directory. Use a separate project directory if the source checkout is only a
 build checkout.
 
+Choose one of the following installation paths before running the installer.
+The first path installs only `proxyma-client`; the second path installs the
+optional `vm-workflow` executable and vulnerability-management assets as well.
+
+### Install without `vm-workflow`
+
 Linux or macOS:
 
 ```bash
@@ -215,12 +221,20 @@ $SkillDir = Join-Path $HOME ".hermes\skills"
   -BinDir $BinDir
 ```
 
-To also install the optional vulnerability-management assets into
-`$PROJECT_DIR/harness/workflows/vulnerability-management/`, add the opt-in
-flag and the locally built vm-workflow binary to the installer. POSIX:
+### Install with `vm-workflow`
+
+Choose this path when the project will use the vulnerability-management
+workflow. It installs the matching `vm-workflow` executable beside
+`proxyma-client` and copies the workflow assets into
+`$PROJECT_DIR/harness/workflows/vulnerability-management/`. POSIX:
 
 ```bash
+PROJECT_DIR="$PWD"                         # change this when needed
+BIN_DIR="$HOME/.local/bin"
+ASSET="dist/proxyma-client-$(go env GOOS)-$(go env GOARCH)"
+SKILL_DIR="$HOME/.hermes/skills"
 VM_WORKFLOW_ASSET="dist/vm-workflow-$(go env GOOS)-$(go env GOARCH)"
+
 bash ./scripts/install-proxyma-client.sh \
   --binary "$ASSET" \
   --harness "$PWD/dist/proxyma-client-harness.tar.gz" \
@@ -234,7 +248,12 @@ bash ./scripts/install-proxyma-client.sh \
 Windows PowerShell:
 
 ```powershell
+$ProjectDir = (Get-Location).Path       # change this when needed
+$BinDir = Join-Path $env:LOCALAPPDATA "Programs\Proxyma\bin"
+$Asset = ".\dist\proxyma-client-$(& go env GOOS)-$(& go env GOARCH).exe"
+$SkillDir = Join-Path $HOME ".hermes\skills"
 $VmAsset = ".\dist\vm-workflow-$(& go env GOOS)-$(& go env GOARCH).exe"
+
 .\scripts\install-proxyma-client.ps1 `
   -Binary $Asset `
   -Harness ".\dist\proxyma-client-harness.tar.gz" `
