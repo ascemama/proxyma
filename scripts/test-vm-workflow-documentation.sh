@@ -135,6 +135,7 @@ grep -F 'chat' "$worker_launcher" >/dev/null || fail "worker launcher omits Herm
 grep -F -- '--query-file "$VM_WORKFLOW_PROMPT"' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes query-file option"
 grep -F -- '--oneshot' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes one-shot option"
 grep -F -- '--skill proxyma-harness' "$worker_launcher" >/dev/null || fail "worker launcher omits harness skill option"
+grep -F -- '--toolsets terminal,file,skills' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes workflow toolsets"
 if grep -F -- '--workdir' "$worker_launcher" >/dev/null || grep -F -- '--prompt-file' "$worker_launcher" >/dev/null; then
   fail "worker launcher contains obsolete Hermes invocation options"
 fi
@@ -152,6 +153,10 @@ grep -F 'VM_WORKFLOW_WORKER_ID' "$workflow_doc" >/dev/null || fail "workflow doc
 grep -F 'generates the' "$workflow_doc" >/dev/null || fail "workflow documentation omits configured cron output"
 grep -F 'installer does not modify the active' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab safety"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker ID contract"
+grep -F 'required_environment_variables:' "$ROOT/harness/generic/skills/proxyma-harness/SKILL.md" >/dev/null || fail "generic skill omits Hermes environment passthrough metadata"
+for variable in VM_WORKFLOW_BIN VM_WORKFLOW_DB VM_WORKFLOW_PROXYMA_CONFIG VM_WORKFLOW_WORKER_ID; do
+  grep -F "name: $variable" "$ROOT/harness/generic/skills/proxyma-harness/SKILL.md" >/dev/null || fail "generic skill omits Hermes passthrough variable: $variable"
+done
 grep -F 'The values are inherited by the shell used for terminal commands' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt does not explain inherited environment"
 grep -F 'test -n "${VM_WORKFLOW_BIN:-}"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits binary environment preflight"
 grep -F 'test -n "${VM_WORKFLOW_WORKER_ID:-}"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker environment preflight"

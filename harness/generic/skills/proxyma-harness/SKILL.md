@@ -1,6 +1,15 @@
 ---
 name: proxyma-harness
 description: Use Proxyma for commands on managed target machines and resume durable Proxyma work.
+required_environment_variables:
+  - name: VM_WORKFLOW_BIN
+    optional: true
+  - name: VM_WORKFLOW_DB
+    optional: true
+  - name: VM_WORKFLOW_PROXYMA_CONFIG
+    optional: true
+  - name: VM_WORKFLOW_WORKER_ID
+    optional: true
 ---
 
 # Proxyma Harness
