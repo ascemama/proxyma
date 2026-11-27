@@ -81,6 +81,10 @@ grep -F '**Complete workflow purge:**' "$source_doc" >/dev/null || fail "source 
 
 grep -F 'VM_WORKFLOW_STATE_DIR="${VM_WORKFLOW_STATE_DIR:-/var/lib/proxyma-client-vulnerability-management}"' "$workflow_doc" >/dev/null || fail "workflow documentation omits canonical workflow state directory"
 grep -F 'PROJECT_DIR="${PROJECT_DIR:?Set PROJECT_DIR to the Proxyma project directory}"' "$workflow_doc" >/dev/null || fail "workflow documentation does not mark PROJECT_DIR as required"
+grep -F '### POSIX/Linux/macOS shell setup' "$workflow_doc" >/dev/null || fail "workflow documentation omits POSIX environment setup heading"
+grep -F '`export` makes each variable available to child processes' "$workflow_doc" >/dev/null || fail "workflow documentation does not explain export"
+grep -F '### Windows PowerShell setup' "$workflow_doc" >/dev/null || fail "workflow documentation omits PowerShell environment setup heading"
+grep -F '$env:VM_WORKFLOW_BIN' "$workflow_doc" >/dev/null || fail "workflow documentation omits PowerShell environment variables"
 grep -F 'VM_WORKFLOW_DB="${VM_WORKFLOW_DB:-$VM_WORKFLOW_STATE_DIR/workflow.sqlite}"' "$workflow_doc" >/dev/null || fail "workflow documentation omits database path derived from workflow state directory"
 grep -F 'VM_WORKFLOW_PROFILE' "$workflow_doc" >/dev/null || fail "workflow documentation omits profile configuration"
 grep -F 'another vulnerability scanner' "$workflow_doc" >/dev/null || fail "workflow documentation omits alternate scanner profile guidance"
