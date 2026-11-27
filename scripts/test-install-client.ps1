@@ -25,7 +25,7 @@ function New-HarnessArchive([string]$Output, [string]$Marker = "current") {
     Set-Content -LiteralPath (Join-Path $harness ".agents\skills\proxyma-harness\SKILL.md") -Value $Marker
     Set-Content -LiteralPath (Join-Path $harness ".claude\skills\proxyma-harness\SKILL.md") -Value $Marker
     Set-Content -LiteralPath (Join-Path $harness "generic\skills\proxyma-harness\SKILL.md") -Value $Marker
-    Set-Content -LiteralPath (Join-Path $harness "workflows\vulnerability-management\prompt.md") -Value $Marker
+    Copy-Item -LiteralPath (Join-Path $Root "harness\workflows\vulnerability-management\prompt.md") -Destination (Join-Path $harness "workflows\vulnerability-management\prompt.md")
     & tar -czf $Output -C $payload harness
     if ($LASTEXITCODE -ne 0) { Fail "could not create harness fixture" }
 }
@@ -97,13 +97,15 @@ try {
     New-Item -ItemType Directory -Path $vmProject | Out-Null
     & $Installer -Version v1.2.3 -WithVMWorkflow -ProjectDir $vmProject -BinDir (Join-Path $TestRoot "vm-bin")
     $vmPrompt = Join-Path $vmProject "harness\workflows\vulnerability-management\prompt.md"
-    if ((Get-Content -LiteralPath $vmPrompt -Raw).Trim() -ne "second") { Fail "opt-in workflow assets were not installed" }
+    if (-not (Select-String -LiteralPath $vmPrompt -Pattern ([regex]::Escape((Join-Path (Join-Path $TestRoot "vm-bin") "vm-workflow.exe"))))) { Fail "opt-in workflow prompt was not rendered" }
+    if (-not (Select-String -LiteralPath $vmPrompt -Pattern "__VM_WORKFLOW_WORKER_ID__")) { Fail "worker marker was not preserved" }
+    if (Select-String -LiteralPath $vmPrompt -Pattern "__VM_WORKFLOW_(BIN|DB|PROXYMA_CONFIG)__") { Fail "static prompt placeholder remained" }
     if (-not (Test-Path -LiteralPath (Join-Path $TestRoot "vm-bin\vm-workflow.exe"))) { Fail "opt-in vm-workflow was not installed" }
     Set-Content -LiteralPath $vmPrompt -Value "local-workflow"
     & $Installer -Version v1.2.3 -ProjectDir $vmProject -BinDir (Join-Path $TestRoot "vm-bin")
     if ((Get-Content -LiteralPath $vmPrompt -Raw).Trim() -ne "local-workflow") { Fail "unflagged reinstall modified workflow assets" }
     & $Installer -Version v1.2.3 -WithVMWorkflow -ProjectDir $vmProject -BinDir (Join-Path $TestRoot "vm-bin")
-    if ((Get-Content -LiteralPath $vmPrompt -Raw).Trim() -ne "second") { Fail "flagged reinstall did not refresh workflow assets" }
+    if (-not (Select-String -LiteralPath $vmPrompt -Pattern "__VM_WORKFLOW_WORKER_ID__")) { Fail "flagged reinstall did not refresh configured workflow prompt" }
 
     $env:PROXYMA_CLIENT_ARCH = "arm64"
     $latest = Join-Path $TestRoot "releases\latest\download"

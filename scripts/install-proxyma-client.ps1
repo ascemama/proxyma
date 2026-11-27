@@ -103,6 +103,24 @@ function Replace-InstalledPath([string]$Source, [string]$Destination) {
     if (Test-Path -LiteralPath $backupPath) { Remove-Item -LiteralPath $backupPath -Recurse -Force }
 }
 
+function ConvertTo-ShellSingleQuoted([string]$Value) {
+    return "'" + $Value.Replace("'", "'\''") + "'"
+}
+
+function Render-WorkflowPrompt([string]$Template, [string]$Destination, [string]$InstalledVmWorkflow, [string]$WorkflowDb, [string]$ProxymaConfig) {
+    $content = Get-Content -LiteralPath $Template -Raw
+    $content = $content.Replace("__VM_WORKFLOW_BIN__", (ConvertTo-ShellSingleQuoted $InstalledVmWorkflow))
+    $content = $content.Replace("__VM_WORKFLOW_DB__", (ConvertTo-ShellSingleQuoted $WorkflowDb))
+    $content = $content.Replace("__VM_WORKFLOW_PROXYMA_CONFIG__", (ConvertTo-ShellSingleQuoted $ProxymaConfig))
+    if ($content.Contains("__VM_WORKFLOW_BIN__") -or $content.Contains("__VM_WORKFLOW_DB__") -or $content.Contains("__VM_WORKFLOW_PROXYMA_CONFIG__")) {
+        throw "Workflow prompt contains an unresolved static placeholder: $Template"
+    }
+    if (-not $content.Contains("__VM_WORKFLOW_WORKER_ID__")) {
+        throw "Workflow prompt is missing the worker-ID marker: $Template"
+    }
+    Set-Content -LiteralPath $Destination -Value $content -NoNewline
+}
+
 $localMode = -not [string]::IsNullOrWhiteSpace($Binary) -or -not [string]::IsNullOrWhiteSpace($Harness)
 if ($localMode) {
     if ([string]::IsNullOrWhiteSpace($Binary) -or [string]::IsNullOrWhiteSpace($Harness)) {
@@ -311,6 +329,15 @@ try {
         if ((Test-Path -LiteralPath "$destination.proxyma-new.$PID") -or (Test-Path -LiteralPath "$destination.proxyma-backup.$PID")) {
             throw "Conflicting temporary install path for $destination."
         }
+    }
+
+    if ($WithVMWorkflow) {
+        $workflowStateRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Proxyma\vulnerability-management" } else { Join-Path $ProjectDir "workflow-state" }
+        $workflowDb = Join-Path $workflowStateRoot "workflow.sqlite"
+        $proxymaConfig = Join-Path $ProjectDir "harness\proxyma-client.json"
+        $configuredPrompt = Join-Path $tempDir "configured-prompt.md"
+        Render-WorkflowPrompt (Join-Path $workflowPayload "vulnerability-management\prompt.md") $configuredPrompt $installedVMWorkflow $workflowDb $proxymaConfig
+        Copy-Item -LiteralPath $configuredPrompt -Destination (Join-Path $workflowPayload "vulnerability-management\prompt.md") -Force
     }
 
     Replace-InstalledPath $binaryPath $installedBinary

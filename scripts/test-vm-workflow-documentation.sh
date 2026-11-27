@@ -9,6 +9,7 @@ workflow="$ROOT/.github/workflows/publish_proxyma-server_and_client-release.yml"
 workflow_doc="$ROOT/docs/vulnerability-management-workflow.md"
 cron_example="$ROOT/harness/workflows/vulnerability-management/cron.example"
 worker_launcher="$ROOT/harness/workflows/vulnerability-management/run-hermes-worker.sh"
+prompt_configurator="$ROOT/harness/workflows/vulnerability-management/configure-hermes-worker-prompt.sh"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -24,7 +25,7 @@ assets=(
   vm-workflow-windows-arm64.exe
 )
 
-for file in "$release_doc" "$source_doc" "$testing_doc" "$workflow" "$workflow_doc" "$cron_example" "$worker_launcher"; do
+for file in "$release_doc" "$source_doc" "$testing_doc" "$workflow" "$workflow_doc" "$cron_example" "$worker_launcher" "$prompt_configurator"; do
   [[ -f "$file" ]] || fail "missing documentation or release workflow: $file"
 done
 
@@ -132,7 +133,7 @@ grep -F 'VM_WORKFLOW_PROXYMA_CONFIG' "$worker_launcher" >/dev/null || fail "work
 grep -F 'VM_WORKFLOW_WORKER_ID' "$worker_launcher" >/dev/null || fail "worker launcher omits worker ID contract"
 grep -F -- '--in "$VM_WORKFLOW_PROJECT_DIR"' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes working-directory option"
 grep -F 'chat' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes chat command"
-grep -F -- '--query-file "$VM_WORKFLOW_PROMPT"' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes query-file option"
+grep -F -- '--query-file "$TEMP_PROMPT"' "$worker_launcher" >/dev/null || fail "worker launcher omits temporary Hermes query-file option"
 grep -F -- '--oneshot' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes one-shot option"
 grep -F -- '--skill proxyma-harness' "$worker_launcher" >/dev/null || fail "worker launcher omits harness skill option"
 grep -F -- '--toolsets terminal,file,skills' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes workflow toolsets"
@@ -153,15 +154,21 @@ grep -F 'VM_WORKFLOW_WORKER_ID' "$workflow_doc" >/dev/null || fail "workflow doc
 grep -F 'generates the' "$workflow_doc" >/dev/null || fail "workflow documentation omits configured cron output"
 grep -F 'installer does not modify the active' "$workflow_doc" >/dev/null || fail "workflow documentation omits crontab safety"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker ID contract"
-grep -F 'required_environment_variables:' "$ROOT/harness/generic/skills/proxyma-harness/SKILL.md" >/dev/null || fail "generic skill omits Hermes environment passthrough metadata"
-for variable in VM_WORKFLOW_BIN VM_WORKFLOW_DB VM_WORKFLOW_PROXYMA_CONFIG VM_WORKFLOW_WORKER_ID; do
-  grep -F "name: $variable" "$ROOT/harness/generic/skills/proxyma-harness/SKILL.md" >/dev/null || fail "generic skill omits Hermes passthrough variable: $variable"
-done
-grep -F 'The values are inherited by the shell used for terminal commands' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt does not explain inherited environment"
+if grep -F 'required_environment_variables:' "$ROOT/harness/generic/skills/proxyma-harness/SKILL.md" >/dev/null; then
+  fail "generic skill contains workflow-specific environment metadata"
+fi
+grep -F '__VM_WORKFLOW_BIN__' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits binary placeholder"
+grep -F '__VM_WORKFLOW_DB__' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits database placeholder"
+grep -F '__VM_WORKFLOW_PROXYMA_CONFIG__' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits Proxyma config placeholder"
+grep -F "export VM_WORKFLOW_WORKER_ID='__VM_WORKFLOW_WORKER_ID__'" "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker initialization marker"
 grep -F 'test -n "${VM_WORKFLOW_BIN:-}"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits binary environment preflight"
 grep -F 'test -n "${VM_WORKFLOW_WORKER_ID:-}"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits worker environment preflight"
 grep -F 'test -x "$VM_WORKFLOW_BIN"' "$ROOT/harness/workflows/vulnerability-management/prompt.md" >/dev/null || fail "workflow prompt omits binary validation"
 grep -F 'PROJECT_DIR must identify' "$worker_launcher" >/dev/null || fail "worker launcher does not require PROJECT_DIR"
+grep -F 'workflow prompt is not configured' "$worker_launcher" >/dev/null || fail "worker launcher does not reject unconfigured prompts"
+grep -F 'TEMP_PROMPT' "$worker_launcher" >/dev/null || fail "worker launcher does not create a temporary worker prompt"
+grep -F 'trap cleanup_prompt EXIT' "$worker_launcher" >/dev/null || fail "worker launcher does not clean up the temporary prompt"
+grep -F 'configure-hermes-worker-prompt.sh' "$workflow_doc" >/dev/null || fail "workflow documentation omits manual prompt configurator"
 if env -u PROJECT_DIR bash "$worker_launcher" >/dev/null 2>&1; then
   fail "worker launcher accepted a missing PROJECT_DIR"
 fi

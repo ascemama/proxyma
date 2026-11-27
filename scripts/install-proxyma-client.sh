@@ -351,7 +351,6 @@ replace_path() {
 render_workflow_cron() {
   local template_path="$1"
   local destination_path="$2"
-  local rendered_path="$TEMP_DIR/configured-cron"
   local content
   local project_q bin_q db_q config_q prompt_q launcher_q profile_q report_q
 
@@ -376,12 +375,35 @@ render_workflow_cron() {
     echo "Workflow cron template contains an unresolved placeholder: $template_path" >&2
     exit 1
   fi
-  printf '%s\n' "$content" >"$rendered_path"
-  if [[ -L "$destination_path" || -e "$destination_path" ]]; then
-    echo "Refusing unsafe or conflicting configured cron path: $destination_path" >&2
+  printf '%s\n' "$content" >"$destination_path"
+  chmod 0640 "$destination_path"
+}
+
+render_workflow_prompt() {
+  local template_path="$1"
+  local destination_path="$2"
+  local content value
+
+  content="$(<"$template_path")"
+  value="$INSTALLED_VM_WORKFLOW"
+  value="${value//\'/\'\\\'\'}"
+  content="${content//__VM_WORKFLOW_BIN__/$value}"
+  value="/var/lib/proxyma-client-vulnerability-management/workflow.sqlite"
+  value="${value//\'/\'\\\'\'}"
+  content="${content//__VM_WORKFLOW_DB__/$value}"
+  value="$PROJECT_DIR/harness/proxyma-client.json"
+  value="${value//\'/\'\\\'\'}"
+  content="${content//__VM_WORKFLOW_PROXYMA_CONFIG__/$value}"
+  if [[ "$content" == *__VM_WORKFLOW_BIN__* || "$content" == *__VM_WORKFLOW_DB__* || "$content" == *__VM_WORKFLOW_PROXYMA_CONFIG__* ]]; then
+    echo "Workflow prompt contains an unresolved static placeholder: $template_path" >&2
     exit 1
   fi
-  install -m 0640 "$rendered_path" "$destination_path"
+  if [[ "$content" != *__VM_WORKFLOW_WORKER_ID__* ]]; then
+    echo "Workflow prompt is missing the worker-ID marker: $template_path" >&2
+    exit 1
+  fi
+  printf '%s\n' "$content" >"$destination_path"
+  chmod 0644 "$destination_path"
 }
 
 INSTALLED_BINARY="$BIN_DIR/proxyma-client"
@@ -488,6 +510,19 @@ if [[ "$WITH_VM_WORKFLOW" == true ]]; then
     exit 1
   fi
 fi
+if [[ "$WITH_VM_WORKFLOW" == true ]]; then
+  render_workflow_prompt \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/prompt.md" \
+    "$TEMP_DIR/configured-prompt"
+  install -m 0644 "$TEMP_DIR/configured-prompt" \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/prompt.md"
+  render_workflow_cron \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/cron.example" \
+    "$TEMP_DIR/configured-cron"
+  install -m 0640 "$TEMP_DIR/configured-cron" \
+    "$PAYLOAD_DIR/workflows/vulnerability-management/cron"
+fi
+
 install -m 0755 "$BINARY_PATH" "$NEW_BINARY"
 if [[ -e "$INSTALLED_BINARY" ]]; then mv "$INSTALLED_BINARY" "$BACKUP_BINARY"; fi
 if ! mv "$NEW_BINARY" "$INSTALLED_BINARY"; then
@@ -530,9 +565,6 @@ for owned in instruction-pack examples tests .agents .claude generic RELEASE; do
 done
 if [[ "$WITH_VM_WORKFLOW" == true ]]; then
   replace_path "$PAYLOAD_DIR/workflows" "$HARNESS_DIR/workflows"
-  render_workflow_cron \
-    "$HARNESS_DIR/workflows/vulnerability-management/cron.example" \
-    "$HARNESS_DIR/workflows/vulnerability-management/cron"
 fi
 
 if [[ "$HARNESS_TYPE" == "codex" ]]; then
