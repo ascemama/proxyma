@@ -130,6 +130,14 @@ grep -F ': "${VM_WORKFLOW_BIN:=${HOME}/.local/bin/vm-workflow}"' "$worker_launch
 grep -F 'VM_WORKFLOW_DB' "$worker_launcher" >/dev/null || fail "worker launcher omits database contract"
 grep -F 'VM_WORKFLOW_PROXYMA_CONFIG' "$worker_launcher" >/dev/null || fail "worker launcher omits Proxyma config contract"
 grep -F 'VM_WORKFLOW_WORKER_ID' "$worker_launcher" >/dev/null || fail "worker launcher omits worker ID contract"
+grep -F -- '--in "$VM_WORKFLOW_PROJECT_DIR"' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes working-directory option"
+grep -F 'chat' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes chat command"
+grep -F -- '--query-file "$VM_WORKFLOW_PROMPT"' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes query-file option"
+grep -F -- '--oneshot' "$worker_launcher" >/dev/null || fail "worker launcher omits Hermes one-shot option"
+grep -F -- '--skill proxyma-harness' "$worker_launcher" >/dev/null || fail "worker launcher omits harness skill option"
+if grep -F -- '--workdir' "$worker_launcher" >/dev/null || grep -F -- '--prompt-file' "$worker_launcher" >/dev/null; then
+  fail "worker launcher contains obsolete Hermes invocation options"
+fi
 grep -F 'run-hermes-worker.sh' "$cron_example" >/dev/null || fail "cron example does not use worker launcher"
 grep -F 'PROJECT_DIR=__PROJECT_DIR__' "$cron_example" >/dev/null || fail "cron example omits project directory placeholder"
 if grep -F '/srv/' "$cron_example" "$worker_launcher" "$workflow_doc" >/dev/null; then
